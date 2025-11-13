@@ -1,0 +1,89 @@
+openapi: 3.0.0
+info:
+  title: School Bus Tracker API
+  version: "1.0"
+servers:
+  - url: http://localhost:4000/api
+paths:
+  /auth/login:
+    post:
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: JWT token
+  /buses:
+    get:
+      summary: List buses (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: list }
+    post:
+      summary: Create bus (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                number: { type: string }
+                driverId: { type: string }
+                driverName: { type: string }
+                driverPhone: { type: string }
+      responses: { '200': { description: created } }
+  /buses/{id}/location:
+    post:
+      summary: Update bus location (unprotected)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lat: { type: number }
+                lng: { type: number }
+      responses: { '200': { description: updated } }
+  /students:
+    get:
+      summary: List students (protected)
+      security:
+        - bearerAuth: []
+      responses: { '200': { description: list } }
+    post:
+      summary: Create student (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                cls: { type: string }
+      responses: { '200': { description: created } }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
