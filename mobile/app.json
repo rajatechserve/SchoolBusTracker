@@ -1,31 +1,19 @@
 {
-  "name": "SchoolBusTracker",
-  "displayName": "School Bus Tracker",
-  "version": "1.0.0",
-  "slug": "school-bus-tracker",
-  "platforms": [
-    "ios",
-    "android"
-  ],
-  "orientation": "portrait",
-  "icon": "./assets/icon.png",
-  "splash": {
-    "image": "./assets/splash.png",
-    "resizeMode": "contain",
-    "backgroundColor": "#ffffff"
-  },
-  "updates": {
-    "fallbackToCacheTimeout": 0
-  },
-  "assetBundlePatterns": [
-    "**/*"
-  ],
-  "web": {
-    "favicon": "./assets/favicon.png"
-  },
-  "extra": {
-    "eas": {
-      "projectId": "your-project-id"
-    }
+  "expo": {
+    "name": "SchoolBusTabs",
+    "slug": "schoolbus-tabs",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "icon": "./assets/icon.png"
   }
 }

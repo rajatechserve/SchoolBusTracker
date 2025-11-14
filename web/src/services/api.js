@@ -1,9 +1,9 @@
 
 import axios from 'axios';
-const api = axios.create({ baseURL: 'http://localhost:4000/api' });
-api.interceptors.request.use(cfg => {
-  const token = localStorage.getItem('admin_token');
-  if(token) cfg.headers = cfg.headers || {}, cfg.headers.Authorization = `Bearer ${token}`;
-  return cfg;
+const api = axios.create({ baseURL: 'http://localhost:4000/api', timeout: 10000 });
+api.interceptors.request.use((config)=>{
+  const t = localStorage.getItem('admin_token') || localStorage.getItem('user_token');
+  if(t) config.headers = {...config.headers, Authorization: `Bearer ${t}`};
+  return config;
 });
 export default api;

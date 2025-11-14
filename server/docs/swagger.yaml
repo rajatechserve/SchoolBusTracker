@@ -1,9 +1,157 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: School Bus Tracker API
-  version: "1.0"
+  title: School Bus Tracker API (Merged Final)
+  version: "1.0.0"
 servers:
   - url: http://localhost:4000/api
+components:
+  schemas:
+    AuthLogin:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    securitySchemes:
+      bearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+    DriverLogin:
+      type: object
+      properties:
+        id:
+          type: string
+        phone:
+          type: string
+        bus:
+          type: string
+    ParentLogin:
+      type: object
+      properties:
+        id:
+          type: string
+        phone:
+          type: string
+    Driver:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        license:
+          type: string
+    Student:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        cls:
+          type: string
+    Parent:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+    Bus:
+      type: object
+      required: [number]
+      properties:
+        id:
+          type: string
+        number:
+          type: string
+        driverId:
+          type: string
+        driverName:
+          type: string
+        driverPhone:
+          type: string
+        started:
+          type: boolean
+    BusLocation:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          format: float
+        lng:
+          type: number
+          format: float
+    Route:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        stops:
+          type: array
+          items:
+            type: string
+    Assignment:
+      type: object
+      required: [driverId, busId]
+      properties:
+        id:
+          type: string
+        driverId:
+          type: string
+        busId:
+          type: string
+        routeId:
+          type: string
+    Attendance:
+      type: object
+      required: [studentId]
+      properties:
+        id:
+          type: string
+        studentId:
+          type: string
+        busId:
+          type: string
+        timestamp:
+          type: integer
+        status:
+          type: string
+    School:
+      type: object
+      required: [name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+    EmailNotification:
+      type: object
+      required: [to, subject, text]
+      properties:
+        to:
+          type: string
+        subject:
+          type: string
+        text:
+          type: string
+
 paths:
   /auth/login:
     post:
@@ -13,22 +161,42 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                username: { type: string }
-                password: { type: string }
+              $ref: "#/components/schemas/AuthLogin"
       responses:
-        '200':
-          description: JWT token
-  /buses:
-    get:
-      summary: List buses (protected)
-      security:
-        - bearerAuth: []
-      responses:
-        '200': { description: list }
+        "200":
+          description: Token returned
+  /auth/driver-login:
     post:
-      summary: Create bus (protected)
+      summary: Driver login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverLogin"
+      responses:
+        "200":
+          description: Driver token and info
+  /auth/parent-login:
+    post:
+      summary: Parent login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParentLogin"
+      responses:
+        "200":
+          description: Parent token and info
+
+  /drivers:
+    get:
+      summary: List drivers
+      responses:
+        "200": { description: OK }
+    post:
+      summary: Create a driver
       security:
         - bearerAuth: []
       requestBody:
@@ -36,16 +204,21 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                number: { type: string }
-                driverId: { type: string }
-                driverName: { type: string }
-                driverPhone: { type: string }
-      responses: { '200': { description: created } }
-  /buses/{id}/location:
-    post:
-      summary: Update bus location (unprotected)
+              $ref: "#/components/schemas/Driver"
+      responses:
+        "200": { description: Created }
+
+  /drivers/{id}:
+    get:
+      summary: Get driver by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses: { "200": { description: OK } }
+    put:
+      summary: Update driver
       parameters:
         - name: id
           in: path
@@ -56,34 +229,211 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                lat: { type: number }
-                lng: { type: number }
-      responses: { '200': { description: updated } }
+              $ref: "#/components/schemas/Driver"
+      responses: { "200": { description: Updated } }
+    delete:
+      summary: Delete driver
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses: { "200": { description: Deleted } }
+
   /students:
     get:
-      summary: List students (protected)
-      security:
-        - bearerAuth: []
-      responses: { '200': { description: list } }
+      summary: List students
+      responses: { "200": { description: OK } }
     post:
-      summary: Create student (protected)
-      security:
-        - bearerAuth: []
+      summary: Create student
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name: { type: string }
-                cls: { type: string }
-      responses: { '200': { description: created } }
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+              $ref: "#/components/schemas/Student"
+      responses: { "200": { description: Created } }
+
+  /students/{id}:
+    get:
+      summary: Get student
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK } }
+    put:
+      summary: Update student
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/Student" } },
+          }
+      responses: { "200": { description: Updated } }
+    delete:
+      summary: Delete student
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Deleted } }
+
+  /parents:
+    get:
+      summary: List parents
+      responses: { "200": { description: OK } }
+    post:
+      summary: Create parent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Parent"
+      responses: { "200": { description: Created } }
+
+  /buses:
+    get:
+      summary: List buses
+      responses: { "200": { description: OK } }
+    post:
+      summary: Create bus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Bus"
+      responses: { "200": { description: Created } }
+
+  /buses/{id}:
+    get:
+      summary: Get bus
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK } }
+    put:
+      summary: Update bus
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Bus"
+      responses: { "200": { description: Updated } }
+    delete:
+      summary: Delete bus
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Deleted } }
+
+  /buses/{id}/location:
+    post:
+      summary: Update bus location (protected)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusLocation"
+      responses: { "200": { description: Location updated } }
+
+  /routes:
+    get:
+      summary: List routes
+      responses: { "200": { description: OK } }
+    post:
+      summary: Create route
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Route"
+      responses: { "200": { description: Created } }
+
+  /routes/{id}:
+    put:
+      summary: Update route
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          {
+            application/json:
+              { schema: { $ref: "#/components/schemas/Route" } },
+          }
+      responses: { "200": { description: Updated } }
+    delete:
+      summary: Delete route
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Deleted } }
+
+  /assignments:
+    get:
+      summary: List assignments
+      responses: { "200": { description: OK } }
+    post:
+      summary: Create assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Assignment"
+      responses: { "200": { description: Created } }
+
+  /assignments/{id}:
+    delete:
+      summary: Delete assignment
+      parameters:
+        [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Deleted } }
+
+  /attendance:
+    get:
+      summary: List attendance
+      responses: { "200": { description: OK } }
+    post:
+      summary: Record attendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Attendance"
+      responses: { "200": { description: Created } }
+
+  /schools:
+    get:
+      summary: List schools
+      responses: { "200": { description: OK } }
+    post:
+      summary: Create school
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/School"
+      responses: { "200": { description: Created } }
+
+  /notifications/email:
+    post:
+      summary: Send email notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailNotification"
+      responses: { "200": { description: Sent } }

@@ -1,33 +1,21 @@
 {
-  "name": "school-bus-tracker-server",
+  "name": "school-bus-server-full",
   "version": "1.0.0",
-  "description": "Backend server for the School Bus Tracker application",
-  "main": "src/index.ts",
+  "private": true,
   "scripts": {
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon src/index.ts",
-    "build": "tsc"
+    "dev": "node src/index.js",
+    "migrate": "node src/migrate.js"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "mongoose": "^5.10.9",
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "dotenv": "^8.2.0",
-    "jsonwebtoken": "^8.5.1",
-    "bcryptjs": "^2.4.3"
-  },
-  "devDependencies": {
-    "typescript": "^4.1.2",
-    "ts-node": "^9.0.0",
-    "nodemon": "^2.0.4",
-    "@types/express": "^4.17.8",
-    "@types/node": "^14.14.6",
-    "@types/cors": "^2.8.10",
-    "@types/jsonwebtoken": "^8.5.0",
-    "@types/bcryptjs": "^2.4.2"
-  },
-  "engines": {
-    "node": ">=12.0.0"
-  },
-  "license": "MIT"
+    "sqlite3": "^5.1.6",
+    "bcrypt": "^5.1.0",
+    "jsonwebtoken": "^9.0.0",
+    "uuid": "^9.0.0",
+    "swagger-ui-express": "^4.6.3",
+    "yamljs": "^0.3.0",
+    "dotenv": "^16.0.3",
+    "nodemailer": "^6.9.3"
+  }
 }
