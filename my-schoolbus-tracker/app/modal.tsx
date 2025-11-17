@@ -1,5 +1,6 @@
 import { Link } from 'expo-router';
 import { StyleSheet } from 'react-native';
+import theme from '@/constants/theme';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -21,9 +22,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: theme.colors.background, // Applied theme background color
   },
   link: {
-    marginTop: 15,
+    insetBlockStart: 15, // Replaced marginTop with logical property
     paddingVertical: 15,
+    color: theme.colors.primary, // Applied theme primary color
   },
 });
