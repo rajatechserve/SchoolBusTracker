@@ -2,11 +2,16 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "jsx": "react-native",
     "paths": {
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "lib": [
+      "ES2015",
+      "DOM"
+    ]
   },
   "include": [
     "**/*.ts",
