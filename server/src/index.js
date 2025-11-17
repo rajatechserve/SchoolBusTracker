@@ -52,16 +52,39 @@ function getSql(sql, params = [])
     });
 }
 
+// Add a cache to store validated tokens
+const tokenCache = new Map();
+
 function authenticateToken(req, res, next)
 {
     const auth = req.headers.authorization;
     if (!auth) return res.status(401).json({ error: 'Missing Authorization header' });
     const parts = auth.split(' ');
     if (parts.length !== 2 || parts[0] !== 'Bearer') return res.status(401).json({ error: 'Malformed Authorization header' });
-    jwt.verify(parts[1], JWT_SECRET, (err, user) =>
+
+    const token = parts[1];
+
+    // Check if the token is already cached
+    if (tokenCache.has(token))
+    {
+        const cachedUser = tokenCache.get(token);
+        // Check if the cached token is still valid
+        if (cachedUser.exp > Date.now() / 1000)
+        {
+            req.user = cachedUser;
+            return next();
+        } else
+        {
+            tokenCache.delete(token); // Remove expired token from cache
+        }
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) =>
     {
         if (err) return res.status(403).json({ error: 'Invalid token' });
         req.user = user;
+        // Cache the token with its expiration time
+        tokenCache.set(token, user);
         next();
     });
 }
