@@ -4,7 +4,14 @@ info:
   version: "1.0.0"
 servers:
   - url: http://localhost:4000/api
+security:
+  - bearerAuth: []
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     AuthLogin:
       type: object
@@ -14,11 +21,6 @@ components:
           type: string
         password:
           type: string
-    securitySchemes:
-      bearerAuth:
-        type: http
-        scheme: bearer
-        bearerFormat: JWT
     DriverLogin:
       type: object
       properties:
