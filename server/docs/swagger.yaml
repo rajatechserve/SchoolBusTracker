@@ -23,26 +23,21 @@ components:
           type: string
     DriverLogin:
       type: object
-      required: [phone, name]
+      required: [phone]
       properties:
-        id:
-          type: string
         phone:
           type: string
-        name:
-          type: string
-        bus:
-          type: string
+          description: Driver phone number (unique)
     ParentLogin:
       type: object
-      required: [phone, name]
+      required: [phone]
       properties:
-        id:
-          type: string
         phone:
           type: string
-        name:
+          description: Parent phone number (unique)
+        studentId:
           type: string
+          description: Optional student ID to link on first login
     Driver:
       type: object
       required: [name]
