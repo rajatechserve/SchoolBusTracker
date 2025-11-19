@@ -3,7 +3,8 @@ import { Stack, useSegments, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 'react-native-paper';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator } from 'react-native-paper';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -42,17 +43,38 @@ function InnerLayout() {
   const { navTheme, paperTheme } = useThemes(colorScheme);
   const segments = useSegments();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, hydrated } = useAuth();
+  const [navReady, setNavReady] = useState(false);
+
+  // Mark navigation ready once segments resolve (empty array -> resolving, non-empty -> ready)
+  useEffect(() => {
+    if (!navReady && segments.length > 0) {
+      setNavReady(true);
+    }
+  }, [segments, navReady]);
 
   // Route guard: ensure unauthenticated users land on /login, authenticated go to tabs.
   useEffect(() => {
+    if (!navReady) return; // defer until navigation is ready
     const first = segments[0];
     if (!user) {
       if (first !== 'login') router.replace('/login');
     } else {
       if (first === 'login') router.replace('/(tabs)');
     }
-  }, [user, segments, router]);
+  }, [user, segments, router, navReady]);
+
+  // Optional: simple loading state until navigation segments resolve
+  if (!navReady || !hydrated) {
+    return (
+      <ThemeProvider value={navTheme}>
+        <PaperProvider theme={paperTheme}>
+          <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
+          <StatusBar style="auto" />
+        </PaperProvider>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider value={navTheme}>

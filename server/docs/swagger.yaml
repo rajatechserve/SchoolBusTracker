@@ -23,19 +23,25 @@ components:
           type: string
     DriverLogin:
       type: object
+      required: [phone, name]
       properties:
         id:
           type: string
         phone:
+          type: string
+        name:
           type: string
         bus:
           type: string
     ParentLogin:
       type: object
+      required: [phone, name]
       properties:
         id:
           type: string
         phone:
+          type: string
+        name:
           type: string
     Driver:
       type: object
@@ -59,6 +65,12 @@ components:
           type: string
         cls:
           type: string
+        parentId:
+          type: string
+          description: ID of the parent associated with the student
+        busId:
+          type: string
+          description: ID of the bus assigned to the student
     Parent:
       type: object
       required: [name]
@@ -293,6 +305,17 @@ paths:
             schema:
               $ref: "#/components/schemas/Parent"
       responses: { "200": { description: Created } }
+
+  /parents/{id}/students:
+    get:
+      summary: List students for a specific parent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
 
   /buses:
     get:

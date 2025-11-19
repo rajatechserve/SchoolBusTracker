@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type User = {
   role: 'driver' | 'parent';
@@ -11,6 +12,7 @@ export type User = {
 type AuthContextType = {
   user: User | null;
   token: string | null;
+  hydrated: boolean;
   loginLocal: (role: 'driver' | 'parent', payload: Partial<User>, token?: string | null) => void;
   logout: () => void;
 };
@@ -20,6 +22,25 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hydrate persisted auth state
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('auth');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.user) setUser(parsed.user);
+          if (parsed.token) setToken(parsed.token);
+        }
+      } catch (e) {
+        // swallow – persistence is best-effort
+      } finally {
+        setHydrated(true);
+      }
+    })();
+  }, []);
 
   const loginLocal = useCallback((role: 'driver' | 'parent', payload: Partial<User>, t?: string | null) => {
     const id = payload.id || `${role}-${Date.now()}`;
@@ -27,12 +48,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const next: User = { role, id, name, bus: payload.bus ?? null, phone: payload.phone };
     setUser(next);
     if (t) setToken(t);
+    // persist
+    AsyncStorage.setItem('auth', JSON.stringify({ user: next, token: t || null })).catch(() => {});
   }, []);
 
-  const logout = useCallback(() => { setUser(null); setToken(null); }, []);
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    AsyncStorage.removeItem('auth').catch(() => {});
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, loginLocal, logout }}>
+    <AuthContext.Provider value={{ user, token, hydrated, loginLocal, logout }}>
       {children}
     </AuthContext.Provider>
   );
