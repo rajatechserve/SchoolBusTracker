@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 // Allow require for static HTML asset
 declare const require: any;
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
@@ -15,6 +15,8 @@ export default function TrackBus() {
   const [busLocation, setBusLocation] = useState<BusLocation | null>(null);
   const [schoolLocation] = useState<{ lat: number; lng: number }>({ lat: 13.0827, lng: 80.2707 }); // TODO: replace with real school coords
   const [routePath, setRoutePath] = useState<BusLocation[]>([]);
+  // Keep a mutable ref to avoid stale closure inside polling callback.
+  const routePathRef = useRef<BusLocation[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const webViewRef = useRef<WebView | null>(null);
   const pollingRef = useRef<number | null>(null);
@@ -26,7 +28,7 @@ export default function TrackBus() {
   };
 
   // Fetch latest bus location
-  const fetchLocation = async () => {
+  const fetchLocation = useCallback(async () => {
     try {
       const response = await api.get('/buses');
       const buses = response.data || [];
@@ -35,29 +37,30 @@ export default function TrackBus() {
         setBusLocation(latest);
         setRoutePath((prev: BusLocation[]) => {
           if (prev.length === 0 || prev[prev.length - 1].lat !== latest.lat || prev[prev.length - 1].lng !== latest.lng) {
-            const next = [...prev, latest];
-            // Limit stored path length
-            return next.slice(-200);
+            const next = [...prev, latest].slice(-200);
+            routePathRef.current = next;
+            return next;
           }
+          routePathRef.current = prev;
           return prev;
         });
         if (mapReady) {
           postMessage({ type: 'UPDATE_BUS', lat: latest.lat, lng: latest.lng });
-          if (routePath.length > 1) {
-            postMessage({ type: 'SET_ROUTE', path: routePath });
+          if (routePathRef.current.length > 1) {
+            postMessage({ type: 'SET_ROUTE', path: routePathRef.current });
           }
         }
       }
     } catch (e) {
       console.error('Error fetching bus location', e);
     }
-  };
+  }, [mapReady]);
 
   useEffect(() => {
     fetchLocation();
-    pollingRef.current = setInterval(fetchLocation, 5000); // 5s polling
+    pollingRef.current = setInterval(fetchLocation, 5000);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, [mapReady]);
+  }, [fetchLocation]);
 
   // Initialize school marker once map ready
   useEffect(() => {
@@ -75,8 +78,8 @@ export default function TrackBus() {
         if (busLocation) {
           postMessage({ type: 'UPDATE_BUS', lat: busLocation.lat, lng: busLocation.lng, animate: false });
         }
-        if (routePath.length > 1) {
-          postMessage({ type: 'SET_ROUTE', path: routePath });
+        if (routePathRef.current.length > 1) {
+          postMessage({ type: 'SET_ROUTE', path: routePathRef.current });
         }
       }
     } catch (e) {
