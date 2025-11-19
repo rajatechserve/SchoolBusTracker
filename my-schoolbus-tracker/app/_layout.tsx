@@ -1,8 +1,10 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useSegments, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 'react-native-paper';
+import { useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -35,19 +37,41 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function InnerLayout() {
   const colorScheme = useColorScheme();
   const { navTheme, paperTheme } = useThemes(colorScheme);
+  const segments = useSegments();
+  const router = useRouter();
+  const { user } = useAuth();
+
+  // Route guard: ensure unauthenticated users land on /login, authenticated go to tabs.
+  useEffect(() => {
+    const first = segments[0];
+    if (!user) {
+      if (first !== 'login') router.replace('/login');
+    } else {
+      if (first === 'login') router.replace('/(tabs)');
+    }
+  }, [user, segments, router]);
 
   return (
     <ThemeProvider value={navTheme}>
       <PaperProvider theme={paperTheme}>
         <Stack>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="auto" />
       </PaperProvider>
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <InnerLayout />
+    </AuthProvider>
   );
 }

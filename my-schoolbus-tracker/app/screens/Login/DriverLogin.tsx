@@ -1,38 +1,37 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import api, { attachToken } from '../../services/api';
+import { router } from 'expo-router';
 
-export default function DriverLogin({ navigation }: { navigation: any }) {
-  const [driver, setDriver] = useState('');
+export default function DriverLogin() {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [bus, setBus] = useState('');
-  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const { loginLocal } = useAuth();
+  const valid = name.trim().length>=2 && /^\+?\d{7,15}$/.test(phone.trim()) && bus.trim().length>=2;
+
+  const submit = async () => {
+    if (!valid || loading) return;
+    setLoading(true);
+    try {
+      const resp = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: bus.trim() });
+      const token = resp.data?.token;
+      if (token) attachToken(token);
+      loginLocal('driver', { id: phone.trim(), name: name.trim(), phone: phone.trim(), bus: bus.trim() }, token);
+      router.replace('/(tabs)');
+    } catch(e:any){ console.warn('Driver login failed', e?.message); } finally { setLoading(false); }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Driver Login</Text>
-      <TextInput
-        placeholder="Driver ID"
-        value={driver}
-        onChangeText={setDriver}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Bus Number"
-        value={bus}
-        onChangeText={setBus}
-        style={styles.input}
-      />
-      <TouchableOpacity
-        onPress={() => {
-          login('driver', {
-            id: driver || 'drv1',
-            name: 'Driver ' + (driver || '1'),
-            bus: bus || 'BUS1',
-          });
-        }}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>Continue</Text>
+      <TextInput placeholder="Name" value={name} onChangeText={setName} style={styles.input} />
+      <TextInput placeholder="Mobile (+123...)" value={phone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" />
+      <TextInput placeholder="Bus Number" value={bus} onChangeText={setBus} style={styles.input} />
+      <TouchableOpacity disabled={!valid || loading} onPress={submit} style={[styles.button, (!valid||loading)&&styles.buttonDisabled]}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
     </View>
   );

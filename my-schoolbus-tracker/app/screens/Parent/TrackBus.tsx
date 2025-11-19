@@ -5,6 +5,7 @@ import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Title } from 'react-native-paper';
 import { WebView } from 'react-native-webview';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface BusLocation {
   lat: number;
@@ -12,6 +13,7 @@ interface BusLocation {
 }
 
 export default function TrackBus() {
+  const { user } = useAuth();
   const [busLocation, setBusLocation] = useState<BusLocation | null>(null);
   const [schoolLocation] = useState<{ lat: number; lng: number }>({ lat: 13.0827, lng: 80.2707 }); // TODO: replace with real school coords
   const [routePath, setRoutePath] = useState<BusLocation[]>([]);
@@ -32,8 +34,9 @@ export default function TrackBus() {
     try {
       const response = await api.get('/buses');
       const buses = response.data || [];
-      if (buses.length > 0 && buses[0].location) {
-        const latest = { lat: buses[0].location.lat, lng: buses[0].location.lng };
+      const target = (user?.bus && buses.find((b:any)=> b.id===user.bus || b.number===user.bus)) || buses[0];
+      if (target && target.location) {
+        const latest = { lat: target.location.lat, lng: target.location.lng };
         setBusLocation(latest);
         setRoutePath((prev: BusLocation[]) => {
           if (prev.length === 0 || prev[prev.length - 1].lat !== latest.lat || prev[prev.length - 1].lng !== latest.lng) {
