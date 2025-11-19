@@ -9,30 +9,25 @@ type Role = 'driver' | 'parent';
 export default function UnifiedLogin() {
   const { loginLocal } = useAuth();
   const [role, setRole] = useState<Role>('driver');
-  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [busNumber, setBusNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const phoneValid = /^\+?\d{7,15}$/.test(phone.trim());
-  const nameValid = name.trim().length >= 2;
-  const driverValid = nameValid && phoneValid && busNumber.trim().length >= 2;
-  const parentValid = nameValid && phoneValid;
-  const canSubmit = useMemo(() => (role === 'driver' ? driverValid : parentValid), [role, driverValid, parentValid]);
+  const canSubmit = useMemo(() => phoneValid, [phoneValid]);
 
   const submit = async () => {
     if (!canSubmit || loading) return;
     setLoading(true);
     try {
       if (role === 'driver') {
-        const resp = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: busNumber.trim() });
+        const resp = await api.post('/auth/driver-login', { phone: phone.trim() });
         const token = resp.data?.token;
         if (token) attachToken(token);
-        loginLocal('driver', { id: phone.trim(), name: name.trim(), bus: busNumber.trim(), phone: phone.trim() }, token);
+        loginLocal('driver', { id: phone.trim(), name: resp.data?.driver?.name || `Driver ${phone.slice(-4)}`, phone: phone.trim(), bus: resp.data?.driver?.bus || null }, token);
       } else {
-        const resp = await api.post('/auth/parent-login', { phone: phone.trim(), name: name.trim() });
+        const resp = await api.post('/auth/parent-login', { phone: phone.trim() });
         const token = resp.data?.token;
         if (token) attachToken(token);
-        loginLocal('parent', { id: phone.trim(), name: name.trim(), phone: phone.trim() }, token);
+        loginLocal('parent', { id: phone.trim(), name: resp.data?.parent?.name || `Parent ${phone.slice(-4)}`, phone: phone.trim(), bus: resp.data?.parent?.bus || null }, token);
       }
       // Navigate to tabs after successful login
       router.replace('/(tabs)');
@@ -63,29 +58,13 @@ export default function UnifiedLogin() {
 
       <View style={styles.formBlock}>
         <TextInput
-          placeholder="Name"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          autoCapitalize="words"
-        />
-        <TextInput
           placeholder="Mobile (e.g. +1234567890)"
           value={phone}
           onChangeText={setPhone}
           style={styles.input}
           keyboardType="phone-pad"
         />
-        {role === 'driver' && (
-          <TextInput
-            placeholder="Bus Number"
-            value={busNumber}
-            onChangeText={setBusNumber}
-            style={styles.input}
-            autoCapitalize="characters"
-          />
-        )}
-        <Text style={styles.helper}>{canSubmit ? 'Ready' : role === 'driver' ? 'Need name, phone, bus (2+ chars)' : 'Need name (2+) & valid phone'}</Text>
+        <Text style={styles.helper}>{canSubmit ? 'Ready' : 'Enter valid phone number'}</Text>
       </View>
 
       <TouchableOpacity
