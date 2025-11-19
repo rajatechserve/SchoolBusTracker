@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api, { attachToken } from '../../services/api';
-import { router } from 'expo-router';
 
 type Role = 'driver' | 'parent';
 
@@ -34,8 +33,6 @@ export default function UnifiedLogin() {
         if (token) attachToken(token);
         loginLocal('parent', { id: phone.trim(), name: name.trim(), phone: phone.trim() }, token);
       }
-      // Navigate to tabs after successful login
-      router.replace('/(tabs)');
     } catch (e: any) {
       console.warn('Login failed', e?.message);
     } finally {

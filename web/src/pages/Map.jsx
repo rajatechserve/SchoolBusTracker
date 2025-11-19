@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import api, { getAuthUser } from '../services/api';
+import api from '../services/api';
 export default function Map(){
   const mapRef = useRef(null);
   useEffect(()=>{
@@ -15,16 +15,9 @@ export default function Map(){
       try{
         const res = await api.get('/buses');
         markers.clearLayers();
-        const user = getAuthUser();
-        let buses = res.data||[];
-        if(user?.role==='driver' && user.bus){
-          buses = buses.filter(b=> b.number===user.bus || b.id===user.bus);
-        } else if(user?.role==='parent' && user.bus){
-          buses = buses.filter(b=> b.id===user.bus || b.number===user.bus);
-        }
-        buses.forEach(b=>{
+        (res.data||[]).forEach(b=>{
           if(b.location){
-            const m = L.marker([b.location.lat,b.location.lng], { icon: busIcon }).bindPopup(`<strong>${b.number}</strong><br/>${b.driverName||''}`);
+            const m = L.marker([b.location.lat,b.location.lng], { icon: busIcon }).bindPopup(`<strong>${b.number}</strong><br/>${b.driverName}`);
             markers.addLayer(m);
           }
         });

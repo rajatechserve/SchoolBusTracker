@@ -119,44 +119,36 @@ app.post('/api/auth/login', async (req, res) =>
     }
 });
 
-// Driver login / auto-registration by phone
-app.post('/api/auth/driver-login', async (req, res) => {
-    try {
-        const { id, phone, name, bus } = req.body || {};
-        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
+app.post('/api/auth/driver-login', async (req, res) =>
+{
+    try
+    {
+        const { id, phone, bus } = req.body || {};
         let row = null;
         if (id) row = await getSql('SELECT * FROM drivers WHERE id=?', [id]);
         else if (phone) row = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
-        if (!row) {
-            if (!name || !phone) return res.status(404).json({ error: 'Driver not found. Provide name and phone to create.' });
-            const newId = uuidv4();
-            await runSql('INSERT INTO drivers(id,name,phone,license) VALUES(?,?,?,?)', [newId, name, phone, null]);
-            row = await getSql('SELECT * FROM drivers WHERE id=?', [newId]);
-        }
+        if (!row) return res.status(404).json({ error: 'Driver not found' });
         const token = jwt.sign({ id: row.id, name: row.name, role: 'driver', bus: bus || null }, JWT_SECRET, { expiresIn: '24h' });
         res.json({ token, driver: { id: row.id, name: row.name, phone: row.phone } });
-    } catch (e) {
+    } catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });
 
-// Parent login / auto-registration by phone
-app.post('/api/auth/parent-login', async (req, res) => {
-    try {
-        const { phone, id, name } = req.body || {};
-        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
+app.post('/api/auth/parent-login', async (req, res) =>
+{
+    try
+    {
+        const { phone, id } = req.body || {};
         let row = null;
         if (id) row = await getSql('SELECT * FROM parents WHERE id=?', [id]);
         else if (phone) row = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
-        if (!row) {
-            if (!name || !phone) return res.status(404).json({ error: 'Parent not found. Provide name and phone to create.' });
-            const newId = uuidv4();
-            await runSql('INSERT INTO parents(id,name,phone) VALUES(?,?,?)', [newId, name, phone]);
-            row = await getSql('SELECT * FROM parents WHERE id=?', [newId]);
-        }
+        if (!row) return res.status(404).json({ error: 'Parent not found' });
         const token = jwt.sign({ id: row.id, name: row.name, role: 'parent' }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, parent: { id: row.id, name: row.name, phone: row.phone } });
-    } catch (e) {
+        res.json({ token, parent: { id: row.id, name: row.name } });
+    } catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });
@@ -230,35 +222,44 @@ app.delete('/api/drivers/:id', authenticateToken, async (req, res) =>
 });
 
 // ------------------ STUDENTS CRUD ------------------
-app.get('/api/students', async (req, res) => {
-    try {
-        const rows = await allSql('SELECT id,name,cls,parentId,busId FROM students');
+app.get('/api/students', async (req, res) =>
+{
+    try
+    {
+        const rows = await allSql('SELECT id,name,cls FROM students');
         res.json(rows);
-    } catch (e) {
+    } catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });
 
-app.post('/api/students', authenticateToken, async (req, res) => {
-    try {
-        const { name, cls, parentId, busId } = req.body || {};
+app.post('/api/students', authenticateToken, async (req, res) =>
+{
+    try
+    {
+        const { name, cls } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
         const id = uuidv4();
-        await runSql('INSERT INTO students(id,name,cls,parentId,busId) VALUES(?,?,?,?,?)', [id, name, cls || null, parentId || null, busId || null]);
-        const row = await getSql('SELECT id,name,cls,parentId,busId FROM students WHERE id=?', [id]);
+        await runSql('INSERT INTO students(id,name,cls) VALUES(?,?,?)', [id, name, cls || null]);
+        const row = await getSql('SELECT id,name,cls FROM students WHERE id=?', [id]);
         res.json(row);
-    } catch (e) {
+    } catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });
 
-app.put('/api/students/:id', authenticateToken, async (req, res) => {
-    try {
-        const { name, cls, parentId, busId } = req.body || {};
-        await runSql('UPDATE students SET name=?,cls=?,parentId=?,busId=? WHERE id=?', [name, cls, parentId, busId, req.params.id]);
-        const row = await getSql('SELECT id,name,cls,parentId,busId FROM students WHERE id=?', [req.params.id]);
+app.put('/api/students/:id', authenticateToken, async (req, res) =>
+{
+    try
+    {
+        const { name, cls } = req.body || {};
+        await runSql('UPDATE students SET name=?,cls=? WHERE id=?', [name, cls, req.params.id]);
+        const row = await getSql('SELECT id,name,cls FROM students WHERE id=?', [req.params.id]);
         res.json(row);
-    } catch (e) {
+    } catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });
@@ -300,16 +301,6 @@ app.post('/api/parents', authenticateToken, async (req, res) =>
         res.json(row);
     } catch (e)
     {
-        res.status(500).json({ error: e.message });
-    }
-});
-// Fetch students belonging to a parent
-app.get('/api/parents/:id/students', async (req, res) => {
-    try {
-        const parentId = req.params.id;
-        const rows = await allSql('SELECT id,name,cls,parentId,busId FROM students WHERE parentId=?', [parentId]);
-        res.json(rows);
-    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
