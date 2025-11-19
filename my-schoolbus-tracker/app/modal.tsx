@@ -24,7 +24,10 @@ const MapComponent = () => (
   </MapView>
 );
 
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 const styles = StyleSheet.create({
   container: {
     flex: 1,

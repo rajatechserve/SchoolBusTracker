@@ -1,25 +1,22 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Button, Title } from 'react-native-paper';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 export default function RoleSelect({ navigation }: { navigation: any }) {
   return (
     <View style={styles.container}>
-      <Title>Select your role</Title>
-      <Button
-        mode="contained"
+      <Text style={styles.title}>Select your role</Text>
+      <TouchableOpacity
         onPress={() => navigation.navigate('DriverLogin')}
-        style={{ marginTop: 16 }}
+        style={styles.buttonPrimary}
       >
-        I'm a Driver
-      </Button>
-      <Button
-        mode="outlined"
+        <Text style={styles.buttonText}>I'm a Driver</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
         onPress={() => navigation.navigate('ParentLogin')}
-        style={{ marginTop: 8 }}
+        style={styles.buttonSecondary}
       >
-        I'm a Parent
-      </Button>
+        <Text style={styles.buttonText}>I'm a Parent</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -30,5 +27,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  buttonPrimary: {
+    backgroundColor: '#007BFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginBottom: 12,
+  },
+  buttonSecondary: {
+    backgroundColor: '#6C757D',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });

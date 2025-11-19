@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import React, { useEffect, useRef, useState } from 'react';
+// Allow require for static HTML asset
+declare const require: any;
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Title } from 'react-native-paper';
+import { WebView } from 'react-native-webview';
 import api from '../../services/api';
 
 interface BusLocation {
@@ -11,52 +13,102 @@ interface BusLocation {
 
 export default function TrackBus() {
   const [busLocation, setBusLocation] = useState<BusLocation | null>(null);
+  const [schoolLocation] = useState<{ lat: number; lng: number }>({ lat: 13.0827, lng: 80.2707 }); // TODO: replace with real school coords
+  const [routePath, setRoutePath] = useState<BusLocation[]>([]);
+  const [mapReady, setMapReady] = useState(false);
+  const webViewRef = useRef<WebView | null>(null);
+  const pollingRef = useRef<number | null>(null);
+
+  const postMessage = (data: any) => {
+    if (webViewRef.current) {
+      webViewRef.current.postMessage(JSON.stringify(data));
+    }
+  };
+
+  // Fetch latest bus location
+  const fetchLocation = async () => {
+    try {
+      const response = await api.get('/buses');
+      const buses = response.data || [];
+      if (buses.length > 0 && buses[0].location) {
+        const latest = { lat: buses[0].location.lat, lng: buses[0].location.lng };
+        setBusLocation(latest);
+        setRoutePath((prev: BusLocation[]) => {
+          if (prev.length === 0 || prev[prev.length - 1].lat !== latest.lat || prev[prev.length - 1].lng !== latest.lng) {
+            const next = [...prev, latest];
+            // Limit stored path length
+            return next.slice(-200);
+          }
+          return prev;
+        });
+        if (mapReady) {
+          postMessage({ type: 'UPDATE_BUS', lat: latest.lat, lng: latest.lng });
+          if (routePath.length > 1) {
+            postMessage({ type: 'SET_ROUTE', path: routePath });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching bus location', e);
+    }
+  };
 
   useEffect(() => {
-    const fetchLocation = async () => {
-      try {
-        const response = await api.get('/buses');
-        const buses = response.data || [];
-        if (buses.length > 0 && buses[0].location) {
-          setBusLocation({
-            lat: buses[0].location.lat,
-            lng: buses[0].location.lng,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching bus location:', error);
-      }
-    };
-
     fetchLocation();
-    const interval = setInterval(fetchLocation, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    pollingRef.current = setInterval(fetchLocation, 5000); // 5s polling
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, [mapReady]);
+
+  // Initialize school marker once map ready
+  useEffect(() => {
+    if (mapReady && schoolLocation) {
+      postMessage({ type: 'UPDATE_SCHOOL', lat: schoolLocation.lat, lng: schoolLocation.lng });
+    }
+  }, [mapReady, schoolLocation]);
+
+  // Handle incoming messages from WebView (optional future use)
+  const onMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'MAP_READY') {
+        setMapReady(true);
+        if (busLocation) {
+          postMessage({ type: 'UPDATE_BUS', lat: busLocation.lat, lng: busLocation.lng, animate: false });
+        }
+        if (routePath.length > 1) {
+          postMessage({ type: 'SET_ROUTE', path: routePath });
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Title>Track Bus</Title>
-      {busLocation ? (
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: busLocation.lat,
-            longitude: busLocation.lng,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }}
-        >
-          <Marker
-            coordinate={{
-              latitude: busLocation.lat,
-              longitude: busLocation.lng,
-            }}
-            title="Bus Location"
-          />
-        </MapView>
-      ) : (
-        <Title>Loading bus location...</Title>
-      )}
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.button} onPress={() => postMessage({ type: 'CENTER_BUS' })}>
+          <Text style={styles.buttonText}>Center Bus</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => postMessage({ type: 'CENTER_SCHOOL' })}>
+          <Text style={styles.buttonText}>Center School</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => postMessage({ type: 'FIT_ALL' })}>
+          <Text style={styles.buttonText}>Fit All</Text>
+        </TouchableOpacity>
+      </View>
+      <WebView
+        ref={webViewRef}
+        style={styles.map}
+        originWhitelist={["*"]}
+        source={require('./map-template.html')}
+        onMessage={onMessage}
+        // Increase performance for frequent updates
+        javaScriptEnabled
+        scalesPageToFit
+        cacheEnabled={false}
+      />
     </View>
   );
 }
@@ -68,6 +120,25 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-    marginTop: 16,
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: 'hidden'
   },
+  actions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    flexWrap: 'wrap'
+  },
+  button: {
+    backgroundColor: '#FF6B35',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600'
+  }
 });

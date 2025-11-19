@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -23,9 +22,35 @@ export default function LocationShare() {
   const stop = () => { if (ref.current) clearInterval(ref.current); setSharing(false); };
 
   return (
-    <View style={{ flex:1, justifyContent:'center', alignItems:'center', padding:20 }}>
-      <Text>Sharing location for bus {user?.bus}</Text>
-      <Button mode="contained" onPress={sharing ? stop : start} style={{ marginTop:20 }}>{sharing ? 'Stop' : 'Start'} Sharing</Button>
+    <View style={styles.container}>
+      <Text style={styles.text}>Sharing location for bus {user?.bus}</Text>
+      <TouchableOpacity onPress={sharing ? stop : start} style={styles.button}>
+        <Text style={styles.buttonText}>{sharing ? 'Stop' : 'Start'} Sharing</Text>
+      </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  text: {
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  button: {
+    backgroundColor: '#007BFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+});
