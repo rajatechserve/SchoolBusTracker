@@ -4,12 +4,14 @@ export type User = {
   role: 'driver' | 'parent';
   id: string;
   name: string;
-  bus?: string;
+  phone?: string;
+  bus?: string | null;
 };
 
 type AuthContextType = {
   user: User | null;
-  login: (role: 'driver' | 'parent', payload: Partial<User>) => void;
+  token: string | null;
+  loginLocal: (role: 'driver' | 'parent', payload: Partial<User>, token?: string | null) => void;
   logout: () => void;
 };
 
@@ -17,19 +19,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
-  const login = useCallback((role: 'driver' | 'parent', payload: Partial<User>) => {
-    // Ensure required fields; generate a lightweight id if absent.
+  const loginLocal = useCallback((role: 'driver' | 'parent', payload: Partial<User>, t?: string | null) => {
     const id = payload.id || `${role}-${Date.now()}`;
     const name = payload.name || (role === 'driver' ? 'Driver' : 'Parent');
-    const next: User = { role, id, name, bus: payload.bus };
+    const next: User = { role, id, name, bus: payload.bus ?? null, phone: payload.phone };
     setUser(next);
+    if (t) setToken(t);
   }, []);
 
-  const logout = useCallback(() => setUser(null), []);
+  const logout = useCallback(() => { setUser(null); setToken(null); }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loginLocal, logout }}>
       {children}
     </AuthContext.Provider>
   );

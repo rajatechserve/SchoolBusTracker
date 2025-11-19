@@ -14,6 +14,11 @@ function resolveBaseUrl(): string {
 
 const api = axios.create({ baseURL: resolveBaseUrl() });
 
+export function attachToken(token: string | null) {
+  if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  else delete api.defaults.headers.common.Authorization;
+}
+
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
