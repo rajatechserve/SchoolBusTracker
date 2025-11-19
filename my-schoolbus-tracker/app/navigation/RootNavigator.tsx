@@ -1,18 +1,4 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import AuthStack from './AuthStack';
-import DriverTabs from './DriverTabs';
-import ParentTabs from './ParentTabs';
-import { useAuth } from '../context/AuthContext';
-
-export default function RootNavigator() {
-  const { user } = useAuth();
-
-  return (
-    <NavigationContainer>
-      {!user && <AuthStack />}
-      {user && user.role === 'driver' && <DriverTabs />}
-      {user && user.role === 'parent' && <ParentTabs />}
-    </NavigationContainer>
-  );
-}
+// Legacy navigator no longer used (expo-router now handles navigation). Keeping
+// minimal stub to avoid import errors where still referenced. Remove references
+// and delete this file once confirmed unused.
+export default function RootNavigator() { return null; }

@@ -6,10 +6,10 @@ export default function LoginRoute() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Select Role</Text>
-      <TouchableOpacity style={styles.button} onPress={() => router.push('/screens/Login/DriverLogin')}>
+      <TouchableOpacity style={styles.button} onPress={() => router.push('/driver-login')}>
         <Text style={styles.buttonText}>Driver Login</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => router.push('/screens/Login/ParentLogin')}>
+      <TouchableOpacity style={styles.button} onPress={() => router.push('/parent-login')}>
         <Text style={styles.buttonText}>Parent Login</Text>
       </TouchableOpacity>
     </View>
