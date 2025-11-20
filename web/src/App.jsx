@@ -38,6 +38,7 @@ function Sidebar({ authUser }){
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/buses">Buses</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/drivers">Drivers</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/students">Students</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/parents">Parents</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/routes">Routes</Link>
