@@ -147,12 +147,17 @@ components:
       type: object
       required: [name]
       properties:
-        id:
-          type: string
-        name:
-          type: string
-        address:
-          type: string
+        id: { type: string }
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        state: { type: string }
+        county: { type: string }
+        phone: { type: string }
+        mobile: { type: string }
+        username: { type: string }
+        logo: { type: string, description: Base64 or URL for logo }
+        photo: { type: string, description: Base64 or URL for school photo }
     EmailNotification:
       type: object
       required: [to, subject, text]
@@ -441,14 +446,52 @@ paths:
       summary: List schools
       responses: { "200": { description: OK } }
     post:
-      summary: Create school
+      summary: Create school (name, address, city, state, county, phone, mobile, username, password, logo, photo)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, username, password]
+              properties:
+                name: { type: string }
+                address: { type: string }
+                city: { type: string }
+                state: { type: string }
+                county: { type: string }
+                phone: { type: string }
+                mobile: { type: string }
+                username: { type: string }
+                password: { type: string }
+                logo: { type: string }
+                photo: { type: string }
+      responses: { "200": { description: Created } }
+  /schools/{id}:
+    put:
+      summary: Update school profile (no password)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/School"
-      responses: { "200": { description: Created } }
+      responses: { "200": { description: Updated } }
+  /schools/{id}/reset-password:
+    post:
+      summary: Reset school password (admin only)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses: { "200": { description: Password reset } }
 
   /notifications/email:
     post:

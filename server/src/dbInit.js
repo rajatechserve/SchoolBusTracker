@@ -18,7 +18,19 @@ module.exports = function initDb(db){
     db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS schools(id TEXT PRIMARY KEY, name TEXT, address TEXT)`);
+    // Extended schools schema: add city,state,county,phone,mobile,username,passwordHash
+    db.run(`CREATE TABLE IF NOT EXISTS schools(id TEXT PRIMARY KEY, name TEXT, address TEXT, city TEXT, state TEXT, county TEXT, phone TEXT, mobile TEXT, username TEXT UNIQUE, passwordHash TEXT, logo TEXT, photo TEXT)`);
+    // Add missing columns for existing deployments
+    db.all("PRAGMA table_info(schools)", (err, rows)=>{
+      if(err||!rows) return;
+      const have = (c)=> rows.some(r=>r.name===c);
+      const toAdd = [
+        ['city','TEXT'],['state','TEXT'],['county','TEXT'],['phone','TEXT'],['mobile','TEXT'],['username','TEXT'],['passwordHash','TEXT'],['logo','TEXT'],['photo','TEXT']
+      ].filter(([c])=>!have(c));
+      toAdd.forEach(([c,t])=>{ db.run(`ALTER TABLE schools ADD COLUMN ${c} ${t}`); });
+      // Ensure username uniqueness if column exists
+      if(have('username')) db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_username ON schools(username)');
+    });
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_phone ON drivers(phone)');
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_parents_phone ON parents(phone)');
     db.get("SELECT id FROM admins WHERE username='admin'", (err,row)=>{

@@ -77,7 +77,10 @@ function ensureTables() {
                         case 'routes': db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT)`); break;
                         case 'attendance': db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT)`); break;
                         case 'assignments': db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT)`); break;
-                        case 'schools': db.run(`CREATE TABLE IF NOT EXISTS schools(id TEXT PRIMARY KEY, name TEXT, address TEXT)`); break;
+                        case 'schools':
+                            db.run(`CREATE TABLE IF NOT EXISTS schools(id TEXT PRIMARY KEY, name TEXT, address TEXT, city TEXT, state TEXT, county TEXT, phone TEXT, mobile TEXT, username TEXT UNIQUE, passwordHash TEXT, logo TEXT, photo TEXT)`);
+                            db.all("PRAGMA table_info(schools)", (e, rows)=>{ if(e||!rows) return; const have=(c)=>rows.some(r=>r.name===c); const cols=[['city','TEXT'],['state','TEXT'],['county','TEXT'],['phone','TEXT'],['mobile','TEXT'],['username','TEXT'],['passwordHash','TEXT'],['logo','TEXT'],['photo','TEXT']].filter(([c])=>!have(c)); cols.forEach(([c,t])=> db.run(`ALTER TABLE schools ADD COLUMN ${c} ${t}`)); if(have('username')) db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_username ON schools(username)'); });
+                            break;
                     }
                 }
             });
@@ -540,30 +543,54 @@ app.get('/api/attendance', authenticateToken, async (req, res) =>
 });
 
 // ------------------ SCHOOLS ------------------
-app.get('/api/schools', async (req, res) =>
-{
-    try
-    {
-        const rows = await allSql('SELECT * FROM schools');
-        res.json(rows);
-    } catch (e)
-    {
+app.get('/api/schools', async (req, res) => {
+    try {
+        const rows = await allSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools');
+        res.json(rows.map(r=>({ ...r })));
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-app.post('/api/schools', authenticateToken, async (req, res) =>
-{
-    try
-    {
-        const { name, address } = req.body || {};
-        if (!name) return res.status(400).json({ error: 'name required' });
+app.post('/api/schools', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role!=='admin') return res.status(403).json({ error: 'admin only' });
+        const { name, address, city, state, county, phone, mobile, username, password, logo, photo } = req.body || {};
+        if (!name || !username || !password) return res.status(400).json({ error: 'name, username, password required' });
+        const exist = await getSql('SELECT id FROM schools WHERE username=?', [username]);
+        if(exist) return res.status(409).json({ error: 'username exists' });
         const id = uuidv4();
-        await runSql('INSERT INTO schools(id,name,address) VALUES(?,?,?)', [id, name, address || null]);
-        const row = await getSql('SELECT * FROM schools WHERE id=?', [id]);
+        const hash = await new Promise((resolve,reject)=>{ require('bcrypt').hash(password,10,(err,h)=> err?reject(err):resolve(h)); });
+        await runSql('INSERT INTO schools(id,name,address,city,state,county,phone,mobile,username,passwordHash,logo,photo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [id,name,address||null,city||null,state||null,county||null,phone||null,mobile||null,username,hash,logo||null,photo||null]);
+        const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools WHERE id=?',[id]);
         res.json(row);
-    } catch (e)
-    {
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// Update school profile (excluding password)
+app.put('/api/schools/:id', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role!=='admin') return res.status(403).json({ error: 'admin only' });
+        const { name, address, city, state, county, phone, mobile, logo, photo } = req.body || {};
+        await runSql('UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=? WHERE id=?', [name, address, city, state, county, phone, mobile, logo||null, photo||null, req.params.id]);
+        const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools WHERE id=?',[req.params.id]);
+        if(!row) return res.status(404).json({ error: 'not found' });
+        res.json(row);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+// Reset school password
+app.post('/api/schools/:id/reset-password', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role!=='admin') return res.status(403).json({ error: 'admin only' });
+        const { password } = req.body || {};
+        if(!password || password.length < 6) return res.status(400).json({ error: 'password min 6 chars' });
+        const hash = await new Promise((resolve,reject)=>{ require('bcrypt').hash(password,10,(err,h)=> err?reject(err):resolve(h)); });
+        await runSql('UPDATE schools SET passwordHash=? WHERE id=?',[hash, req.params.id]);
+        res.json({ reset: true });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
