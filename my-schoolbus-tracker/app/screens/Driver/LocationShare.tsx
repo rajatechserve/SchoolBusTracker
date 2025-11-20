@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Location from 'expo-location';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -7,61 +7,23 @@ import { useAuth } from '../../context/AuthContext';
 export default function LocationShare() {
   const { user } = useAuth();
   const [sharing, setSharing] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isRequestingRef = useRef(false);
+  const ref = useRef<NodeJS.Timeout | null>(null);
 
-  const pushLocation = useCallback(async () => {
-    if (!user) return;
-    try {
-      const position = await Location.getCurrentPositionAsync({});
-      await api.post(`/buses/${user.bus || user.id}/location`, {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      });
-    } catch (e: any) {
-      console.warn('Location post failed', e?.message);
-    }
-  }, [user]);
+  const start = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') { alert('Permission denied'); return; }
+    setSharing(true);
+    ref.current = setInterval(async () => {
+      const l = await Location.getCurrentPositionAsync({});
+      try { await api.post(`/buses/${user?.bus || user?.id}/location`, { lat: l.coords.latitude, lng: l.coords.longitude }); } catch(e) { console.log('err', e?.message); }
+    }, 8000);
+  };
 
-  const start = useCallback(async () => {
-    if (isRequestingRef.current) return; // prevent double taps
-    isRequestingRef.current = true;
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Location permission is required to share.');
-        return;
-      }
-      setSharing(true);
-    } finally {
-      isRequestingRef.current = false;
-    }
-  }, []);
-
-  const stop = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
-    setSharing(false);
-  }, []);
-
-  // Manage interval lifecycle tied to `sharing` state.
-  useEffect(() => {
-    if (sharing) {
-      // Immediately push one location before interval tick.
-      pushLocation();
-      intervalRef.current = setInterval(pushLocation, 8000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [sharing, pushLocation]);
+  const stop = () => { if (ref.current) clearInterval(ref.current); setSharing(false); };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Sharing location for bus {user?.bus || 'n/a'}</Text>
+      <Text style={styles.text}>Sharing location for bus {user?.bus}</Text>
       <TouchableOpacity onPress={sharing ? stop : start} style={styles.button}>
         <Text style={styles.buttonText}>{sharing ? 'Stop' : 'Start'} Sharing</Text>
       </TouchableOpacity>

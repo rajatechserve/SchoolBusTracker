@@ -1,6 +1,6 @@
-import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useContext, ReactNode } from 'react';
 
-export type User = {
+type User = {
   role: 'driver' | 'parent';
   id: string;
   name: string;
@@ -18,15 +18,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  const login = useCallback((role: 'driver' | 'parent', payload: Partial<User>) => {
-    // Ensure required fields; generate a lightweight id if absent.
-    const id = payload.id || `${role}-${Date.now()}`;
-    const name = payload.name || (role === 'driver' ? 'Driver' : 'Parent');
-    const next: User = { role, id, name, bus: payload.bus };
-    setUser(next);
-  }, []);
+  const login = (role: 'driver' | 'parent', payload: Partial<User>) => {
+    setUser({ role, ...payload } as User);
+  };
 
-  const logout = useCallback(() => setUser(null), []);
+  const logout = () => setUser(null);
 
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
@@ -37,6 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 }
