@@ -579,18 +579,16 @@ app.get('/api/schools', async (req, res) => {
         const pageNum = parseInt(page) || 1;
         const pageLimit = parseInt(limit) || 10;
         const offset = (pageNum - 1) * pageLimit;
-        let query = 'SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools';
-        let countQuery = 'SELECT COUNT(*) as total FROM schools';
+        let base = 'FROM schools';
+        let where = '';
         let params = [];
-        if(search) {
-            query += ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
-            countQuery += ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
+        if (search) {
+            where = ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
             params = [`%${search}%`, `%${search}%`, `%${search}%`];
         }
-        const total = await getSql(countQuery, params);
-        query += ' LIMIT ? OFFSET ?';
-        const rows = await allSql(query, [...params, pageLimit, offset]);
-        res.json({ data: rows, total: total.total || 0, page: pageNum, limit: pageLimit });
+        const countRow = await getSql(`SELECT COUNT(*) as total ${base}${where}`, params);
+        const rows = await allSql(`SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo ${base}${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, [...params, pageLimit, offset]);
+        res.json({ data: rows, total: countRow.total || 0, page: pageNum, limit: pageLimit });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

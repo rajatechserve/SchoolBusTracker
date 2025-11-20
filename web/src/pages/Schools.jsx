@@ -8,8 +8,9 @@ export default function Schools(){
   const [photoPreview,setPhotoPreview]=useState('');
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
-  const load=()=>api.get('/schools').then(r=>setList(r.data?.data||[])).catch(()=>{});
-  useEffect(()=>{ load(); },[]);
+  const [search,setSearch]=useState('');
+  const load=()=>api.get('/schools', { params: { search, page:1, limit:5 }}).then(r=>setList(r.data?.data||[])).catch(()=>{});
+  useEffect(()=>{ load(); },[search]);
   const fileToDataUrl = (file)=> new Promise((resolve,reject)=>{ if(!file) return resolve(null); const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); });
   const save=async()=>{
     setError('');
@@ -33,16 +34,21 @@ export default function Schools(){
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Schools</h2>
-      <div className="mb-4 grid gap-2 grid-cols-1 md:grid-cols-4">
-        <input placeholder="Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className="border p-2" />
-        <input placeholder="Address" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} className="border p-2" />
-        <input placeholder="City" value={form.city} onChange={e=>setForm({...form,city:e.target.value})} className="border p-2" />
-        <input placeholder="State" value={form.state} onChange={e=>setForm({...form,state:e.target.value})} className="border p-2" />
-        <input placeholder="County" value={form.county} onChange={e=>setForm({...form,county:e.target.value})} className="border p-2" />
-        <input placeholder="Phone" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className="border p-2" />
-        <input placeholder="Mobile" value={form.mobile} onChange={e=>setForm({...form,mobile:e.target.value})} className="border p-2" />
-        <input placeholder="Username" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} className="border p-2" />
-        <input type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="border p-2" />
+      <div className="mb-4 space-y-3">
+        <div className="grid gap-2 grid-cols-1 md:grid-cols-3">
+          <input placeholder="School Name" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className="border p-2" />
+          <input placeholder="Address" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} className="border p-2" />
+          <input placeholder="City" value={form.city} onChange={e=>setForm({...form,city:e.target.value})} className="border p-2" />
+          <input placeholder="State" value={form.state} onChange={e=>setForm({...form,state:e.target.value})} className="border p-2" />
+          <input placeholder="County" value={form.county} onChange={e=>setForm({...form,county:e.target.value})} className="border p-2" />
+          <input placeholder="Phone" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className="border p-2" />
+          <input placeholder="Mobile" value={form.mobile} onChange={e=>setForm({...form,mobile:e.target.value})} className="border p-2" />
+        </div>
+        <div className="grid gap-2 grid-cols-1 md:grid-cols-2">
+          <input placeholder="Login Username" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} className="border p-2" />
+          <input type="password" placeholder="Login Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="border p-2" />
+        </div>
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         <div className="space-y-1">
           <label className="text-xs font-medium text-slate-600">School Logo (PNG/JPG, max 200KB)</label>
           <input type="file" accept="image/png,image/jpeg" onChange={e=>{ 
@@ -69,9 +75,14 @@ export default function Schools(){
           }} className="border p-2" />
           <div className="text-[10px] text-slate-500">Recommended wide 1200x400, filename pattern: photo_[schoolname].jpg</div>
         </div>
-        <div className="md:col-span-4 flex gap-2 items-center">
+        </div>
+        <div className="flex gap-2 items-center">
           <button onClick={save} disabled={loading} className="btn-primary">{loading?'Saving...':'Add School'}</button>
           {error && <div className="text-sm text-red-600">{error}</div>}
+        </div>
+        <div className="mt-3">
+          <input placeholder="Search recent schools..." value={search} onChange={e=>setSearch(e.target.value)} className="border p-2 w-72" />
+          <div className="text-[10px] text-slate-500 mt-1">Showing up to 5 most recent schools{search? ' matching search':''}.</div>
         </div>
       </div>
       <div className="space-y-2">
