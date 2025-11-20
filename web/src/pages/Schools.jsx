@@ -43,8 +43,32 @@ export default function Schools(){
         <input placeholder="Mobile" value={form.mobile} onChange={e=>setForm({...form,mobile:e.target.value})} className="border p-2" />
         <input placeholder="Username" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} className="border p-2" />
         <input type="password" placeholder="Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="border p-2" />
-        <input type="file" accept="image/*" onChange={e=>{ const f=e.target.files?.[0]; setForm({...form,logo:f||null}); if(f){ const r=new FileReader(); r.onload=()=>setLogoPreview(r.result); r.readAsDataURL(f);} else setLogoPreview(''); }} className="border p-2" />
-        <input type="file" accept="image/*" onChange={e=>{ const f=e.target.files?.[0]; setForm({...form,photo:f||null}); if(f){ const r=new FileReader(); r.onload=()=>setPhotoPreview(r.result); r.readAsDataURL(f);} else setPhotoPreview(''); }} className="border p-2" />
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-slate-600">School Logo (PNG/JPG, max 200KB)</label>
+          <input type="file" accept="image/png,image/jpeg" onChange={e=>{ 
+            const f=e.target.files?.[0];
+            if(!f){ setForm({...form,logo:null}); setLogoPreview(''); return; }
+            if(!['image/png','image/jpeg'].includes(f.type)){ setError('Logo must be PNG or JPG'); return; }
+            if(f.size > 200*1024){ setError('Logo exceeds 200KB'); return; }
+            setError('');
+            setForm({...form,logo:f});
+            const r=new FileReader(); r.onload=()=>setLogoPreview(r.result); r.readAsDataURL(f);
+          }} className="border p-2" />
+          <div className="text-[10px] text-slate-500">Recommended square 128x128, filename pattern: logo_[schoolname].png</div>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-slate-600">School Banner Image (PNG/JPG, max 800KB)</label>
+          <input type="file" accept="image/png,image/jpeg" onChange={e=>{ 
+            const f=e.target.files?.[0];
+            if(!f){ setForm({...form,photo:null}); setPhotoPreview(''); return; }
+            if(!['image/png','image/jpeg'].includes(f.type)){ setError('Image must be PNG or JPG'); return; }
+            if(f.size > 800*1024){ setError('Image exceeds 800KB'); return; }
+            setError('');
+            setForm({...form,photo:f});
+            const r=new FileReader(); r.onload=()=>setPhotoPreview(r.result); r.readAsDataURL(f);
+          }} className="border p-2" />
+          <div className="text-[10px] text-slate-500">Recommended wide 1200x400, filename pattern: photo_[schoolname].jpg</div>
+        </div>
         <div className="md:col-span-4 flex gap-2 items-center">
           <button onClick={save} disabled={loading} className="btn-primary">{loading?'Saving...':'Add School'}</button>
           {error && <div className="text-sm text-red-600">{error}</div>}
