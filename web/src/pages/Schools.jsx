@@ -44,9 +44,16 @@ export default function Schools(){
           <input placeholder="Phone" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className="border p-2" />
           <input placeholder="Mobile" value={form.mobile} onChange={e=>setForm({...form,mobile:e.target.value})} className="border p-2" />
         </div>
-        <div className="grid gap-2 grid-cols-1 md:grid-cols-2">
-          <input placeholder="Login Username" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} className="border p-2" />
-          <input type="password" placeholder="Login Password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="border p-2" />
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-slate-600" htmlFor="school-username">Login Username</label>
+            <input id="school-username" placeholder="Enter username" value={form.username} onChange={e=>setForm({...form,username:e.target.value})} className="border p-2" />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-slate-600" htmlFor="school-password">Login Password</label>
+            <input id="school-password" type="password" placeholder="Enter password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} className="border p-2" />
+            <div className="text-[10px] text-slate-500 mt-1">Minimum 6 characters.</div>
+          </div>
         </div>
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         <div className="space-y-1">

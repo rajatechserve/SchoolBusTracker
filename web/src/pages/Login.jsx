@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import api, { setAuthToken, setAuthUser } from '../services/api';
 
 export default function Login({ onLogin }) {
-  const [mode, setMode] = useState('admin'); // 'admin' | 'driver' | 'parent' | 'school'
+  const [mode, setMode] = useState('admin'); // 'admin' | 'driver' | 'parent' | 'school' | 'schoolUser'
+  const [schoolUsername, setSchoolUsername] = useState('');
+  const [subUserUsername, setSubUserUsername] = useState('');
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [name, setName] = useState('');
@@ -16,6 +18,7 @@ export default function Login({ onLogin }) {
   const parentValid = name.trim().length >= 2 && phoneValid;
   const adminValid = username.trim() && password.trim();
   const schoolValid = username.trim() && password.trim();
+  const schoolUserValid = schoolUsername.trim() && subUserUsername.trim() && password.trim();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -30,6 +33,11 @@ export default function Login({ onLogin }) {
         if (!schoolValid) return;
         const r = await api.post('/auth/school-login', { username, password });
         setAuthToken(r.data.token); setAuthUser({ role: 'school', ...r.data.school }); if(onLogin) onLogin(r.data.school.name);
+        window.location.href = '/school-dashboard';
+      } else if (mode === 'schoolUser') {
+        if(!schoolUserValid) return;
+        const r = await api.post('/auth/school-user-login', { schoolUsername: schoolUsername.trim(), username: subUserUsername.trim(), password });
+        setAuthToken(r.data.token); setAuthUser({ role: 'schoolUser', ...r.data.user }); if(onLogin) onLogin(r.data.user.schoolName);
         window.location.href = '/school-dashboard';
       } else if (mode === 'driver') {
         if (!driverValid) return; const r = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: bus.trim() });
@@ -50,7 +58,7 @@ export default function Login({ onLogin }) {
   return (
     <div className="max-w-md mx-auto">
       <div className="flex justify-center mb-6 gap-2">
-        {['admin','school','driver','parent'].map(m => (
+        {['admin','school','schoolUser','driver','parent'].map(m => (
           <button key={m} onClick={()=>setMode(m)} className={`px-3 py-1 rounded border text-sm ${mode===m?'bg-blue-600 text-white':'bg-white'}`}>{m.charAt(0).toUpperCase()+m.slice(1)}</button>
         ))}
       </div>
@@ -83,6 +91,19 @@ export default function Login({ onLogin }) {
             <input placeholder="Bus Number" value={bus} onChange={e=>setBus(e.target.value)} className="w-full border rounded px-3 py-2"/>
             <div className="text-xs text-slate-500">{driverValid? 'Ready':'Provide name, valid phone, bus (2+ chars)'}</div>
             <button disabled={!driverValid||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
+          </>
+        )}
+        {mode === 'schoolUser' && (
+          <>
+            <h2 className="text-xl font-semibold mb-2">School User Login</h2>
+            <label className="block text-sm">School Username</label>
+            <input placeholder="School username" value={schoolUsername} onChange={e=>setSchoolUsername(e.target.value)} className="w-full border rounded px-3 py-2"/>
+            <label className="block text-sm">User Username</label>
+            <input placeholder="User username" value={subUserUsername} onChange={e=>setSubUserUsername(e.target.value)} className="w-full border rounded px-3 py-2"/>
+            <label className="block text-sm">Password</label>
+            <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded px-3 py-2"/>
+            <div className="text-xs text-slate-500">{schoolUserValid? 'Ready':'Fill all fields (password required)'}</div>
+            <button disabled={!schoolUserValid||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
           </>
         )}
         {mode === 'parent' && (

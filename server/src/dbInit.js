@@ -41,6 +41,16 @@ module.exports = function initDb(db){
     });
     // Extended schools schema: add city,state,county,phone,mobile,username,passwordHash
     db.run(`CREATE TABLE IF NOT EXISTS schools(id TEXT PRIMARY KEY, name TEXT, address TEXT, city TEXT, state TEXT, county TEXT, phone TEXT, mobile TEXT, username TEXT UNIQUE, passwordHash TEXT, logo TEXT, photo TEXT)`);
+    // School users (sub-accounts managed by school admin)
+    db.run(`CREATE TABLE IF NOT EXISTS school_users(id TEXT PRIMARY KEY, schoolId TEXT, username TEXT, passwordHash TEXT, role TEXT, active INTEGER DEFAULT 1, createdAt INTEGER)`);
+    db.all("PRAGMA table_info(school_users)", (err, rows)=>{
+      if(err||!rows) return;
+      const have=(c)=>rows.some(r=>r.name===c);
+      if(!have('role')) db.run('ALTER TABLE school_users ADD COLUMN role TEXT');
+      if(!have('active')) db.run('ALTER TABLE school_users ADD COLUMN active INTEGER DEFAULT 1');
+      if(!have('createdAt')) db.run('ALTER TABLE school_users ADD COLUMN createdAt INTEGER');
+    });
+    db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_school_users_unique ON school_users(schoolId, username)');
     // Add missing columns for existing deployments
     db.all("PRAGMA table_info(schools)", (err, rows)=>{
       if(err||!rows) return;

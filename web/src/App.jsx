@@ -13,13 +13,15 @@ import Parents from './pages/Parents';
 import Schools from './pages/Schools';
 import SchoolDashboard from './pages/SchoolDashboard';
 import SchoolDetails from './pages/SchoolDetails';
+import SchoolUsers from './pages/SchoolUsers';
 import Login from './pages/Login';
 import api, { getAuthUser, setAuthToken, setAuthUser } from './services/api';
 
 function Sidebar({ authUser }){ 
   const isAdmin = authUser?.role === 'admin';
-  const isSchool = authUser?.role === 'school';
-  const logo = isSchool ? authUser?.logo : null;
+  const isSchoolAdmin = authUser?.role === 'school';
+  const isSchoolUser = authUser?.role === 'schoolUser';
+  const logo = (isSchoolAdmin || isSchoolUser) ? authUser?.logo : null;
   return (
   <aside className="w-64 bg-white border-r hidden md:block">
     <div className="p-6 text-2xl font-semibold text-slate-700 flex items-center gap-2">
@@ -32,12 +34,13 @@ function Sidebar({ authUser }){
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/schools">Schools</Link>
         </>
       )}
-      {isSchool && (
+      {(isSchoolAdmin || isSchoolUser) && (
         <>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/school-dashboard">Dashboard</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/buses">Buses</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/drivers">Drivers</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/students">Students</Link>
+          {isSchoolAdmin && <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/school-users">Users & Roles</Link>}
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/parents">Parents</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>
@@ -50,8 +53,8 @@ function Sidebar({ authUser }){
 
 function Header({ onLogout, authUser }) {
   const username = authUser?.username;
-  const schoolName = authUser?.name;
-  const isSchool = authUser?.role === 'school';
+  const schoolName = authUser?.name || authUser?.schoolName;
+  const isSchool = authUser?.role === 'school' || authUser?.role === 'schoolUser';
   const isAdmin = authUser?.role === 'admin';
   return (
     <header className="bg-white border-b">
@@ -112,6 +115,7 @@ export default function App(){
               <Route path="/schools" element={<Schools/>} />
               <Route path="/school-dashboard" element={<SchoolDashboard/>} />
               <Route path="/school-details" element={<SchoolDetails/>} />
+              <Route path="/school-users" element={<SchoolUsers/>} />
             </Routes>
           </main>
         </div>

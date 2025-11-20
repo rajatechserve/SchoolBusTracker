@@ -214,12 +214,28 @@ app.post('/api/auth/school-login', async (req, res) => {
     }
 });
 
+// School user (sub-account) login
+app.post('/api/auth/school-user-login', async (req, res) => {
+    try {
+        const { schoolUsername, username, password } = req.body || {};
+        if(!schoolUsername || !username || !password) return res.status(400).json({ error: 'schoolUsername, username, password required' });
+        const school = await getSql('SELECT * FROM schools WHERE username=?', [schoolUsername]);
+        if(!school) return res.status(404).json({ error: 'school not found' });
+        const user = await getSql('SELECT * FROM school_users WHERE schoolId=? AND username=? AND active=1', [school.id, username]);
+        if(!user) return res.status(401).json({ error: 'Invalid credentials' });
+        const match = await bcrypt.compare(password, user.passwordHash);
+        if(!match) return res.status(401).json({ error: 'Invalid credentials' });
+        const token = jwt.sign({ id: user.id, username: user.username, role: 'schoolUser', schoolId: school.id, schoolName: school.name }, JWT_SECRET, { expiresIn: '12h' });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role, schoolId: school.id, schoolName: school.name, logo: school.logo, photo: school.photo } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ------------------ DRIVERS CRUD ------------------
 app.get('/api/drivers', async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,phone,license,schoolId FROM drivers');
         res.json(rows);
     } catch (e)
@@ -287,7 +303,7 @@ app.delete('/api/drivers/:id', authenticateToken, async (req, res) =>
 // ------------------ STUDENTS CRUD ------------------
 app.get('/api/students', async (req, res) => {
     try {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students');
         res.json(rows);
     } catch (e) {
@@ -299,7 +315,7 @@ app.post('/api/students', authenticateToken, async (req, res) => {
     try {
         const { name, cls, parentId, busId } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO students(id,name,cls,parentId,busId,schoolId) VALUES(?,?,?,?,?,?)', [id, name, cls || null, parentId || null, busId || null, schoolId]);
         const row = await getSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE id=?', [id]);
@@ -337,7 +353,7 @@ app.get('/api/parents', async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT id,name,phone,schoolId FROM parents WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,phone,schoolId FROM parents');
         res.json(rows);
     } catch (e)
@@ -352,7 +368,7 @@ app.post('/api/parents', authenticateToken, async (req, res) =>
     {
         const { name, phone } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO parents(id,name,phone,schoolId) VALUES(?,?,?,?)', [id, name, phone || null, schoolId]);
         const row = await getSql('SELECT id,name,phone,schoolId FROM parents WHERE id=?', [id]);
@@ -376,7 +392,7 @@ app.get('/api/parents/:id/students', async (req, res) => {
 // ------------------ BUSES CRUD + LOCATION ------------------
 app.get('/api/buses', async (req, res) => {
     try {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT * FROM buses WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM buses');
         res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
     } catch (e) {
@@ -388,7 +404,7 @@ app.post('/api/buses', authenticateToken, async (req, res) => {
     try {
         const { number, driverId, routeId, started } = req.body || {};
         if (!number) return res.status(400).json({ error: 'number is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO buses(id,number,driverId,routeId,started,schoolId) VALUES(?,?,?,?,?,?)', [id, number, driverId || null, routeId || null, started ? 1 : 0, schoolId]);
         const row = await getSql('SELECT * FROM buses WHERE id=?', [id]);
@@ -445,7 +461,7 @@ app.get('/api/routes', async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,stops,schoolId FROM routes');
         const parsed = rows.map(r => ({ id: r.id, name: r.name, stops: r.stops ? JSON.parse(r.stops) : [], schoolId: r.schoolId }));
         res.json(parsed);
@@ -461,7 +477,7 @@ app.post('/api/routes', authenticateToken, async (req, res) =>
     {
         const { name, stops } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO routes(id,name,stops,schoolId) VALUES(?,?,?,?)', [id, name, JSON.stringify(stops || []), schoolId]);
         const row = await getSql('SELECT id,name,stops,schoolId FROM routes WHERE id=?', [id]);
@@ -505,7 +521,7 @@ app.post('/api/assignments', authenticateToken, async (req, res) =>
     {
         const { driverId, busId, routeId } = req.body || {};
         if (!driverId || !busId) return res.status(400).json({ error: 'driverId and busId required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO assignments(id,driverId,busId,routeId,schoolId) VALUES(?,?,?,?,?)', [id, driverId, busId, routeId || null, schoolId]);
         const row = await getSql('SELECT * FROM assignments WHERE id=?', [id]);
@@ -520,7 +536,7 @@ app.get('/api/assignments', authenticateToken, async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT * FROM assignments WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM assignments');
         res.json(rows);
     } catch (e)
@@ -563,7 +579,7 @@ app.get('/api/attendance', authenticateToken, async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (req.user?.role === 'schoolUser' ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT * FROM attendance WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM attendance');
         res.json(rows);
     } catch (e)
