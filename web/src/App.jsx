@@ -11,6 +11,7 @@ import Buses from './pages/Buses';
 import RoutesPage from './pages/Routes';
 import Parents from './pages/Parents';
 import Schools from './pages/Schools';
+import SchoolDashboard from './pages/SchoolDashboard';
 import Login from './pages/Login';
 import api, { getAuthUser, setAuthToken, setAuthUser } from './services/api';
 
@@ -34,10 +35,15 @@ function Sidebar(){ return (
 
 function Header({ onLogout, authUser }) {
   const name = authUser?.username || authUser?.name;
+  const isSchool = authUser?.role === 'school';
+  const logo = authUser?.logo;
   return (
     <header className="bg-white border-b">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="text-sm text-slate-600">Admin console</div>
+        <div className="flex items-center gap-3">
+          {isSchool && logo && <img src={logo} alt="School logo" className="h-10 w-10 object-contain" />}
+          <div className="text-sm text-slate-600">{isSchool ? name : 'Admin console'}</div>
+        </div>
         <div className="flex items-center gap-4">
           {authUser ? (
             <>
@@ -76,6 +82,7 @@ export default function App(){
               <Route path="/attendance" element={<Attendance/>} />
               <Route path="/routes" element={<RoutesPage/>} />
               <Route path="/schools" element={<Schools/>} />
+              <Route path="/school-dashboard" element={<SchoolDashboard/>} />
             </Routes>
           </main>
         </div>

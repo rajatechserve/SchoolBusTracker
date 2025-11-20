@@ -206,6 +206,22 @@ paths:
       responses:
         "200":
           description: Parent token and info
+  /auth/school-login:
+    post:
+      summary: School login by username/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: School token and info with logo/photo
 
   /drivers:
     get:
