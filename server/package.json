@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node src/index.js",
-    "migrate": "node src/migrate.js"
+    "reset-db": "node src/resetDb.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.0",
