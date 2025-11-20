@@ -54,19 +54,31 @@ function Header({ onLogout, authUser }) {
   return (
     <header className="bg-white border-b">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="text-lg font-semibold text-slate-700">{isSchool ? name : isAdmin ? 'Admin Console' : ''}</div>
-        </div>
-        <div className="flex items-center gap-4">
-          {authUser ? (
-            <>
-              <div className="text-sm text-slate-700">Signed in as <strong>{name}</strong></div>
+        {isSchool ? (
+          <>
+            <div className="flex-1"></div>
+            <div className="text-xl font-bold text-slate-800">{name}</div>
+            <div className="flex-1 flex items-center justify-end gap-4">
               <button onClick={onLogout} className="text-sm text-red-600">Logout</button>
-            </>
-          ) : (
-            <Link to="/login" className="text-sm text-slate-600">Sign in</Link>
-          )}
-        </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <div className="text-lg font-semibold text-slate-700">{isAdmin ? 'Admin Console' : ''}</div>
+            </div>
+            <div className="flex items-center gap-4">
+              {authUser ? (
+                <>
+                  <div className="text-sm text-slate-700">Signed in as <strong>{name}</strong></div>
+                  <button onClick={onLogout} className="text-sm text-red-600">Logout</button>
+                </>
+              ) : (
+                <Link to="/login" className="text-sm text-slate-600">Sign in</Link>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </header>
   );
@@ -96,6 +108,7 @@ export default function App(){
               <Route path="/routes" element={<RoutesPage/>} />
               <Route path="/schools" element={<Schools/>} />
               <Route path="/school-dashboard" element={<SchoolDashboard/>} />
+              <Route path="/school-details" element={<SchoolDetails/>} />
             </Routes>
           </main>
         </div>
