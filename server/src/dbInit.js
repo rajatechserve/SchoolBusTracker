@@ -7,7 +7,14 @@ module.exports = function initDb(db){
     db.run(`CREATE TABLE IF NOT EXISTS drivers(id TEXT PRIMARY KEY, name TEXT, phone TEXT, license TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS students(id TEXT PRIMARY KEY, name TEXT, cls TEXT, parentId TEXT, busId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS parents(id TEXT PRIMARY KEY, name TEXT, phone TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, driverName TEXT, driverPhone TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL)`);
+    // Updated buses schema: remove driverName/driverPhone; add routeId
+    db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL)`);
+    // Ensure routeId column exists if table was created earlier without it
+    db.all("PRAGMA table_info(buses)", (err, rows)=>{
+      if(!err && rows && !rows.some(c=>c.name==='routeId')){
+        db.run("ALTER TABLE buses ADD COLUMN routeId TEXT");
+      }
+    });
     db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT)`);

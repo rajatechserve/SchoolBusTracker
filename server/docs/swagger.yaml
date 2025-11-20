@@ -91,9 +91,7 @@ components:
           type: string
         driverId:
           type: string
-        driverName:
-          type: string
-        driverPhone:
+        routeId:
           type: string
         started:
           type: boolean
@@ -322,7 +320,7 @@ paths:
       summary: List buses
       responses: { "200": { description: OK } }
     post:
-      summary: Create bus
+      summary: Create bus (number, driverId, routeId, started)
       requestBody:
         required: true
         content:
@@ -338,7 +336,7 @@ paths:
         [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: OK } }
     put:
-      summary: Update bus
+      summary: Update bus (number, driverId, routeId, started)
       parameters:
         [{ name: id, in: path, required: true, schema: { type: string } }]
       requestBody:

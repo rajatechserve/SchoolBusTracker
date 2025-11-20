@@ -73,7 +73,7 @@ function ensureTables() {
                         case 'drivers': db.run(`CREATE TABLE IF NOT EXISTS drivers(id TEXT PRIMARY KEY, name TEXT, phone TEXT, license TEXT)`); break;
                         case 'students': db.run(`CREATE TABLE IF NOT EXISTS students(id TEXT PRIMARY KEY, name TEXT, cls TEXT, parentId TEXT, busId TEXT)`); break;
                         case 'parents': db.run(`CREATE TABLE IF NOT EXISTS parents(id TEXT PRIMARY KEY, name TEXT, phone TEXT)`); break;
-                        case 'buses': db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, driverName TEXT, driverPhone TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL)`); break;
+                        case 'buses': db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL)`); db.all("PRAGMA table_info(buses)", (e, rows)=>{ if(!e && rows && !rows.some(c=>c.name==='routeId')) db.run("ALTER TABLE buses ADD COLUMN routeId TEXT"); }); break;
                         case 'routes': db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT)`); break;
                         case 'attendance': db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT)`); break;
                         case 'assignments': db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT)`); break;
@@ -349,44 +349,35 @@ app.get('/api/parents/:id/students', async (req, res) => {
 });
 
 // ------------------ BUSES CRUD + LOCATION ------------------
-app.get('/api/buses', async (req, res) =>
-{
-    try
-    {
+app.get('/api/buses', async (req, res) => {
+    try {
         const rows = await allSql('SELECT * FROM buses');
-        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, driverName: r.driverName, driverPhone: r.driverPhone, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
-    } catch (e)
-    {
+        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, routeId: r.routeId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-app.post('/api/buses', authenticateToken, async (req, res) =>
-{
-    try
-    {
-        const { number, driverId, driverName, driverPhone } = req.body || {};
+app.post('/api/buses', authenticateToken, async (req, res) => {
+    try {
+        const { number, driverId, routeId, started } = req.body || {};
         if (!number) return res.status(400).json({ error: 'number is required' });
         const id = uuidv4();
-        await runSql('INSERT INTO buses(id,number,driverId,driverName,driverPhone,started) VALUES(?,?,?,?,?,0)', [id, number, driverId || null, driverName || null, driverPhone || null]);
+        await runSql('INSERT INTO buses(id,number,driverId,routeId,started) VALUES(?,?,?,?,?)', [id, number, driverId || null, routeId || null, started ? 1 : 0]);
         const row = await getSql('SELECT * FROM buses WHERE id=?', [id]);
-        res.json(row);
-    } catch (e)
-    {
+        res.json({ id: row.id, number: row.number, driverId: row.driverId, routeId: row.routeId, started: !!row.started });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-app.put('/api/buses/:id', authenticateToken, async (req, res) =>
-{
-    try
-    {
-        const { number, driverId, driverName, driverPhone, started } = req.body || {};
-        await runSql('UPDATE buses SET number=?,driverId=?,driverName=?,driverPhone=?,started=? WHERE id=?', [number, driverId, driverName, driverPhone, started ? 1 : 0, req.params.id]);
+app.put('/api/buses/:id', authenticateToken, async (req, res) => {
+    try {
+        const { number, driverId, routeId, started } = req.body || {};
+        await runSql('UPDATE buses SET number=?,driverId=?,routeId=?,started=? WHERE id=?', [number, driverId, routeId, started ? 1 : 0, req.params.id]);
         const row = await getSql('SELECT * FROM buses WHERE id=?', [req.params.id]);
-        res.json(row);
-    } catch (e)
-    {
+        res.json({ id: row.id, number: row.number, driverId: row.driverId, routeId: row.routeId, started: !!row.started });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -415,7 +406,7 @@ app.post('/api/buses/:id/location', authenticateToken, async (req, res) =>
         await runSql('UPDATE buses SET lat=?, lng=? WHERE id=? OR number=?', [lat, lng, id, id]);
         const row = await getSql('SELECT * FROM buses WHERE id=? OR number=?', [id, id]);
         if (!row) return res.status(404).json({ error: 'Bus not found' });
-        res.json({ id: row.id, number: row.number, driverName: row.driverName, location: row.lat !== null ? { lat: row.lat, lng: row.lng } : null });
+        res.json({ id: row.id, number: row.number, location: row.lat !== null ? { lat: row.lat, lng: row.lng } : null });
     } catch (e)
     {
         res.status(500).json({ error: e.message });
