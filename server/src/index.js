@@ -621,6 +621,21 @@ app.get('/api/attendance', authenticateToken, async (req, res) =>
 });
 
 // ------------------ SCHOOLS ------------------
+// Public minimal schools list for login dropdown (no auth required)
+app.get('/api/public/schools', async (req, res) => {
+    try {
+        const { search } = req.query || {};
+        let rows;
+        if (search && search.trim()) {
+            rows = await allSql('SELECT id,name,username,logo FROM schools WHERE name LIKE ? ORDER BY name ASC', [ `%${search.trim()}%` ]);
+        } else {
+            rows = await allSql('SELECT id,name,username,logo FROM schools ORDER BY name ASC');
+        }
+        res.json(rows.map(r => ({ id: r.id, name: r.name, username: r.username, logo: r.logo })));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 app.get('/api/schools', authenticateToken, async (req, res) => {
     try {
         // Admin: full paginated list with search

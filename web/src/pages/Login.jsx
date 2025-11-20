@@ -1,11 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api, { setAuthToken, setAuthUser } from '../services/api';
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState('admin'); // 'admin' | 'driver' | 'parent' | 'school' | 'schoolUser'
   const [schoolUserName, setSchoolUserName] = useState('');
   const [username, setUsername] = useState('admin');
+  const [schoolList, setSchoolList] = useState([]);
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
+  const [schoolSearch, setSchoolSearch] = useState('');
   const [password, setPassword] = useState('admin123');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -16,7 +19,29 @@ export default function Login({ onLogin }) {
   const driverValid = name.trim().length >= 2 && phoneValid && bus.trim().length >= 2;
   const parentValid = name.trim().length >= 2 && phoneValid;
   const adminValid = username.trim() && password.trim();
-  const schoolValid = username.trim() && password.trim();
+  const schoolValid = selectedSchoolId && password.trim();
+    // Load schools when entering school mode or searching
+    useEffect(() => {
+      if (mode !== 'school') return;
+      const load = async () => {
+        try {
+          const r = await api.get('/public/schools', { params: { search: schoolSearch || undefined } });
+          setSchoolList(r.data || []);
+          // If previously selected school's username not set, update it
+          if (selectedSchoolId) {
+            const match = (r.data || []).find(s => s.id === selectedSchoolId);
+            if (match) setUsername(match.username);
+          }
+        } catch {}
+      };
+      load();
+    }, [mode, schoolSearch, selectedSchoolId]);
+
+    const onSelectSchool = (id) => {
+      setSelectedSchoolId(id);
+      const match = schoolList.find(s => s.id === id);
+      if (match) setUsername(match.username);
+    };
   const schoolUserValid = schoolUserName.trim() && password.trim();
 
   const submit = async (e) => {
@@ -30,8 +55,11 @@ export default function Login({ onLogin }) {
         window.location.href = '/';
       } else if (mode === 'school') {
         if (!schoolValid) return;
+        // username already derived from selected school; ensure present
         const r = await api.post('/auth/school-login', { username, password });
         setAuthToken(r.data.token); setAuthUser({ role: 'school', ...r.data.school }); if(onLogin) onLogin(r.data.school.name);
+        // Optional: refresh school record through scoped /api/schools (will return only this school)
+        try { const sr = await api.get('/schools'); const only = sr.data?.data?.[0]; if(only){ setAuthUser({ role:'school', ...only }); } } catch {}
         window.location.href = '/school-dashboard';
       } else if (mode === 'schoolUser') {
         if(!schoolUserValid) return;
@@ -79,8 +107,17 @@ export default function Login({ onLogin }) {
         {mode === 'school' && (
           <>
             <h2 className="text-xl font-semibold mb-2">School Login</h2>
-            <label className="block text-sm">Username</label>
-            <input value={username} onChange={e=>setUsername(e.target.value)} className="w-full border rounded px-3 py-2"/>
+            <label className="block text-sm">Select School</label>
+            <div className="flex gap-2 mb-2">
+              <input placeholder="Search..." value={schoolSearch} onChange={e=>setSchoolSearch(e.target.value)} className="flex-1 border rounded px-3 py-2" />
+              <select value={selectedSchoolId} onChange={e=>onSelectSchool(e.target.value)} className="w-48 border rounded px-2 py-2">
+                <option value="">-- choose --</option>
+                {schoolList.map(s => (<option key={s.id} value={s.id}>{s.name}</option>))}
+              </select>
+            </div>
+            {selectedSchoolId && (
+              <div className="text-xs text-slate-500 mb-2">Logging in as: <strong>{username}</strong></div>
+            )}
             <label className="block text-sm">Password</label>
             <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded px-3 py-2"/>
             <button disabled={!schoolValid||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
