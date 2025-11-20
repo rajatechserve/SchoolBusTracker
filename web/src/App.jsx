@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import MapPage from './pages/Map';
 import Students from './pages/Students';
@@ -10,8 +10,6 @@ import Attendance from './pages/Attendance';
 import Buses from './pages/Buses';
 import RoutesPage from './pages/Routes';
 import Login from './pages/Login';
-import Parents from './pages/Parents';
-import { getAuthUser, setAuthToken, setAuthUser } from './services/api';
 import api from './services/api';
 
 function Sidebar(){ return (
@@ -22,7 +20,6 @@ function Sidebar(){ return (
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/map">Map</Link>
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/buses">Buses</Link>
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/drivers">Drivers</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/parents">Parents</Link>
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/students">Students</Link>
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>
@@ -44,15 +41,10 @@ function Header({onLogout, user}){
 }
 
 export default function App(){
-  const [user, setUser] = useState(getAuthUser());
-  useEffect(()=>{ setUser(getAuthUser()); },[]);
-  const logout = ()=>{ setAuthToken(null); setAuthUser(null); setUser(null); window.location.href='/login'; };
-
-  const Protected = ({ element }) => {
-    const u = getAuthUser();
-    if (!u || u.role !== 'admin') return <Navigate to="/login" replace />;
-    return element;
-  };
+  const [user, setUser] = useState(localStorage.getItem('admin_user')||null);
+  const navigate = useNavigate ? null : null;
+  useEffect(()=>{},[]);
+  const logout = ()=>{ localStorage.removeItem('admin_token'); localStorage.removeItem('admin_user'); setUser(null); window.location.href='/login'; };
   return (
     <BrowserRouter>
       <div className="min-h-screen flex bg-gray-50">
@@ -62,15 +54,14 @@ export default function App(){
           <main className="p-6 max-w-7xl mx-auto">
             <Routes>
               <Route path="/login" element={<Login onLogin={(u)=>{ setUser(u); }} />} />
-              <Route path="/" element={<Protected element={<Dashboard/>} />} />
-              <Route path="/map" element={<Protected element={<MapPage/>} />} />
-              <Route path="/buses" element={<Protected element={<Buses/>} />} />
-              <Route path="/drivers" element={<Protected element={<Drivers/>} />} />
-              <Route path="/parents" element={<Protected element={<Parents/>} />} />
-              <Route path="/students" element={<Protected element={<Students/>} />} />
-              <Route path="/assignments" element={<Protected element={<Assignments/>} />} />
-              <Route path="/attendance" element={<Protected element={<Attendance/>} />} />
-              <Route path="/routes" element={<Protected element={<RoutesPage/>} />} />
+              <Route path="/" element={<Dashboard/>} />
+              <Route path="/map" element={<MapPage/>} />
+              <Route path="/buses" element={<Buses/>} />
+              <Route path="/drivers" element={<Drivers/>} />
+              <Route path="/students" element={<Students/>} />
+              <Route path="/assignments" element={<Assignments/>} />
+              <Route path="/attendance" element={<Attendance/>} />
+              <Route path="/routes" element={<RoutesPage/>} />
             </Routes>
           </main>
         </div>
