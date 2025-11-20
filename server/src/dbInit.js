@@ -8,6 +8,18 @@ module.exports = function initDb(db){
     db.run(`CREATE TABLE IF NOT EXISTS students(id TEXT PRIMARY KEY, name TEXT, cls TEXT, parentId TEXT, busId TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS parents(id TEXT PRIMARY KEY, name TEXT, phone TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL, schoolId TEXT)`);
+    // Ensure legacy students table gets parentId column if it was created before parentId addition
+    db.all("PRAGMA table_info(students)", (err, rows)=>{
+      if(!err && rows && !rows.some(c=>c.name==='parentId')){
+        db.run("ALTER TABLE students ADD COLUMN parentId TEXT");
+      }
+      if(!err && rows && !rows.some(c=>c.name==='busId')){
+        db.run("ALTER TABLE students ADD COLUMN busId TEXT");
+      }
+      if(!err && rows && !rows.some(c=>c.name==='schoolId')){
+        db.run("ALTER TABLE students ADD COLUMN schoolId TEXT");
+      }
+    });
     db.all("PRAGMA table_info(buses)", (err, rows)=>{
       if(!err && rows && !rows.some(c=>c.name==='routeId')){
         db.run("ALTER TABLE buses ADD COLUMN routeId TEXT");
