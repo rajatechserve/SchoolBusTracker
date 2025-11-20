@@ -689,6 +689,59 @@ app.get('/api/dashboard/summary', authenticateToken, async (req, res) =>
     }
 });
 
+// ------------------ SCHOOL USERS MANAGEMENT ------------------
+// All endpoints restricted to main school admin (role 'school')
+app.get('/api/school-users', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const rows = await allSql('SELECT id,username,role,active,createdAt FROM school_users WHERE schoolId=? ORDER BY createdAt DESC', [req.user.id]);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/school-users', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const { username, password, role } = req.body || {};
+        if(!username || !password || password.length < 6) return res.status(400).json({ error: 'username & password (>=6) required' });
+        const exist = await getSql('SELECT id FROM school_users WHERE schoolId=? AND username=?', [req.user.id, username]);
+        if(exist) return res.status(409).json({ error: 'username exists' });
+        const id = uuidv4(); const hash = await bcrypt.hash(password,10); const now = Date.now();
+        await runSql('INSERT INTO school_users(id,schoolId,username,passwordHash,role,active,createdAt) VALUES(?,?,?,?,?,?,?)',[id, req.user.id, username, hash, role||'editor',1, now]);
+        const row = await getSql('SELECT id,username,role,active,createdAt FROM school_users WHERE id=?',[id]);
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/school-users/:id/reset-password', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const { password } = req.body || {}; if(!password || password.length<6) return res.status(400).json({ error: 'password min 6' });
+        const hash = await bcrypt.hash(password,10);
+        await runSql('UPDATE school_users SET passwordHash=? WHERE id=? AND schoolId=?',[hash, req.params.id, req.user.id]);
+        res.json({ reset:true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/school-users/:id', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const { role, active } = req.body || {};
+        await runSql('UPDATE school_users SET role=COALESCE(?,role), active=COALESCE(?,active) WHERE id=? AND schoolId=?',[role, typeof active==='number'?active:null, req.params.id, req.user.id]);
+        const row = await getSql('SELECT id,username,role,active,createdAt FROM school_users WHERE id=? AND schoolId=?',[req.params.id, req.user.id]);
+        if(!row) return res.status(404).json({ error:'not found' });
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/school-users/:id', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        await runSql('DELETE FROM school_users WHERE id=? AND schoolId=?',[req.params.id, req.user.id]);
+        res.json({ deleted:true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Get school details/dashboard by ID (for admin viewing specific school)
 app.get('/api/schools/:id/dashboard', authenticateToken, async (req, res) => {
     try {
