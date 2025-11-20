@@ -3,11 +3,17 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 export default function Buses(){
   const [list,setList]=useState([]);
-  const [form,setForm]=useState({number:'',driverId:'',driverName:'',driverPhone:''});
+  const [drivers,setDrivers]=useState([]);
+  const [routes,setRoutes]=useState([]);
+  const [form,setForm]=useState({number:'',driverId:'',routeId:''});
   const load=()=>api.get('/buses').then(r=>setList(r.data||[])).catch(()=>{});
-  useEffect(()=>{ load(); },[]);
-  const save=async()=>{ try{ if(form.id) await api.put('/buses/'+form.id, form); else await api.post('/buses', form); setForm({number:'',driverId:'',driverName:'',driverPhone:''}); load(); }catch(e){ alert('Error: '+(e?.response?.data?.error||e.message)); } };
-  const edit=(b)=> setForm({id:b.id,number:b.number,driverId:b.driverId,driverName:b.driverName,driverPhone:b.driverPhone});
+  const loadDrivers=()=>api.get('/drivers').then(r=>setDrivers(r.data||[])).catch(()=>{});
+  const loadRoutes=()=>api.get('/routes').then(r=>setRoutes(r.data||[])).catch(()=>{});
+  useEffect(()=>{ load(); loadDrivers(); loadRoutes(); },[]);
+  const save=async()=>{ try{ const payload = { number: form.number, driverId: form.driverId||null, routeId: form.routeId||null }; if(form.id) await api.put('/buses/'+form.id, payload); else await api.post('/buses', payload); setForm({number:'',driverId:'',routeId:''}); load(); }catch(e){ alert('Error: '+(e?.response?.data?.error||e.message)); } };
+  const edit=(b)=> setForm({id:b.id,number:b.number,driverId:b.driverId,routeId:b.routeId||''});
   const remove=async(id)=>{ if(!confirm('Delete?')) return; await api.delete('/buses/'+id); load(); };
-  return (<div><h2 className="text-xl font-semibold mb-4">Buses</h2><div className="mb-4 space-y-2"><input placeholder="Number" value={form.number} onChange={e=>setForm({...form,number:e.target.value})} className="border p-2 w-60"/><input placeholder="Driver name" value={form.driverName} onChange={e=>setForm({...form,driverName:e.target.value})} className="border p-2 w-60"/><input placeholder="Driver phone" value={form.driverPhone} onChange={e=>setForm({...form,driverPhone:e.target.value})} className="border p-2 w-60"/><div><button onClick={save} className="btn-primary">{form.id?'Update':'Add'} Bus</button></div></div><div className="space-y-2">{list.map(b=>(<div key={b.id} className="p-3 bg-white rounded shadow flex justify-between items-center"><div><div className="font-medium">{b.number}</div><div className="text-sm text-slate-500">{b.driverName} • {b.driverPhone}</div></div><div className="flex gap-2"><button onClick={()=>edit(b)} className="text-blue-600">Edit</button><button onClick={()=>remove(b.id)} className="text-red-600">Delete</button></div></div>))}</div></div>);
+  const getDriverName=(driverId)=> drivers.find(d=>d.id===driverId)?.name||'N/A';
+  const getRouteName=(routeId)=> routes.find(r=>r.id===routeId)?.name||'N/A';
+  return (<div><h2 className="text-xl font-semibold mb-4">Buses</h2><div className="mb-4 space-y-2"><input placeholder="Bus Number" value={form.number} onChange={e=>setForm({...form,number:e.target.value})} className="border p-2 w-60"/><select value={form.driverId} onChange={e=>setForm({...form,driverId:e.target.value})} className="border p-2 w-60"><option value="">Select Driver</option>{drivers.map(d=>(<option key={d.id} value={d.id}>{d.name}</option>))}</select><select value={form.routeId} onChange={e=>setForm({...form,routeId:e.target.value})} className="border p-2 w-60"><option value="">Select Route</option>{routes.map(r=>(<option key={r.id} value={r.id}>{r.name}</option>))}</select><div><button onClick={save} className="btn-primary">{form.id?'Update':'Add'} Bus</button></div></div><div className="space-y-2">{list.map(b=>(<div key={b.id} className="p-3 bg-white rounded shadow flex justify-between items-center"><div><div className="font-medium">{b.number}</div><div className="text-sm text-slate-500">Driver: {getDriverName(b.driverId)} • Route: {getRouteName(b.routeId)}</div></div><div className="flex gap-2"><button onClick={()=>edit(b)} className="text-blue-600">Edit</button><button onClick={()=>remove(b.id)} className="text-red-600">Delete</button></div></div>))}</div></div>);
 }

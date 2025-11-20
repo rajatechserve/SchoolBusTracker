@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import api, { setAuthToken, setAuthUser } from '../services/api';
 
 export default function Login({ onLogin }) {
-  const [mode, setMode] = useState('admin'); // 'admin' | 'driver' | 'parent'
+  const [mode, setMode] = useState('admin'); // 'admin' | 'driver' | 'parent' | 'school'
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [name, setName] = useState('');
@@ -15,6 +15,7 @@ export default function Login({ onLogin }) {
   const driverValid = name.trim().length >= 2 && phoneValid && bus.trim().length >= 2;
   const parentValid = name.trim().length >= 2 && phoneValid;
   const adminValid = username.trim() && password.trim();
+  const schoolValid = username.trim() && password.trim();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -25,6 +26,11 @@ export default function Login({ onLogin }) {
         const r = await api.post('/auth/login', { username, password });
         setAuthToken(r.data.token); setAuthUser({ role: 'admin', username }); if(onLogin) onLogin(username);
         window.location.href = '/';
+      } else if (mode === 'school') {
+        if (!schoolValid) return;
+        const r = await api.post('/auth/school-login', { username, password });
+        setAuthToken(r.data.token); setAuthUser({ role: 'school', ...r.data.school }); if(onLogin) onLogin(r.data.school.name);
+        window.location.href = '/school-dashboard';
       } else if (mode === 'driver') {
         if (!driverValid) return; const r = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: bus.trim() });
         setAuthToken(r.data.token); setAuthUser({ role: 'driver', id: phone.trim(), name: name.trim(), bus: bus.trim() }); window.location.href = '/map';
@@ -44,7 +50,7 @@ export default function Login({ onLogin }) {
   return (
     <div className="max-w-md mx-auto">
       <div className="flex justify-center mb-6 gap-2">
-        {['admin','driver','parent'].map(m => (
+        {['admin','school','driver','parent'].map(m => (
           <button key={m} onClick={()=>setMode(m)} className={`px-3 py-1 rounded border text-sm ${mode===m?'bg-blue-600 text-white':'bg-white'}`}>{m.charAt(0).toUpperCase()+m.slice(1)}</button>
         ))}
       </div>
@@ -57,6 +63,16 @@ export default function Login({ onLogin }) {
             <label className="block text-sm">Password</label>
             <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded px-3 py-2"/>
             <button disabled={!adminValid||loading} className="btn-primary w-full">{loading?'...':'Sign in'}</button>
+          </>
+        )}
+        {mode === 'school' && (
+          <>
+            <h2 className="text-xl font-semibold mb-2">School Login</h2>
+            <label className="block text-sm">Username</label>
+            <input value={username} onChange={e=>setUsername(e.target.value)} className="w-full border rounded px-3 py-2"/>
+            <label className="block text-sm">Password</label>
+            <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded px-3 py-2"/>
+            <button disabled={!schoolValid||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
           </>
         )}
         {mode === 'driver' && (
