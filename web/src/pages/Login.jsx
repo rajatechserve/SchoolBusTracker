@@ -36,7 +36,11 @@ export default function Login({ onLogin }) {
       } else if (mode === 'schoolUser') {
         if(!schoolUserValid) return;
         const r = await api.post('/auth/school-user-login', { username: schoolUserName.trim(), password });
-        setAuthToken(r.data.token); setAuthUser({ role: 'schoolUser', ...r.data.user }); if(onLogin) onLogin(r.data.user.schoolName);
+        // Preserve main role and sub-role separately
+        const u = r.data.user || {};
+        setAuthToken(r.data.token);
+        setAuthUser({ role: 'schoolUser', userRole: u.role, id: u.id, username: u.username, schoolId: u.schoolId, schoolName: u.schoolName, logo: u.logo, photo: u.photo });
+        if(onLogin) onLogin(u.schoolName);
         window.location.href = '/school-dashboard';
       } else if (mode === 'driver') {
         if (!driverValid) return; const r = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: bus.trim() });

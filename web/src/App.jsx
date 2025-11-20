@@ -21,6 +21,8 @@ function Sidebar({ authUser }){
   const isAdmin = authUser?.role === 'admin';
   const isSchoolAdmin = authUser?.role === 'school';
   const isSchoolUser = authUser?.role === 'schoolUser';
+  const userRole = authUser?.userRole; // viewer | editor | manager
+  const isViewer = isSchoolUser && userRole === 'viewer';
   const logo = (isSchoolAdmin || isSchoolUser) ? authUser?.logo : null;
   return (
   <aside className="w-64 bg-white border-r hidden md:block">
@@ -40,11 +42,12 @@ function Sidebar({ authUser }){
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/buses">Buses</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/drivers">Drivers</Link>
           <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/students">Students</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/map">Live Map</Link>
           {isSchoolAdmin && <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/school-users">Users & Roles</Link>}
-          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/parents">Parents</Link>
-          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>
-          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>
-          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/routes">Routes</Link>
+          {!isViewer && <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/parents">Parents</Link>}
+          {!isViewer && <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>}
+          {!isViewer && <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>}
+          {!isViewer && <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/routes">Routes</Link>}
         </>
       )}
     </nav>

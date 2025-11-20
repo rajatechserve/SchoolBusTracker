@@ -12,11 +12,20 @@ export default function Dashboard(){
   const [limit] = useState(10);
   const user = getAuthUser();
   const isAdmin = user?.role === 'admin';
+  const isSchool = user?.role === 'school';
+  const isSchoolUser = user?.role === 'schoolUser';
+  const isDriver = user?.role === 'driver';
+  const isParent = user?.role === 'parent';
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Redirect non-admin roles to school dashboard for consistent view
+    if(!isAdmin){
+      navigate('/school-dashboard');
+      return;
+    }
     api.get('/dashboard/summary').then(r => setSummary(r.data || {})).catch(() => { });
-  }, []);
+  }, [isAdmin, navigate]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -42,10 +51,12 @@ export default function Dashboard(){
     <div>
       <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        <div className="card p-6 bg-red-50">
-          <div className="text-4xl font-bold text-red-600">{summary.schools}</div>
-          <div className="text-sm text-slate-600">Schools</div>
-        </div>
+        {isAdmin && (
+          <div className="card p-6 bg-red-50">
+            <div className="text-4xl font-bold text-red-600">{summary.schools}</div>
+            <div className="text-sm text-slate-600">Schools</div>
+          </div>
+        )}
         <div className="card p-6 bg-blue-50">
           <div className="text-4xl font-bold text-blue-600">{summary.buses}</div>
           <div className="text-sm text-slate-600">Buses</div>
@@ -63,6 +74,17 @@ export default function Dashboard(){
           <div className="text-sm text-slate-600">Routes</div>
         </div>
       </div>
+
+      {!isAdmin && (isSchool || isSchoolUser) && (
+        <div className="mb-6 text-sm text-slate-600">
+          Showing data for your school only.
+        </div>
+      )}
+      {!isAdmin && (isDriver || isParent) && (
+        <div className="mb-6 text-sm text-slate-600">
+          Showing data scoped to your assigned school.
+        </div>
+      )}
 
       {isAdmin && (
         <div>
