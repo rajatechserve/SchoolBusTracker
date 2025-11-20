@@ -575,8 +575,22 @@ app.get('/api/attendance', authenticateToken, async (req, res) =>
 // ------------------ SCHOOLS ------------------
 app.get('/api/schools', async (req, res) => {
     try {
-        const rows = await allSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools');
-        res.json(rows.map(r=>({ ...r })));
+        const { search, page, limit } = req.query;
+        const pageNum = parseInt(page) || 1;
+        const pageLimit = parseInt(limit) || 10;
+        const offset = (pageNum - 1) * pageLimit;
+        let query = 'SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools';
+        let countQuery = 'SELECT COUNT(*) as total FROM schools';
+        let params = [];
+        if(search) {
+            query += ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
+            countQuery += ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
+            params = [`%${search}%`, `%${search}%`, `%${search}%`];
+        }
+        const total = await getSql(countQuery, params);
+        query += ' LIMIT ? OFFSET ?';
+        const rows = await allSql(query, [...params, pageLimit, offset]);
+        res.json({ data: rows, total: total.total || 0, page: pageNum, limit: pageLimit });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -651,9 +665,30 @@ app.get('/api/dashboard/summary', authenticateToken, async (req, res) =>
         const buses = schoolId ? await getSql('SELECT COUNT(*) as c FROM buses WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM buses');
         const drivers = schoolId ? await getSql('SELECT COUNT(*) as c FROM drivers WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM drivers');
         const students = schoolId ? await getSql('SELECT COUNT(*) as c FROM students WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM students');
-        res.json({ buses: buses.c || 0, drivers: drivers.c || 0, students: students.c || 0 });
+        const parents = schoolId ? await getSql('SELECT COUNT(*) as c FROM parents WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM parents');
+        const routes = schoolId ? await getSql('SELECT COUNT(*) as c FROM routes WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM routes');
+        const schools = !schoolId ? await getSql('SELECT COUNT(*) as c FROM schools') : null;
+        res.json({ buses: buses.c || 0, drivers: drivers.c || 0, students: students.c || 0, parents: parents.c || 0, routes: routes.c || 0, schools: schools?.c || 0 });
     } catch (e)
     {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Get school details/dashboard by ID (for admin viewing specific school)
+app.get('/api/schools/:id/dashboard', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'admin') return res.status(403).json({ error: 'admin only' });
+        const schoolId = req.params.id;
+        const school = await getSql('SELECT id,name,address,city,state,logo,photo FROM schools WHERE id=?', [schoolId]);
+        if(!school) return res.status(404).json({ error: 'school not found' });
+        const buses = await getSql('SELECT COUNT(*) as c FROM buses WHERE schoolId=?', [schoolId]);
+        const drivers = await getSql('SELECT COUNT(*) as c FROM drivers WHERE schoolId=?', [schoolId]);
+        const students = await getSql('SELECT COUNT(*) as c FROM students WHERE schoolId=?', [schoolId]);
+        const parents = await getSql('SELECT COUNT(*) as c FROM parents WHERE schoolId=?', [schoolId]);
+        const routes = await getSql('SELECT COUNT(*) as c FROM routes WHERE schoolId=?', [schoolId]);
+        res.json({ school, stats: { buses: buses.c || 0, drivers: drivers.c || 0, students: students.c || 0, parents: parents.c || 0, routes: routes.c || 0 } });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });

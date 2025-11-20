@@ -12,23 +12,37 @@ import RoutesPage from './pages/Routes';
 import Parents from './pages/Parents';
 import Schools from './pages/Schools';
 import SchoolDashboard from './pages/SchoolDashboard';
+import SchoolDetails from './pages/SchoolDetails';
 import Login from './pages/Login';
 import api, { getAuthUser, setAuthToken, setAuthUser } from './services/api';
 
-function Sidebar(){ return (
+function Sidebar({ authUser }){ 
+  const isAdmin = authUser?.role === 'admin';
+  const isSchool = authUser?.role === 'school';
+  const logo = isSchool ? authUser?.logo : null;
+  return (
   <aside className="w-64 bg-white border-r hidden md:block">
-    <div className="p-6 text-2xl font-semibold text-slate-700">SchoolBus</div>
+    <div className="p-6 text-2xl font-semibold text-slate-700 flex items-center gap-2">
+      {logo ? <img src={logo} alt="Logo" className="h-10 w-10 object-contain" /> : 'SchoolBus'}
+    </div>
     <nav className="p-4 space-y-2 text-sm">
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/">Dashboard</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/map">Map</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/buses">Buses</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/drivers">Drivers</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/students">Students</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/parents">Parents</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/routes">Routes</Link>
-      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/schools">Schools</Link>
+      {isAdmin && (
+        <>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/">Dashboard</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/schools">Schools</Link>
+        </>
+      )}
+      {isSchool && (
+        <>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/school-dashboard">Dashboard</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/buses">Buses</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/drivers">Drivers</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/students">Students</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>
+          <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/routes">Routes</Link>
+        </>
+      )}
     </nav>
   </aside>
 );} 
@@ -36,13 +50,12 @@ function Sidebar(){ return (
 function Header({ onLogout, authUser }) {
   const name = authUser?.username || authUser?.name;
   const isSchool = authUser?.role === 'school';
-  const logo = authUser?.logo;
+  const isAdmin = authUser?.role === 'admin';
   return (
     <header className="bg-white border-b">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {isSchool && logo && <img src={logo} alt="School logo" className="h-10 w-10 object-contain" />}
-          <div className="text-sm text-slate-600">{isSchool ? name : 'Admin console'}</div>
+          <div className="text-lg font-semibold text-slate-700">{isSchool ? name : isAdmin ? 'Admin Console' : ''}</div>
         </div>
         <div className="flex items-center gap-4">
           {authUser ? (
@@ -66,7 +79,7 @@ export default function App(){
   return (
     <BrowserRouter>
       <div className="min-h-screen flex bg-gray-50">
-        <Sidebar />
+        <Sidebar authUser={authUserState} />
         <div className="flex-1">
           <Header onLogout={logout} authUser={authUserState} />
           <main className="p-6 max-w-7xl mx-auto">
