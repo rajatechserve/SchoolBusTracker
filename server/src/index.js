@@ -250,7 +250,7 @@ app.post('/api/auth/school-user-login', async (req, res) => {
 });
 
 // ------------------ DRIVERS CRUD ------------------
-app.get('/api/drivers', async (req, res) =>
+app.get('/api/drivers', authenticateToken, async (req, res) =>
 {
     try
     {
@@ -263,11 +263,13 @@ app.get('/api/drivers', async (req, res) =>
     }
 });
 
-app.get('/api/drivers/:id', async (req, res) =>
+app.get('/api/drivers/:id', authenticateToken, async (req, res) =>
 {
     try
     {
-        const row = await getSql('SELECT id,name,phone,license FROM drivers WHERE id=?', [req.params.id]);
+        const row = await getSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE id=?', [req.params.id]);
+        const schoolScope = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        if (schoolScope && row && row.schoolId && row.schoolId !== schoolScope) return res.status(404).json({ error: 'not found' });
         if (!row) return res.status(404).json({ error: 'not found' });
         res.json(row);
     } catch (e)
@@ -320,7 +322,7 @@ app.delete('/api/drivers/:id', authenticateToken, requirePermission('manage'), a
 });
 
 // ------------------ STUDENTS CRUD ------------------
-app.get('/api/students', async (req, res) => {
+app.get('/api/students', authenticateToken, async (req, res) => {
     try {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
         const rows = schoolId ? await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students');
@@ -368,7 +370,7 @@ app.delete('/api/students/:id', authenticateToken, requirePermission('manage'), 
 });
 
 // ------------------ PARENTS CRUD ------------------
-app.get('/api/parents', async (req, res) =>
+app.get('/api/parents', authenticateToken, async (req, res) =>
 {
     try
     {
@@ -398,10 +400,16 @@ app.post('/api/parents', authenticateToken, requirePermission('write'), async (r
     }
 });
 // Fetch students belonging to a parent
-app.get('/api/parents/:id/students', async (req, res) => {
+app.get('/api/parents/:id/students', authenticateToken, async (req, res) => {
     try {
         const parentId = req.params.id;
-        const rows = await allSql('SELECT id,name,cls,parentId,busId FROM students WHERE parentId=?', [parentId]);
+        const schoolScope = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        let rows;
+        if (schoolScope) {
+            rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE parentId=? AND schoolId=?', [parentId, schoolScope]);
+        } else {
+            rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE parentId=?', [parentId]);
+        }
         res.json(rows);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -409,11 +417,16 @@ app.get('/api/parents/:id/students', async (req, res) => {
 });
 
 // ------------------ BUSES CRUD + LOCATION ------------------
-app.get('/api/buses', async (req, res) => {
+app.get('/api/buses', authenticateToken, async (req, res) => {
     try {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const rows = schoolId ? await allSql('SELECT * FROM buses WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM buses');
-        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
+        let rows;
+        if (schoolId) {
+            rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.schoolId=?', [schoolId]);
+        } else {
+            rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id');
+        }
+        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, driverName: r.driverName || null, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -476,7 +489,7 @@ app.post('/api/buses/:id/location', authenticateToken, async (req, res) =>
 });
 
 // ------------------ ROUTES CRUD ------------------
-app.get('/api/routes', async (req, res) =>
+app.get('/api/routes', authenticateToken, async (req, res) =>
 {
     try
     {

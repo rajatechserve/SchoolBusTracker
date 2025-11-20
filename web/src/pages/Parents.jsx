@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import api, { getAuthUser } from '../services/api';
 
 export default function Parents(){
   const [list,setList]=useState([]);
+    const user = getAuthUser();
+    const isViewer = user?.role==='schoolUser' && user?.userRole==='viewer';
   const [q,setQ]=useState('');
   const [form,setForm]=useState({id:null,name:'',phone:''});
   const [loading,setLoading]=useState(false);
@@ -15,6 +17,7 @@ export default function Parents(){
   useEffect(()=>{ load(); },[]);
 
   const save=async()=>{
+    if(isViewer) return;
     setError('');
     if(!form.name.trim() || !/^\+?\d{7,15}$/.test(form.phone.trim())){ setError('Provide name and valid phone'); return; }
     setLoading(true);
@@ -56,6 +59,7 @@ export default function Parents(){
     setCsvPreview(preview);
   };
   const importCsv = async ()=>{
+    if(isViewer) return;
     if(!csvPreview.length) return;
     setImporting(true); setError('');
     const results=[];
@@ -75,21 +79,22 @@ export default function Parents(){
   };
 
   const edit=p=>setForm(p);
-  const remove=async(id)=>{ if(!confirm('Delete parent?')) return; await api.delete('/parents/'+id); load(); };
+  const remove=async(id)=>{ if(isViewer) return; if(!confirm('Delete parent?')) return; await api.delete('/parents/'+id); load(); };
 
   const filtered=list.filter(x=> x.name?.toLowerCase().includes(q.toLowerCase()) || x.phone?.toLowerCase().includes(q.toLowerCase()));
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Parents</h2>
+        <h2 className="text-xl font-semibold">Parents {isViewer && <span className='text-xs text-slate-500'>(read-only)</span>}</h2>
         <input placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} className="border p-2"/>
       </div>
+      {isViewer && <div className='mb-4 p-3 bg-yellow-50 text-xs text-yellow-700 rounded'>Viewer role: modifications disabled.</div>}
       <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
         <input placeholder='Name' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className='border p-2'/>
         <input placeholder='Phone' value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className='border p-2'/>
         <div className='md:col-span-3 flex gap-2'>
-          <button onClick={save} disabled={loading} className='btn-primary'>{form.id?'Update':'Add'} Parent</button>
+          <button onClick={save} disabled={loading || isViewer} className={`btn-primary ${isViewer?'opacity-50 cursor-not-allowed':''}`}>{form.id?'Update':'Add'} Parent</button>
           {form.id && <button onClick={()=>setForm({id:null,name:'',phone:''})} className='btn-secondary'>Cancel</button>}
         </div>
         {error && <div className='md:col-span-3 text-sm text-red-600'>{error}</div>}
@@ -98,8 +103,8 @@ export default function Parents(){
         <h3 className='font-semibold'>Bulk Import (CSV)</h3>
         <input type='file' accept='.csv' onChange={onFileChange} />
         <div className='flex gap-2'>
-          <button onClick={parseCsv} disabled={!csvFile} className='btn-secondary'>Parse</button>
-          <button onClick={importCsv} disabled={!csvPreview.length || importing} className='btn-primary'>{importing? 'Importing...' : 'Import'}</button>
+          <button onClick={parseCsv} disabled={!csvFile || isViewer} className={`btn-secondary ${isViewer?'opacity-50 cursor-not-allowed':''}`}>Parse</button>
+          <button onClick={importCsv} disabled={!csvPreview.length || importing || isViewer} className={`btn-primary ${isViewer?'opacity-50 cursor-not-allowed':''}`}>{importing? 'Importing...' : 'Import'}</button>
         </div>
         {csvPreview.length>0 && (
           <div className='text-xs max-h-60 overflow-auto border rounded p-2 bg-white'>
@@ -119,8 +124,8 @@ export default function Parents(){
               <div className='text-sm text-slate-500'>{p.phone}</div>
             </div>
             <div className='flex gap-3 text-sm'>
-              <button onClick={()=>edit(p)} className='text-blue-600'>Edit</button>
-              <button onClick={()=>remove(p.id)} className='text-red-600'>Delete</button>
+              <button onClick={()=>!isViewer && edit(p)} disabled={isViewer} className={`text-blue-600 ${isViewer?'opacity-40 cursor-not-allowed':''}`}>Edit</button>
+              <button onClick={()=>remove(p.id)} disabled={isViewer} className={`text-red-600 ${isViewer?'opacity-40 cursor-not-allowed':''}`}>Delete</button>
             </div>
           </div>
         ))}
