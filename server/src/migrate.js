@@ -17,22 +17,6 @@ db.serialize(()=>{
   db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT)`);
   db.run(`CREATE TABLE IF NOT EXISTS schools(id TEXT PRIMARY KEY, name TEXT, address TEXT)`);
   db.get("SELECT id FROM admins WHERE username='admin'", (err,row)=>{ if(!row){ bcrypt.hash('admin123',10,(e,h)=>{ db.run(`INSERT INTO admins (id, username, passwordHash) VALUES (?,?,?)`, [uuidv4(),'admin',h]); console.log('Default admin created: admin/admin123'); }); } else { console.log('Admin already exists'); } });
-
-  // Ensure students table has parentId & busId columns
-  db.all('PRAGMA table_info(students)', (e, rows) => {
-    if (e) { console.warn('Failed to inspect students table', e.message); return; }
-    const cols = rows.map(r => r.name);
-    if (!cols.includes('parentId')) {
-      db.run('ALTER TABLE students ADD COLUMN parentId TEXT', [], err => { if (err) console.warn('Add parentId failed', err.message); else console.log('Added parentId column to students'); });
-    }
-    if (!cols.includes('busId')) {
-      db.run('ALTER TABLE students ADD COLUMN busId TEXT', [], err => { if (err) console.warn('Add busId failed', err.message); else console.log('Added busId column to students'); });
-    }
-  });
-
-  // Unique phone indexes for drivers & parents
-  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_phone ON drivers(phone)');
-  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_parents_phone ON parents(phone)');
   console.log('Done.');
   db.close();
 });

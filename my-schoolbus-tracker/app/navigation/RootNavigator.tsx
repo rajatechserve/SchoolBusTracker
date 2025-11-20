@@ -6,13 +6,13 @@ import ParentTabs from './ParentTabs';
 import { useAuth } from '../context/AuthContext';
 
 export default function RootNavigator() {
-	const { user } = useAuth();
+  const { user } = useAuth();
 
-	return (
-		<NavigationContainer>
-			{!user && <AuthStack />}
-			{user && user.role === 'driver' && <DriverTabs />}
-			{user && user.role === 'parent' && <ParentTabs />}
-		</NavigationContainer>
-	);
+  return (
+    <NavigationContainer>
+      {!user && <AuthStack />}
+      {user && user.role === 'driver' && <DriverTabs />}
+      {user && user.role === 'parent' && <ParentTabs />}
+    </NavigationContainer>
+  );
 }

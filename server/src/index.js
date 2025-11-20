@@ -119,60 +119,44 @@ app.post('/api/auth/login', async (req, res) =>
     }
 });
 
-// Driver login / auto-registration by phone (phone is unique identifier)
+// Driver login / auto-registration by phone
 app.post('/api/auth/driver-login', async (req, res) => {
     try {
-        const { phone } = req.body || {};
-        if (!phone) return res.status(400).json({ error: 'phone required' });
-        let row = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
+        const { id, phone, name, bus } = req.body || {};
+        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
+        let row = null;
+        if (id) row = await getSql('SELECT * FROM drivers WHERE id=?', [id]);
+        else if (phone) row = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
         if (!row) {
+            if (!name || !phone) return res.status(404).json({ error: 'Driver not found. Provide name and phone to create.' });
             const newId = uuidv4();
-            const defaultName = `Driver ${phone.slice(-4)}`;
-            await runSql('INSERT INTO drivers(id,name,phone,license) VALUES(?,?,?,?)', [newId, defaultName, phone, null]);
+            await runSql('INSERT INTO drivers(id,name,phone,license) VALUES(?,?,?,?)', [newId, name, phone, null]);
             row = await getSql('SELECT * FROM drivers WHERE id=?', [newId]);
         }
-        // Attempt to locate bus assigned to this driver either by driverId or driverPhone
-        const busRow = await getSql('SELECT number FROM buses WHERE driverId=? OR driverPhone=? LIMIT 1', [row.id, phone]);
-        const busNumber = busRow ? busRow.number : null;
-        const token = jwt.sign({ id: row.id, name: row.name, role: 'driver', bus: busNumber }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, driver: { id: row.id, name: row.name, phone: row.phone, bus: busNumber } });
+        const token = jwt.sign({ id: row.id, name: row.name, role: 'driver', bus: bus || null }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, driver: { id: row.id, name: row.name, phone: row.phone } });
     } catch (e) {
-        if (e && /UNIQUE/i.test(e.message)) return res.status(409).json({ error: 'Phone already registered to another driver' });
         res.status(500).json({ error: e.message });
     }
 });
 
-// Parent login / auto-registration by phone (optional studentId to link)
+// Parent login / auto-registration by phone
 app.post('/api/auth/parent-login', async (req, res) => {
     try {
-        const { phone, studentId } = req.body || {};
-        if (!phone) return res.status(400).json({ error: 'phone required' });
-        let row = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
+        const { phone, id, name } = req.body || {};
+        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
+        let row = null;
+        if (id) row = await getSql('SELECT * FROM parents WHERE id=?', [id]);
+        else if (phone) row = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
         if (!row) {
+            if (!name || !phone) return res.status(404).json({ error: 'Parent not found. Provide name and phone to create.' });
             const newId = uuidv4();
-            const defaultName = `Parent ${phone.slice(-4)}`;
-            await runSql('INSERT INTO parents(id,name,phone) VALUES(?,?,?)', [newId, defaultName, phone]);
+            await runSql('INSERT INTO parents(id,name,phone) VALUES(?,?,?)', [newId, name, phone]);
             row = await getSql('SELECT * FROM parents WHERE id=?', [newId]);
         }
-        let busId = null;
-        if (studentId) {
-            const student = await getSql('SELECT * FROM students WHERE id=?', [studentId]);
-            if (student) {
-                // link parent if empty or already this parent
-                if (!student.parentId || student.parentId === row.id) {
-                    if (student.parentId !== row.id) await runSql('UPDATE students SET parentId=? WHERE id=?', [row.id, studentId]);
-                    busId = student.busId || null;
-                }
-            }
-        } else {
-            // fallback: find first student linked to parent
-            const existing = await getSql('SELECT busId FROM students WHERE parentId=? AND busId IS NOT NULL LIMIT 1', [row.id]);
-            busId = existing ? existing.busId : null;
-        }
-        const token = jwt.sign({ id: row.id, name: row.name, role: 'parent', bus: busId }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, parent: { id: row.id, name: row.name, phone: row.phone, bus: busId } });
+        const token = jwt.sign({ id: row.id, name: row.name, role: 'parent' }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, parent: { id: row.id, name: row.name, phone: row.phone } });
     } catch (e) {
-        if (e && /UNIQUE/i.test(e.message)) return res.status(409).json({ error: 'Phone already registered to another parent' });
         res.status(500).json({ error: e.message });
     }
 });
@@ -203,19 +187,18 @@ app.get('/api/drivers/:id', async (req, res) =>
     }
 });
 
-app.post('/api/drivers', authenticateToken, async (req, res) => {
-    try {
+app.post('/api/drivers', authenticateToken, async (req, res) =>
+{
+    try
+    {
         const { name, phone, license } = req.body || {};
-        if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' });
-        // check duplicate phone
-        const existing = await getSql('SELECT id FROM drivers WHERE phone=?', [phone]);
-        if (existing) return res.status(409).json({ error: 'Phone already exists' });
+        if (!name) return res.status(400).json({ error: 'name is required' });
         const id = uuidv4();
-        await runSql('INSERT INTO drivers(id,name,phone,license) VALUES(?,?,?,?)', [id, name, phone, license || null]);
+        await runSql('INSERT INTO drivers(id,name,phone,license) VALUES(?,?,?,?)', [id, name, phone || null, license || null]);
         const row = await getSql('SELECT id,name,phone,license FROM drivers WHERE id=?', [id]);
         res.json(row);
-    } catch (e) {
-        if (e && /UNIQUE/i.test(e.message)) return res.status(409).json({ error: 'Phone already exists' });
+    } catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });
@@ -305,18 +288,18 @@ app.get('/api/parents', async (req, res) =>
     }
 });
 
-app.post('/api/parents', authenticateToken, async (req, res) => {
-    try {
+app.post('/api/parents', authenticateToken, async (req, res) =>
+{
+    try
+    {
         const { name, phone } = req.body || {};
-        if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' });
-        const existing = await getSql('SELECT id FROM parents WHERE phone=?', [phone]);
-        if (existing) return res.status(409).json({ error: 'Phone already exists' });
+        if (!name) return res.status(400).json({ error: 'name is required' });
         const id = uuidv4();
-        await runSql('INSERT INTO parents(id,name,phone) VALUES(?,?,?)', [id, name, phone]);
+        await runSql('INSERT INTO parents(id,name,phone) VALUES(?,?,?)', [id, name, phone || null]);
         const row = await getSql('SELECT id,name,phone FROM parents WHERE id=?', [id]);
         res.json(row);
-    } catch (e) {
-        if (e && /UNIQUE/i.test(e.message)) return res.status(409).json({ error: 'Phone already exists' });
+    } catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });

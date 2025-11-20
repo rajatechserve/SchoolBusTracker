@@ -5,20 +5,21 @@ import api, { attachToken } from '../../services/api';
 import { router } from 'expo-router';
 
 export default function DriverLogin() {
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [bus, setBus] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginLocal } = useAuth();
-  const valid = /^\+?\d{7,15}$/.test(phone.trim());
+  const valid = name.trim().length>=2 && /^\+?\d{7,15}$/.test(phone.trim()) && bus.trim().length>=2;
 
   const submit = async () => {
     if (!valid || loading) return;
     setLoading(true);
     try {
-      const resp = await api.post('/auth/driver-login', { phone: phone.trim() });
+      const resp = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: bus.trim() });
       const token = resp.data?.token;
       if (token) attachToken(token);
-      const busNumber = resp.data?.driver?.bus || null;
-      loginLocal('driver', { id: phone.trim(), name: resp.data?.driver?.name || `Driver ${phone.slice(-4)}`, phone: phone.trim(), bus: busNumber }, token);
+      loginLocal('driver', { id: phone.trim(), name: name.trim(), phone: phone.trim(), bus: bus.trim() }, token);
       router.replace('/(tabs)');
     } catch(e:any){ console.warn('Driver login failed', e?.message); } finally { setLoading(false); }
   };
@@ -26,7 +27,9 @@ export default function DriverLogin() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Driver Login</Text>
+      <TextInput placeholder="Name" value={name} onChangeText={setName} style={styles.input} />
       <TextInput placeholder="Mobile (+123...)" value={phone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" />
+      <TextInput placeholder="Bus Number" value={bus} onChangeText={setBus} style={styles.input} />
       <TouchableOpacity disabled={!valid || loading} onPress={submit} style={[styles.button, (!valid||loading)&&styles.buttonDisabled]}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
