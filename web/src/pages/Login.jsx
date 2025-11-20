@@ -4,8 +4,7 @@ import api, { setAuthToken, setAuthUser } from '../services/api';
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState('admin'); // 'admin' | 'driver' | 'parent' | 'school' | 'schoolUser'
-  const [schoolUsername, setSchoolUsername] = useState('');
-  const [subUserUsername, setSubUserUsername] = useState('');
+  const [schoolUserName, setSchoolUserName] = useState('');
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [name, setName] = useState('');
@@ -18,7 +17,7 @@ export default function Login({ onLogin }) {
   const parentValid = name.trim().length >= 2 && phoneValid;
   const adminValid = username.trim() && password.trim();
   const schoolValid = username.trim() && password.trim();
-  const schoolUserValid = schoolUsername.trim() && subUserUsername.trim() && password.trim();
+  const schoolUserValid = schoolUserName.trim() && password.trim();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -36,7 +35,7 @@ export default function Login({ onLogin }) {
         window.location.href = '/school-dashboard';
       } else if (mode === 'schoolUser') {
         if(!schoolUserValid) return;
-        const r = await api.post('/auth/school-user-login', { schoolUsername: schoolUsername.trim(), username: subUserUsername.trim(), password });
+        const r = await api.post('/auth/school-user-login', { username: schoolUserName.trim(), password });
         setAuthToken(r.data.token); setAuthUser({ role: 'schoolUser', ...r.data.user }); if(onLogin) onLogin(r.data.user.schoolName);
         window.location.href = '/school-dashboard';
       } else if (mode === 'driver') {
@@ -96,13 +95,11 @@ export default function Login({ onLogin }) {
         {mode === 'schoolUser' && (
           <>
             <h2 className="text-xl font-semibold mb-2">School User Login</h2>
-            <label className="block text-sm">School Username</label>
-            <input placeholder="School username" value={schoolUsername} onChange={e=>setSchoolUsername(e.target.value)} className="w-full border rounded px-3 py-2"/>
-            <label className="block text-sm">User Username</label>
-            <input placeholder="User username" value={subUserUsername} onChange={e=>setSubUserUsername(e.target.value)} className="w-full border rounded px-3 py-2"/>
+            <label className="block text-sm">Username</label>
+            <input placeholder="Unique username" value={schoolUserName} onChange={e=>setSchoolUserName(e.target.value)} className="w-full border rounded px-3 py-2"/>
             <label className="block text-sm">Password</label>
             <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded px-3 py-2"/>
-            <div className="text-xs text-slate-500">{schoolUserValid? 'Ready':'Fill all fields (password required)'}</div>
+            <div className="text-xs text-slate-500">{schoolUserValid? 'Ready':'Enter username & password'}</div>
             <button disabled={!schoolUserValid||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
           </>
         )}

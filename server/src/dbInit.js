@@ -51,6 +51,7 @@ module.exports = function initDb(db){
       if(!have('createdAt')) db.run('ALTER TABLE school_users ADD COLUMN createdAt INTEGER');
     });
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_school_users_unique ON school_users(schoolId, username)');
+    db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_school_users_username_global ON school_users(username)');
     // Add missing columns for existing deployments
     db.all("PRAGMA table_info(schools)", (err, rows)=>{
       if(err||!rows) return;

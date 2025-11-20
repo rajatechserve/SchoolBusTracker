@@ -126,6 +126,27 @@ function authenticateToken(req, res, next)
     });
 }
 
+// Role-based permission check middleware
+function requirePermission(permission) {
+    return (req, res, next) => {
+        const userRole = req.user?.userRole; // userRole from school_users.role
+        if (req.user?.role === 'admin' || req.user?.role === 'school') return next(); // Admins and school owners bypass
+        if (req.user?.role !== 'schoolUser') return res.status(403).json({ error: 'Unauthorized' });
+        
+        // Check schoolUser permissions
+        if (permission === 'read') {
+            return next(); // All schoolUser roles can read
+        } else if (permission === 'write') {
+            if (userRole === 'editor' || userRole === 'manager') return next();
+            return res.status(403).json({ error: 'Write permission required (editor/manager role)' });
+        } else if (permission === 'manage') {
+            if (userRole === 'manager') return next();
+            return res.status(403).json({ error: 'Manager permission required' });
+        }
+        return res.status(403).json({ error: 'Permission denied' });
+    };
+}
+
 // Serve swagger UI
 try
 {
@@ -217,16 +238,14 @@ app.post('/api/auth/school-login', async (req, res) => {
 // School user (sub-account) login
 app.post('/api/auth/school-user-login', async (req, res) => {
     try {
-        const { schoolUsername, username, password } = req.body || {};
-        if(!schoolUsername || !username || !password) return res.status(400).json({ error: 'schoolUsername, username, password required' });
-        const school = await getSql('SELECT * FROM schools WHERE username=?', [schoolUsername]);
-        if(!school) return res.status(404).json({ error: 'school not found' });
-        const user = await getSql('SELECT * FROM school_users WHERE schoolId=? AND username=? AND active=1', [school.id, username]);
+        const { username, password } = req.body || {};
+        if(!username || !password) return res.status(400).json({ error: 'username and password required' });
+        const user = await getSql('SELECT su.*, s.name as schoolName, s.logo as schoolLogo, s.photo as schoolPhoto FROM school_users su JOIN schools s ON su.schoolId=s.id WHERE su.username=? AND su.active=1', [username]);
         if(!user) return res.status(401).json({ error: 'Invalid credentials' });
         const match = await bcrypt.compare(password, user.passwordHash);
         if(!match) return res.status(401).json({ error: 'Invalid credentials' });
-        const token = jwt.sign({ id: user.id, username: user.username, role: 'schoolUser', schoolId: school.id, schoolName: school.name }, JWT_SECRET, { expiresIn: '12h' });
-        res.json({ token, user: { id: user.id, username: user.username, role: user.role, schoolId: school.id, schoolName: school.name, logo: school.logo, photo: school.photo } });
+        const token = jwt.sign({ id: user.id, username: user.username, role: 'schoolUser', userRole: user.role, schoolId: user.schoolId, schoolName: user.schoolName }, JWT_SECRET, { expiresIn: '12h' });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role, schoolId: user.schoolId, schoolName: user.schoolName, logo: user.schoolLogo, photo: user.schoolPhoto } });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -257,7 +276,7 @@ app.get('/api/drivers/:id', async (req, res) =>
     }
 });
 
-app.post('/api/drivers', authenticateToken, async (req, res) =>
+app.post('/api/drivers', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -274,7 +293,7 @@ app.post('/api/drivers', authenticateToken, async (req, res) =>
     }
 });
 
-app.put('/api/drivers/:id', authenticateToken, async (req, res) =>
+app.put('/api/drivers/:id', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -288,7 +307,7 @@ app.put('/api/drivers/:id', authenticateToken, async (req, res) =>
     }
 });
 
-app.delete('/api/drivers/:id', authenticateToken, async (req, res) =>
+app.delete('/api/drivers/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -311,7 +330,7 @@ app.get('/api/students', async (req, res) => {
     }
 });
 
-app.post('/api/students', authenticateToken, async (req, res) => {
+app.post('/api/students', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { name, cls, parentId, busId } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
@@ -325,7 +344,7 @@ app.post('/api/students', authenticateToken, async (req, res) => {
     }
 });
 
-app.put('/api/students/:id', authenticateToken, async (req, res) => {
+app.put('/api/students/:id', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { name, cls, parentId, busId } = req.body || {};
         await runSql('UPDATE students SET name=?,cls=?,parentId=?,busId=? WHERE id=?', [name, cls, parentId, busId, req.params.id]);
@@ -336,7 +355,7 @@ app.put('/api/students/:id', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/students/:id', authenticateToken, async (req, res) =>
+app.delete('/api/students/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -362,7 +381,7 @@ app.get('/api/parents', async (req, res) =>
     }
 });
 
-app.post('/api/parents', authenticateToken, async (req, res) =>
+app.post('/api/parents', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -400,7 +419,7 @@ app.get('/api/buses', async (req, res) => {
     }
 });
 
-app.post('/api/buses', authenticateToken, async (req, res) => {
+app.post('/api/buses', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { number, driverId, routeId, started } = req.body || {};
         if (!number) return res.status(400).json({ error: 'number is required' });
@@ -414,7 +433,7 @@ app.post('/api/buses', authenticateToken, async (req, res) => {
     }
 });
 
-app.put('/api/buses/:id', authenticateToken, async (req, res) => {
+app.put('/api/buses/:id', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { number, driverId, routeId, started } = req.body || {};
         await runSql('UPDATE buses SET number=?,driverId=?,routeId=?,started=? WHERE id=?', [number, driverId, routeId, started ? 1 : 0, req.params.id]);
@@ -425,7 +444,7 @@ app.put('/api/buses/:id', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/buses/:id', authenticateToken, async (req, res) =>
+app.delete('/api/buses/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -471,7 +490,7 @@ app.get('/api/routes', async (req, res) =>
     }
 });
 
-app.post('/api/routes', authenticateToken, async (req, res) =>
+app.post('/api/routes', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -488,7 +507,7 @@ app.post('/api/routes', authenticateToken, async (req, res) =>
     }
 });
 
-app.put('/api/routes/:id', authenticateToken, async (req, res) =>
+app.put('/api/routes/:id', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -502,7 +521,7 @@ app.put('/api/routes/:id', authenticateToken, async (req, res) =>
     }
 });
 
-app.delete('/api/routes/:id', authenticateToken, async (req, res) =>
+app.delete('/api/routes/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -515,7 +534,7 @@ app.delete('/api/routes/:id', authenticateToken, async (req, res) =>
 });
 
 // ------------------ ASSIGNMENTS ------------------
-app.post('/api/assignments', authenticateToken, async (req, res) =>
+app.post('/api/assignments', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -545,7 +564,7 @@ app.get('/api/assignments', authenticateToken, async (req, res) =>
     }
 });
 
-app.delete('/api/assignments/:id', authenticateToken, async (req, res) =>
+app.delete('/api/assignments/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -558,7 +577,7 @@ app.delete('/api/assignments/:id', authenticateToken, async (req, res) =>
 });
 
 // ------------------ ATTENDANCE ------------------
-app.post('/api/attendance', authenticateToken, async (req, res) =>
+app.post('/api/attendance', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
