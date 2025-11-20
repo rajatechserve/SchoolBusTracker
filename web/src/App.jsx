@@ -10,6 +10,7 @@ import Attendance from './pages/Attendance';
 import Buses from './pages/Buses';
 import RoutesPage from './pages/Routes';
 import Parents from './pages/Parents';
+import Schools from './pages/Schools';
 import Login from './pages/Login';
 import api, { getAuthUser, setAuthToken, setAuthUser } from './services/api';
 
@@ -26,6 +27,7 @@ function Sidebar(){ return (
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/assignments">Assignments</Link>
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/attendance">Attendance</Link>
       <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/routes">Routes</Link>
+      <Link className="block py-2 px-3 rounded hover:bg-slate-50" to="/schools">Schools</Link>
     </nav>
   </aside>
 );} 
@@ -73,6 +75,7 @@ export default function App(){
               <Route path="/assignments" element={<Assignments/>} />
               <Route path="/attendance" element={<Attendance/>} />
               <Route path="/routes" element={<RoutesPage/>} />
+              <Route path="/schools" element={<Schools/>} />
             </Routes>
           </main>
         </div>
