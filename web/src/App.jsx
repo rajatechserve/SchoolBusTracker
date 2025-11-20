@@ -48,7 +48,8 @@ function Sidebar({ authUser }){
 );} 
 
 function Header({ onLogout, authUser }) {
-  const name = authUser?.username || authUser?.name;
+  const username = authUser?.username;
+  const schoolName = authUser?.name;
   const isSchool = authUser?.role === 'school';
   const isAdmin = authUser?.role === 'admin';
   return (
@@ -57,8 +58,9 @@ function Header({ onLogout, authUser }) {
         {isSchool ? (
           <>
             <div className="flex-1"></div>
-            <div className="text-xl font-bold text-slate-800">{name}</div>
+            <div className="text-xl font-bold text-slate-800">{schoolName}</div>
             <div className="flex-1 flex items-center justify-end gap-4">
+              <div className="text-sm text-slate-700">Signed in as <strong>{username}</strong></div>
               <button onClick={onLogout} className="text-sm text-red-600">Logout</button>
             </div>
           </>
@@ -70,7 +72,7 @@ function Header({ onLogout, authUser }) {
             <div className="flex items-center gap-4">
               {authUser ? (
                 <>
-                  <div className="text-sm text-slate-700">Signed in as <strong>{name}</strong></div>
+                  <div className="text-sm text-slate-700">Signed in as <strong>{username}</strong></div>
                   <button onClick={onLogout} className="text-sm text-red-600">Logout</button>
                 </>
               ) : (
