@@ -8,12 +8,12 @@ export default function Schools(){
   const [photoPreview,setPhotoPreview]=useState('');
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
-  const load=()=>api.get('/schools').then(r=>setList(r.data||[])).catch(()=>{});
+  const load=()=>api.get('/schools').then(r=>setList(r.data?.data||[])).catch(()=>{});
   useEffect(()=>{ load(); },[]);
   const fileToDataUrl = (file)=> new Promise((resolve,reject)=>{ if(!file) return resolve(null); const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); });
   const save=async()=>{
     setError('');
-    if(!form.name.trim()||!form.username.trim()||form.password.length<6){ setError('Name, username and password (>=6 chars) required'); return; }
+    if(!form.name.trim()||!form.username.trim()||!form.password||form.password.length<6){ setError('Name, username and password (>=6 chars) required'); return; }
     setLoading(true);
     try{
       const logoData = await fileToDataUrl(form.logo);
