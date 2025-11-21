@@ -22,15 +22,6 @@ export default function SchoolDashboard(){
       {/* Welcome Banner with School Info */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-8 mb-6 text-center">
         <div className="flex flex-col items-center space-y-4">
-          {user?.logo && (
-            <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-              <img 
-                src={user.logo.startsWith('/uploads') ? `${SERVER_URL}${user.logo}` : user.logo} 
-                alt="School Logo" 
-                className="w-full h-full object-contain" 
-              />
-            </div>
-          )}
           <div>
             <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-2">
               Welcome to {user?.name || 'School Dashboard'}
