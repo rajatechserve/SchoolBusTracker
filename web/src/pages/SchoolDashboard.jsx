@@ -19,17 +19,38 @@ export default function SchoolDashboard(){
 
   return (
     <div>
-      <div className="mb-6 p-6 bg-white dark:bg-slate-800 rounded shadow flex items-start gap-4">
-        {user?.logo && (
-          <img 
-            src={user.logo.startsWith('/uploads') ? `${SERVER_URL}${user.logo}` : user.logo} 
-            alt="Logo" 
-            className="h-20 w-auto max-w-[120px] object-contain" 
-          />
-        )}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{user?.name || 'School Dashboard'}</h1>
-          <div className="text-sm text-slate-600 dark:text-slate-400">{[user?.address, user?.city, user?.state].filter(Boolean).join(', ')}</div>
+      {/* Welcome Banner with School Info */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-8 mb-6 text-center">
+        <div className="flex flex-col items-center space-y-4">
+          {user?.logo && (
+            <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+              <img 
+                src={user.logo.startsWith('/uploads') ? `${SERVER_URL}${user.logo}` : user.logo} 
+                alt="School Logo" 
+                className="w-full h-full object-contain" 
+              />
+            </div>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-2">
+              Welcome to {user?.name || 'School Dashboard'}
+            </h1>
+            {(user?.address || user?.city || user?.state) && (
+              <div className="text-slate-600 dark:text-slate-400 space-y-1">
+                {user?.address && <p>{user.address}</p>}
+                {(user?.city || user?.state) && (
+                  <p>{[user.city, user.state].filter(Boolean).join(', ')}</p>
+                )}
+                {(user?.phone || user?.mobile) && (
+                  <p className="text-sm">
+                    {user.phone && <span>📞 {user.phone}</span>}
+                    {user.phone && user.mobile && <span className="mx-2">•</span>}
+                    {user.mobile && <span>📱 {user.mobile}</span>}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -57,7 +57,8 @@ module.exports = function initDb(db){
       if(err||!rows) return;
       const have = (c)=> rows.some(r=>r.name===c);
       const toAdd = [
-        ['city','TEXT'],['state','TEXT'],['county','TEXT'],['phone','TEXT'],['mobile','TEXT'],['username','TEXT'],['passwordHash','TEXT'],['logo','TEXT'],['photo','TEXT']
+        ['city','TEXT'],['state','TEXT'],['county','TEXT'],['phone','TEXT'],['mobile','TEXT'],['username','TEXT'],['passwordHash','TEXT'],['logo','TEXT'],['photo','TEXT'],
+        ['headerColorFrom','TEXT'],['headerColorTo','TEXT'],['sidebarColorFrom','TEXT'],['sidebarColorTo','TEXT']
       ].filter(([c])=>!have(c));
       toAdd.forEach(([c,t])=>{ db.run(`ALTER TABLE schools ADD COLUMN ${c} ${t}`); });
       // Ensure username uniqueness if column exists

@@ -3,15 +3,17 @@ import api, { getAuthUser, SERVER_URL } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 
 function ColorPicker() {
+  const user = getAuthUser();
   const [headerColors, setHeaderColors] = useState({
-    from: localStorage.getItem('schoolHeaderFrom') || 'blue-500',
-    to: localStorage.getItem('schoolHeaderTo') || 'purple-600'
+    from: localStorage.getItem('schoolHeaderFrom') || '',
+    to: localStorage.getItem('schoolHeaderTo') || ''
   });
   const [sidebarColors, setSidebarColors] = useState({
-    from: localStorage.getItem('schoolSidebarFrom') || 'indigo-600',
-    to: localStorage.getItem('schoolSidebarTo') || 'indigo-800'
+    from: localStorage.getItem('schoolSidebarFrom') || '',
+    to: localStorage.getItem('schoolSidebarTo') || ''
   });
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const colorOptions = [
     { name: 'White', value: 'white' },
@@ -48,24 +50,72 @@ function ColorPicker() {
     return colorMap[colorClass] || '#6b7280';
   };
 
-  const saveColors = () => {
-    localStorage.setItem('schoolHeaderFrom', headerColors.from);
-    localStorage.setItem('schoolHeaderTo', headerColors.to);
-    localStorage.setItem('schoolSidebarFrom', sidebarColors.from);
-    localStorage.setItem('schoolSidebarTo', sidebarColors.to);
-    setSuccess('Colors saved! Refreshing page...');
-    setTimeout(() => window.location.reload(), 1000);
+  const saveColors = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    
+    try {
+      await api.put(`/schools/${user.id}`, {
+        headerColorFrom: headerColors.from || null,
+        headerColorTo: headerColors.to || null,
+        sidebarColorFrom: sidebarColors.from || null,
+        sidebarColorTo: sidebarColors.to || null
+      });
+      
+      // Update localStorage for immediate effect
+      if (headerColors.from && headerColors.to) {
+        localStorage.setItem('schoolHeaderFrom', headerColors.from);
+        localStorage.setItem('schoolHeaderTo', headerColors.to);
+      } else {
+        localStorage.removeItem('schoolHeaderFrom');
+        localStorage.removeItem('schoolHeaderTo');
+      }
+      
+      if (sidebarColors.from && sidebarColors.to) {
+        localStorage.setItem('schoolSidebarFrom', sidebarColors.from);
+        localStorage.setItem('schoolSidebarTo', sidebarColors.to);
+      } else {
+        localStorage.removeItem('schoolSidebarFrom');
+        localStorage.removeItem('schoolSidebarTo');
+      }
+      
+      setSuccess('Colors saved! Refreshing page...');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      setSuccess('');
+      alert('Failed to save colors: ' + (err?.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const resetColors = () => {
-    setHeaderColors({ from: 'blue-500', to: 'purple-600' });
-    setSidebarColors({ from: 'indigo-600', to: 'indigo-800' });
-    localStorage.removeItem('schoolHeaderFrom');
-    localStorage.removeItem('schoolHeaderTo');
-    localStorage.removeItem('schoolSidebarFrom');
-    localStorage.removeItem('schoolSidebarTo');
-    setSuccess('Colors reset! Refreshing page...');
-    setTimeout(() => window.location.reload(), 1000);
+  const resetColors = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    
+    try {
+      await api.put(`/schools/${user.id}`, {
+        headerColorFrom: null,
+        headerColorTo: null,
+        sidebarColorFrom: null,
+        sidebarColorTo: null
+      });
+      
+      setHeaderColors({ from: '', to: '' });
+      setSidebarColors({ from: '', to: '' });
+      localStorage.removeItem('schoolHeaderFrom');
+      localStorage.removeItem('schoolHeaderTo');
+      localStorage.removeItem('schoolSidebarFrom');
+      localStorage.removeItem('schoolSidebarTo');
+      
+      setSuccess('Colors reset! Refreshing page...');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      setSuccess('');
+      alert('Failed to reset colors: ' + (err?.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -163,12 +213,12 @@ function ColorPicker() {
       </div>
 
       <div className="flex gap-3">
-        <button type="button" onClick={saveColors}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-          Save & Apply
+        <button type="button" onClick={saveColors} disabled={loading}
+          className={`px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          {loading ? 'Saving...' : 'Save & Apply'}
         </button>
-        <button type="button" onClick={resetColors}
-          className="px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition">
+        <button type="button" onClick={resetColors} disabled={loading}
+          className={`px-6 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}>
           Reset to Default
         </button>
       </div>
@@ -216,6 +266,16 @@ export default function SchoolProfile() {
           logo: school.logo || '',
           photo: school.photo || ''
         });
+        
+        // Load colors from database and update localStorage
+        if (school.headerColorFrom && school.headerColorTo) {
+          localStorage.setItem('schoolHeaderFrom', school.headerColorFrom);
+          localStorage.setItem('schoolHeaderTo', school.headerColorTo);
+        }
+        if (school.sidebarColorFrom && school.sidebarColorTo) {
+          localStorage.setItem('schoolSidebarFrom', school.sidebarColorFrom);
+          localStorage.setItem('schoolSidebarTo', school.sidebarColorTo);
+        }
       }
     } catch (e) {
       setError('Failed to load profile');
