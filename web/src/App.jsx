@@ -71,37 +71,47 @@ function Sidebar({ authUser, onLogoUpdate }){
     return localStorage.getItem(`${prefix}SidebarFrom`) && localStorage.getItem(`${prefix}SidebarTo`);
   };
 
+  const isSchoolRole = authUser?.role === 'school' || authUser?.role === 'schoolUser';
+  const schoolName = authUser?.name || authUser?.schoolName;
+
   return (
   <aside className={`w-64 ${hasCustomSidebarColors() ? '' : 'bg-white dark:bg-slate-800'} border-r dark:border-slate-700 hidden md:block`} style={getSidebarStyle()}>
-    <div className={`p-6 text-2xl font-semibold ${hasCustomSidebarColors() ? 'text-white' : 'text-slate-700 dark:text-slate-200'} flex items-center justify-center`}>
-      {isAdmin ? (
-        <div className="flex items-center justify-center cursor-pointer group relative w-full" title="Click to upload logo">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleLogoUpload}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-            id="admin-logo-upload"
-          />
-          {adminLogo ? (
-            <img 
-              src={adminLogo.startsWith('/uploads') ? `${SERVER_URL}${adminLogo}` : adminLogo} 
-              alt="Admin Logo" 
-              className="h-20 w-auto max-w-[180px] object-contain" 
+    <div className={`p-6 ${hasCustomSidebarColors() ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}>
+      <div className="flex flex-col items-center justify-center space-y-3">
+        {isAdmin ? (
+          <div className="flex items-center justify-center cursor-pointer group relative w-full" title="Click to upload logo">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoUpload}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+              id="admin-logo-upload"
             />
-          ) : (
-            <span className="text-center">SchoolBus</span>
-          )}
-        </div>
-      ) : logo ? (
-        <img 
-          src={logo.startsWith('/uploads') ? `${SERVER_URL}${logo}` : logo} 
-          alt="School Logo" 
-          className="h-20 w-auto max-w-[180px] object-contain" 
-        />
-      ) : (
-        <span className="text-center">SchoolBus</span>
-      )}
+            {adminLogo ? (
+              <img 
+                src={adminLogo.startsWith('/uploads') ? `${SERVER_URL}${adminLogo}` : adminLogo} 
+                alt="Admin Logo" 
+                className="h-20 w-auto max-w-[180px] object-contain" 
+              />
+            ) : (
+              <span className="text-center text-2xl font-semibold">SchoolBus</span>
+            )}
+          </div>
+        ) : logo ? (
+          <img 
+            src={logo.startsWith('/uploads') ? `${SERVER_URL}${logo}` : logo} 
+            alt="School Logo" 
+            className="h-20 w-auto max-w-[180px] object-contain" 
+          />
+        ) : (
+          <span className="text-center text-2xl font-semibold">SchoolBus</span>
+        )}
+        {isSchoolRole && schoolName && (
+          <div className={`text-center text-base font-semibold ${hasCustomSidebarColors() ? 'text-white' : 'text-slate-700 dark:text-slate-200'} px-2`}>
+            {schoolName}
+          </div>
+        )}
+      </div>
     </div>
     <nav className="p-4 space-y-2 text-sm">
       {isAdmin && (
@@ -133,6 +143,7 @@ function Sidebar({ authUser, onLogoUpdate }){
 function Header({ onLogout, authUser }) {
   const username = authUser?.username;
   const schoolName = authUser?.name || authUser?.schoolName;
+  const schoolPhoto = authUser?.photo;
   const isSchool = authUser?.role === 'school' || authUser?.role === 'schoolUser';
   const isAdmin = authUser?.role === 'admin';
   const { theme, setTheme } = useTheme();
@@ -171,12 +182,21 @@ function Header({ onLogout, authUser }) {
   };
 
   return (
-    <header className={`${hasCustomHeaderColors() ? '' : 'bg-white dark:bg-slate-800'} border-b dark:border-slate-700`} style={getHeaderStyle()}>
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <header className={`${hasCustomHeaderColors() ? '' : 'bg-white dark:bg-slate-800'} border-b dark:border-slate-700 relative overflow-hidden`} style={getHeaderStyle()}>
+      {isSchool && schoolPhoto && (
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 dark:from-slate-800/90 dark:to-slate-900/90 z-10"></div>
+          <img 
+            src={schoolPhoto.startsWith('/uploads') ? `${SERVER_URL}${schoolPhoto}` : schoolPhoto} 
+            alt="School Banner" 
+            className="w-full h-full object-cover opacity-40" 
+          />
+        </div>
+      )}
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between relative z-20">
         {isSchool ? (
           <>
             <div className="flex-1"></div>
-            <div className={`text-xl font-bold ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>{schoolName}</div>
             <div className="flex-1 flex items-center justify-end gap-4">
               <div className={`flex items-center gap-2 ${hasCustomHeaderColors() ? 'bg-white/20 backdrop-blur-sm border-white/30' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600'} border rounded-lg p-1`}>
                 <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Light mode"><ThemeIcon type="light" /></button>
