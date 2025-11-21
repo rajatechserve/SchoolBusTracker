@@ -15,6 +15,7 @@ import SchoolDashboard from './pages/SchoolDashboard';
 import SchoolDetails from './pages/SchoolDetails';
 import SchoolUsers from './pages/SchoolUsers';
 import SchoolProfile from './pages/SchoolProfile';
+import AdminSettings from './pages/AdminSettings';
 import Login from './pages/Login';
 import api, { getAuthUser, setAuthToken, setAuthUser, SERVER_URL } from './services/api';
 import { useTheme } from './context/ThemeContext';
@@ -43,8 +44,15 @@ function Sidebar({ authUser, onLogoUpdate }){
     reader.readAsDataURL(file);
   };
   
+  const getSidebarColors = () => {
+    const prefix = isAdmin ? 'admin' : 'school';
+    const from = localStorage.getItem(`${prefix}SidebarFrom`) || 'indigo-600';
+    const to = localStorage.getItem(`${prefix}SidebarTo`) || 'indigo-800';
+    return `bg-gradient-to-b from-${from} to-${to} dark:from-slate-800 dark:to-slate-900`;
+  };
+
   return (
-  <aside className="w-64 bg-gradient-to-b from-indigo-600 to-indigo-800 dark:from-slate-800 dark:to-slate-900 border-r border-indigo-700 dark:border-slate-700 hidden md:block shadow-lg">
+  <aside className={`w-64 ${getSidebarColors()} border-r border-indigo-700 dark:border-slate-700 hidden md:block shadow-lg`}>
     <div className="p-6 text-2xl font-semibold text-white flex items-center justify-center">
       {isAdmin ? (
         <div className="flex items-center justify-center cursor-pointer group relative w-full" title="Click to upload logo">
@@ -80,6 +88,7 @@ function Sidebar({ authUser, onLogoUpdate }){
         <>
           <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/">Dashboard</Link>
           <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/schools">Schools</Link>
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/admin-settings">Settings</Link>
         </>
       )}
       {(isSchoolAdmin || isSchoolUser) && (
@@ -114,8 +123,15 @@ function Header({ onLogout, authUser }) {
     return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
   };
   
+  const getHeaderColors = () => {
+    const prefix = isAdmin ? 'admin' : 'school';
+    const from = localStorage.getItem(`${prefix}HeaderFrom`) || 'blue-500';
+    const to = localStorage.getItem(`${prefix}HeaderTo`) || 'purple-600';
+    return `bg-gradient-to-r from-${from} to-${to} dark:from-slate-800 dark:to-slate-900`;
+  };
+
   return (
-    <header className="bg-gradient-to-r from-blue-500 to-purple-600 dark:from-slate-800 dark:to-slate-900 border-b border-blue-600 dark:border-slate-700 shadow-md">
+    <header className={`${getHeaderColors()} border-b border-blue-600 dark:border-slate-700 shadow-md`}>
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         {isSchool ? (
           <>
@@ -180,6 +196,7 @@ export default function App(){
               <Route path="/attendance" element={<Attendance/>} />
               <Route path="/routes" element={<RoutesPage/>} />
               <Route path="/schools" element={<Schools/>} />
+              <Route path="/admin-settings" element={<AdminSettings/>} />
               <Route path="/school-dashboard" element={<SchoolDashboard/>} />
               <Route path="/school-details" element={<SchoolDetails/>} />
               <Route path="/school-users" element={<SchoolUsers/>} />
