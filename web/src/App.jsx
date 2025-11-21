@@ -186,22 +186,18 @@ function Header({ onLogout, authUser }) {
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         {isSchool ? (
           <>
-            <div className="flex-1">
-              <div className="text-left">
-                <h1 className={`text-2xl font-bold ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>
-                  Welcome to {schoolName}
-                </h1>
+            <div className="flex-1 flex items-center">
+              <div className={`text-base font-semibold ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>
+                {schoolName}
                 {authUser?.address && (
-                  <p className={`text-sm mt-1 ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>
-                    {authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}
-                  </p>
+                  <span className={`ml-4 font-normal ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>| {authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
                 )}
                 {(authUser?.phone || authUser?.mobile) && (
-                  <p className={`text-xs mt-0.5 ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-500 dark:text-slate-500'}`}>
+                  <span className={`ml-4 font-normal ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-500 dark:text-slate-500'}`}>
                     {authUser.phone && <span>📞 {authUser.phone}</span>}
                     {authUser.phone && authUser.mobile && <span className="mx-2">•</span>}
                     {authUser.mobile && <span>📱 {authUser.mobile}</span>}
-                  </p>
+                  </span>
                 )}
               </div>
             </div>
