@@ -8,39 +8,34 @@ module.exports = function initDb(db){
     db.run(`CREATE TABLE IF NOT EXISTS students(id TEXT PRIMARY KEY, name TEXT, cls TEXT, parentId TEXT, busId TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS parents(id TEXT PRIMARY KEY, name TEXT, phone TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL, schoolId TEXT)`);
-    // Ensure legacy students table gets parentId column if it was created before parentId addition
-    db.all("PRAGMA table_info(students)", (err, rows)=>{
-      if(!err && rows && !rows.some(c=>c.name==='parentId')){
-        db.run("ALTER TABLE students ADD COLUMN parentId TEXT");
-      }
-      if(!err && rows && !rows.some(c=>c.name==='busId')){
-        db.run("ALTER TABLE students ADD COLUMN busId TEXT");
-      }
-      if(!err && rows && !rows.some(c=>c.name==='schoolId')){
-        db.run("ALTER TABLE students ADD COLUMN schoolId TEXT");
-      }
-    });
-    db.all("PRAGMA table_info(buses)", (err, rows)=>{
-      if(!err && rows && !rows.some(c=>c.name==='routeId')){
-        db.run("ALTER TABLE buses ADD COLUMN routeId TEXT");
-      }
-      if(!err && rows && !rows.some(c=>c.name==='schoolId')){
-        db.run("ALTER TABLE buses ADD COLUMN schoolId TEXT");
-      }
-    });
     db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT, schoolId TEXT)`);
-    // Add schoolId to existing tables
-    ['drivers','students','parents','routes','attendance','assignments'].forEach(tbl=>{
-      db.all(`PRAGMA table_info(${tbl})`, (err, rows)=>{
-        if(!err && rows && !rows.some(c=>c.name==='schoolId')){
-          db.run(`ALTER TABLE ${tbl} ADD COLUMN schoolId TEXT`);
-        }
-      });
-    });
-    // Extended schools schema: add city,state,county,phone,mobile,username,passwordHash
-    db.run(`CREATE TABLE IF NOT EXISTS schools(id TEXT PRIMARY KEY, name TEXT, address TEXT, city TEXT, state TEXT, county TEXT, phone TEXT, mobile TEXT, username TEXT UNIQUE, passwordHash TEXT, logo TEXT, photo TEXT)`);
+    
+    // Extended schools schema with all columns including contract management
+    db.run(`CREATE TABLE IF NOT EXISTS schools(
+      id TEXT PRIMARY KEY, 
+      name TEXT, 
+      address TEXT, 
+      city TEXT, 
+      state TEXT, 
+      county TEXT, 
+      phone TEXT, 
+      mobile TEXT, 
+      username TEXT UNIQUE, 
+      passwordHash TEXT, 
+      logo TEXT, 
+      photo TEXT,
+      headerColorFrom TEXT,
+      headerColorTo TEXT,
+      sidebarColorFrom TEXT,
+      sidebarColorTo TEXT,
+      contractStartDate TEXT,
+      contractEndDate TEXT,
+      contractStatus TEXT,
+      isActive INTEGER DEFAULT 1
+    )`);
+    
     // School users (sub-accounts managed by school admin)
     db.run(`CREATE TABLE IF NOT EXISTS school_users(id TEXT PRIMARY KEY, schoolId TEXT, username TEXT, passwordHash TEXT, role TEXT, active INTEGER DEFAULT 1, createdAt INTEGER)`);
     db.all("PRAGMA table_info(school_users)", (err, rows)=>{
@@ -52,38 +47,54 @@ module.exports = function initDb(db){
     });
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_school_users_unique ON school_users(schoolId, username)');
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_school_users_username_global ON school_users(username)');
-    // Add missing columns for existing deployments
+    
+    // Only add missing columns for legacy databases (backward compatibility)
+    db.all("PRAGMA table_info(students)", (err, rows)=>{
+      if(!err && rows && !rows.some(c=>c.name==='parentId')){
+        db.run("ALTER TABLE students ADD COLUMN parentId TEXT");
+      }
+      if(!err && rows && !rows.some(c=>c.name==='busId')){
+        db.run("ALTER TABLE students ADD COLUMN busId TEXT");
+      }
+      if(!err && rows && !rows.some(c=>c.name==='schoolId')){
+        db.run("ALTER TABLE students ADD COLUMN schoolId TEXT");
+      }
+    });
+    
+    db.all("PRAGMA table_info(buses)", (err, rows)=>{
+      if(!err && rows && !rows.some(c=>c.name==='routeId')){
+        db.run("ALTER TABLE buses ADD COLUMN routeId TEXT");
+      }
+      if(!err && rows && !rows.some(c=>c.name==='schoolId')){
+        db.run("ALTER TABLE buses ADD COLUMN schoolId TEXT");
+      }
+    });
+    
+    // Add missing columns to legacy schools table (for existing databases only)
     db.all("PRAGMA table_info(schools)", (err, rows)=>{
       if(err||!rows) return;
       const have = (c)=> rows.some(r=>r.name===c);
       const toAdd = [
-        ['city','TEXT'],['state','TEXT'],['county','TEXT'],['phone','TEXT'],['mobile','TEXT'],['username','TEXT'],['passwordHash','TEXT'],['logo','TEXT'],['photo','TEXT'],
+        ['city','TEXT'],['state','TEXT'],['county','TEXT'],['phone','TEXT'],['mobile','TEXT'],
+        ['username','TEXT'],['passwordHash','TEXT'],['logo','TEXT'],['photo','TEXT'],
         ['headerColorFrom','TEXT'],['headerColorTo','TEXT'],['sidebarColorFrom','TEXT'],['sidebarColorTo','TEXT'],
         ['contractStartDate','TEXT'],['contractEndDate','TEXT'],['contractStatus','TEXT'],['isActive','INTEGER']
       ].filter(([c])=>!have(c));
       
-      // Add columns first
+      // Add any missing columns
       toAdd.forEach(([c,t])=>{ 
         db.run(`ALTER TABLE schools ADD COLUMN ${c} ${t}`, (err) => {
           if (err) console.error(`Error adding column ${c}:`, err.message);
         }); 
       });
       
-      // Set default values for existing schools after a delay to ensure columns are added
+      // Set default values for existing schools
       setTimeout(() => {
-        if(!have('isActive')) {
-          db.run("UPDATE schools SET isActive = 1 WHERE isActive IS NULL", (err) => {
-            if (err) console.error('Error setting default isActive:', err.message);
-          });
-        }
-        if(!have('contractStatus')) {
-          db.run("UPDATE schools SET contractStatus = 'active' WHERE contractStatus IS NULL", (err) => {
-            if (err) console.error('Error setting default contractStatus:', err.message);
-          });
-        }
+        db.run("UPDATE schools SET isActive = 1 WHERE isActive IS NULL");
+        db.run("UPDATE schools SET contractStatus = 'active' WHERE contractStatus IS NULL");
       }, 100);
       
-      // Ensure username uniqueness if column exists
+      // Ensure username uniqueness
       if(have('username')) db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_username ON schools(username)');
     });
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_drivers_phone ON drivers(phone)');
