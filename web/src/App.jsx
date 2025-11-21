@@ -182,18 +182,8 @@ function Header({ onLogout, authUser }) {
   };
 
   return (
-    <header className={`${hasCustomHeaderColors() ? '' : 'bg-white dark:bg-slate-800'} border-b dark:border-slate-700 relative overflow-hidden`} style={getHeaderStyle()}>
-      {isSchool && schoolPhoto && (
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 dark:from-slate-800/90 dark:to-slate-900/90 z-10"></div>
-          <img 
-            src={schoolPhoto.startsWith('/uploads') ? `${SERVER_URL}${schoolPhoto}` : schoolPhoto} 
-            alt="School Banner" 
-            className="w-full h-full object-cover opacity-40" 
-          />
-        </div>
-      )}
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between relative z-20">
+    <header className={`${hasCustomHeaderColors() ? '' : 'bg-white dark:bg-slate-800'} border-b dark:border-slate-700`} style={getHeaderStyle()}>
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         {isSchool ? (
           <>
             <div className="flex-1"></div>
