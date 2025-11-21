@@ -268,6 +268,7 @@ app.post('/api/auth/school-login', async (req, res) => {
         
         // Check contract status and expiry
         const isActive = row.isActive !== 0; // Default to active if null
+        const contractStartDate = row.contractStartDate;
         const contractEndDate = row.contractEndDate;
         const contractStatus = row.contractStatus || 'active';
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -276,19 +277,28 @@ app.post('/api/auth/school-login', async (req, res) => {
         let message = null;
         let daysRemaining = null;
         
-        if (contractEndDate) {
-            const endDate = new Date(contractEndDate);
-            const currentDate = new Date(today);
-            daysRemaining = Math.ceil((endDate - currentDate) / (1000 * 60 * 60 * 24));
-            
-            if (currentDate > endDate) {
-                // Contract expired
-                accessAllowed = false;
-                message = 'Your contract has expired. Please contact the administrator for renewal.';
-            } else if (daysRemaining <= 30 && daysRemaining > 0) {
-                // Show renewal warning
-                message = `Your contract will expire in ${daysRemaining} days. Please contact the administrator for renewal.`;
-            }
+        // Check if contract dates are set
+        if (!contractStartDate || !contractEndDate) {
+            return res.status(403).json({ 
+                error: 'Your contract has not been set up yet. Please contact the administrator to activate your account.',
+                contractExpired: true,
+                contractEndDate: null,
+                contractStatus: 'pending'
+            });
+        }
+        
+        // Check contract expiry
+        const endDate = new Date(contractEndDate);
+        const currentDate = new Date(today);
+        daysRemaining = Math.ceil((endDate - currentDate) / (1000 * 60 * 60 * 24));
+        
+        if (currentDate > endDate) {
+            // Contract expired
+            accessAllowed = false;
+            message = 'Your contract has expired. Please contact the administrator for renewal.';
+        } else if (daysRemaining <= 30 && daysRemaining > 0) {
+            // Show renewal warning
+            message = `Your contract will expire in ${daysRemaining} days. Please contact the administrator for renewal.`;
         }
         
         if (!accessAllowed) {
