@@ -6,18 +6,20 @@ export default function Buses(){
   const [drivers,setDrivers]=useState([]);
   const [routes,setRoutes]=useState([]);
   const [form,setForm]=useState({number:'',driverId:'',routeId:''});
+  const [q,setQ]=useState('');
   const user = getAuthUser();
   const isViewer = user?.role==='schoolUser' && user?.userRole==='viewer';
-  const load=()=>api.get('/buses').then(r=>setList(r.data||[])).catch(()=>{});
+  const load=()=>api.get('/buses', { params: { search: q || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
   const loadDrivers=()=>api.get('/drivers').then(r=>setDrivers(r.data||[])).catch(()=>{});
   const loadRoutes=()=>api.get('/routes').then(r=>setRoutes(r.data||[])).catch(()=>{});
-  useEffect(()=>{ load(); loadDrivers(); loadRoutes(); },[]);
+  useEffect(()=>{ load(); },[q]);
+  useEffect(()=>{ loadDrivers(); loadRoutes(); },[]); 
   const save=async()=>{ if(isViewer) return; try{ const payload = { number: form.number, driverId: form.driverId||null, routeId: form.routeId||null }; if(form.id) await api.put('/buses/'+form.id, payload); else await api.post('/buses', payload); setForm({number:'',driverId:'',routeId:''}); load(); }catch(e){ alert('Error: '+(e?.response?.data?.error||e.message)); } };
   const edit=(b)=> setForm({id:b.id,number:b.number,driverId:b.driverId,routeId:b.routeId||''});
   const remove=async(id)=>{ if(isViewer) return; if(!confirm('Delete?')) return; await api.delete('/buses/'+id); load(); };
   const getDriverName=(driverId)=> drivers.find(d=>d.id===driverId)?.name||'N/A';
   const getRouteName=(routeId)=> routes.find(r=>r.id===routeId)?.name||'N/A';
-  return (<div><h2 className="text-xl font-semibold mb-4">Buses {isViewer && <span className="text-xs text-slate-500">(read-only)</span>}</h2>
+  return (<div><div className="flex items-center justify-between mb-4"><h2 className="text-xl font-semibold">Buses {isViewer && <span className="text-xs text-slate-500">(read-only)</span>}</h2><input placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} className="border p-2"/></div>
     {isViewer && <div className="mb-4 p-3 bg-yellow-50 text-xs text-yellow-700 rounded">Viewer role: modifications disabled.</div>}
     <div className="mb-4 space-y-2">
       <input placeholder="Bus Number" value={form.number} onChange={e=>setForm({...form,number:e.target.value})} className="border p-2 w-60" disabled={isViewer}/>

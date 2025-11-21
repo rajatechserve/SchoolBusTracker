@@ -13,8 +13,8 @@ export default function Parents(){
   const [csvPreview,setCsvPreview]=useState([]); // [{name,phone,status}]
   const [importing,setImporting]=useState(false);
 
-  const load=()=>api.get('/parents').then(r=>setList(r.data||[])).catch(()=>{});
-  useEffect(()=>{ load(); },[]);
+  const load=()=>api.get('/parents', { params: { search: q || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
+  useEffect(()=>{ load(); },[q]);
 
   const save=async()=>{
     if(isViewer) return;
@@ -81,8 +81,6 @@ export default function Parents(){
   const edit=p=>setForm(p);
   const remove=async(id)=>{ if(isViewer) return; if(!confirm('Delete parent?')) return; await api.delete('/parents/'+id); load(); };
 
-  const filtered=list.filter(x=> x.name?.toLowerCase().includes(q.toLowerCase()) || x.phone?.toLowerCase().includes(q.toLowerCase()));
-
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -117,7 +115,7 @@ export default function Parents(){
         )}
       </div>
       <div className='space-y-2'>
-        {filtered.map(p=> (
+        {list.map(p=> (
           <div key={p.id} className='p-3 bg-white rounded shadow flex justify-between items-center'>
             <div>
               <div className='font-medium'>{p.name}</div>
@@ -129,7 +127,7 @@ export default function Parents(){
             </div>
           </div>
         ))}
-        {filtered.length===0 && <div className='text-sm text-slate-500'>No parents found.</div>}
+        {list.length===0 && <div className='text-sm text-slate-500'>No parents found.</div>}
       </div>
     </div>
   );

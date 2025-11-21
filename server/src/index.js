@@ -255,7 +255,22 @@ app.get('/api/drivers', authenticateToken, async (req, res) =>
     try
     {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const rows = schoolId ? await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,phone,license,schoolId FROM drivers');
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE schoolId=? AND (name LIKE ? OR phone LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            // Admin sees all
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE name LIKE ? OR phone LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers');
+            }
+        }
         res.json(rows);
     } catch (e)
     {
@@ -325,7 +340,21 @@ app.delete('/api/drivers/:id', authenticateToken, requirePermission('manage'), a
 app.get('/api/students', authenticateToken, async (req, res) => {
     try {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const rows = schoolId ? await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students');
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=? AND (name LIKE ? OR cls LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE name LIKE ? OR cls LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students');
+            }
+        }
         res.json(rows);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -375,7 +404,21 @@ app.get('/api/parents', authenticateToken, async (req, res) =>
     try
     {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const rows = schoolId ? await allSql('SELECT id,name,phone,schoolId FROM parents WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,phone,schoolId FROM parents');
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents WHERE schoolId=? AND (name LIKE ? OR phone LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents WHERE name LIKE ? OR phone LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents');
+            }
+        }
         res.json(rows);
     } catch (e)
     {
@@ -420,11 +463,20 @@ app.get('/api/parents/:id/students', authenticateToken, async (req, res) => {
 app.get('/api/buses', authenticateToken, async (req, res) => {
     try {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search } = req.query || {};
         let rows;
         if (schoolId) {
-            rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.schoolId=?', [schoolId]);
+            if (search && search.trim()) {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.schoolId=? AND b.number LIKE ?', [schoolId, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.schoolId=?', [schoolId]);
+            }
         } else {
-            rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id');
+            if (search && search.trim()) {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.number LIKE ?', [`%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id');
+            }
         }
         res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, driverName: r.driverName || null, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
     } catch (e) {
@@ -494,7 +546,21 @@ app.get('/api/routes', authenticateToken, async (req, res) =>
     try
     {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const rows = schoolId ? await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,stops,schoolId FROM routes');
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=? AND name LIKE ?', [schoolId, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE name LIKE ?', [`%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes');
+            }
+        }
         const parsed = rows.map(r => ({ id: r.id, name: r.name, stops: r.stops ? JSON.parse(r.stops) : [], schoolId: r.schoolId }));
         res.json(parsed);
     } catch (e)
@@ -569,7 +635,21 @@ app.get('/api/assignments', authenticateToken, async (req, res) =>
     try
     {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const rows = schoolId ? await allSql('SELECT * FROM assignments WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM assignments');
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT * FROM assignments WHERE schoolId=? AND (driverId LIKE ? OR busId LIKE ? OR routeId LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT * FROM assignments WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT * FROM assignments WHERE driverId LIKE ? OR busId LIKE ? OR routeId LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT * FROM assignments');
+            }
+        }
         res.json(rows);
     } catch (e)
     {
@@ -612,7 +692,21 @@ app.get('/api/attendance', authenticateToken, async (req, res) =>
     try
     {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const rows = schoolId ? await allSql('SELECT * FROM attendance WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM attendance');
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT * FROM attendance WHERE schoolId=? AND (studentId LIKE ? OR status LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT * FROM attendance WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT * FROM attendance WHERE studentId LIKE ? OR status LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT * FROM attendance');
+            }
+        }
         res.json(rows);
     } catch (e)
     {
