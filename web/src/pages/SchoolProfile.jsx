@@ -72,10 +72,14 @@ export default function SchoolProfile() {
           const updatedUser = {
             ...currentUser,
             name: updatedSchool.name,
-            logo: updatedSchool.logo
+            logo: updatedSchool.logo,
+            photo: updatedSchool.photo,
+            address: updatedSchool.address,
+            city: updatedSchool.city,
+            state: updatedSchool.state
           };
           localStorage.setItem('user', JSON.stringify(updatedUser));
-          window.location.reload(); // Refresh to update sidebar logo
+          window.location.reload(); // Refresh to update sidebar logo and dashboard
         }
       }
     } catch (e) {
