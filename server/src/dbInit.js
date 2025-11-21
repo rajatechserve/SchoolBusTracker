@@ -58,9 +58,13 @@ module.exports = function initDb(db){
       const have = (c)=> rows.some(r=>r.name===c);
       const toAdd = [
         ['city','TEXT'],['state','TEXT'],['county','TEXT'],['phone','TEXT'],['mobile','TEXT'],['username','TEXT'],['passwordHash','TEXT'],['logo','TEXT'],['photo','TEXT'],
-        ['headerColorFrom','TEXT'],['headerColorTo','TEXT'],['sidebarColorFrom','TEXT'],['sidebarColorTo','TEXT']
+        ['headerColorFrom','TEXT'],['headerColorTo','TEXT'],['sidebarColorFrom','TEXT'],['sidebarColorTo','TEXT'],
+        ['contractStartDate','TEXT'],['contractEndDate','TEXT'],['contractStatus','TEXT'],['isActive','INTEGER']
       ].filter(([c])=>!have(c));
       toAdd.forEach(([c,t])=>{ db.run(`ALTER TABLE schools ADD COLUMN ${c} ${t}`); });
+      // Set default values for existing schools
+      if(!have('isActive')) db.run("UPDATE schools SET isActive = 1 WHERE isActive IS NULL");
+      if(!have('contractStatus')) db.run("UPDATE schools SET contractStatus = 'active' WHERE contractStatus IS NULL");
       // Ensure username uniqueness if column exists
       if(have('username')) db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_username ON schools(username)');
     });

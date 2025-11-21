@@ -377,9 +377,82 @@ export default function SchoolProfile() {
     }
   };
 
+  const getContractAlert = () => {
+    if (!form.contractEndDate) return null;
+    
+    const endDate = new Date(form.contractEndDate);
+    const today = new Date();
+    const daysRemaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+    
+    if (daysRemaining < 0) {
+      return (
+        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 text-red-700 dark:text-red-300 rounded">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium">Contract Expired</h3>
+              <p className="mt-1 text-sm">Your contract expired on {endDate.toLocaleDateString()}. Please contact the administrator to renew your subscription.</p>
+            </div>
+          </div>
+        </div>
+      );
+    } else if (daysRemaining <= 30) {
+      return (
+        <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-300 rounded">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium">Contract Expiring Soon</h3>
+              <p className="mt-1 text-sm">Your contract will expire in {daysRemaining} days on {endDate.toLocaleDateString()}. Please contact the administrator for renewal.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <h2 className="text-2xl font-semibold mb-6 text-slate-800 dark:text-slate-200">School Profile</h2>
+
+      {/* Contract Status Alert */}
+      {getContractAlert()}
+
+      {/* Contract Information Card */}
+      {form.contractStartDate || form.contractEndDate && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg shadow p-6 mb-6 border border-blue-200 dark:border-blue-800">
+          <h3 className="text-lg font-semibold mb-3 text-slate-800 dark:text-slate-200 flex items-center gap-2">
+            <span>📅</span> Contract Information
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {form.contractStartDate && (
+              <div>
+                <span className="text-slate-600 dark:text-slate-400">Start Date:</span>
+                <span className="ml-2 font-medium text-slate-800 dark:text-slate-200">
+                  {new Date(form.contractStartDate).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+            {form.contractEndDate && (
+              <div>
+                <span className="text-slate-600 dark:text-slate-400">End Date:</span>
+                <span className="ml-2 font-medium text-slate-800 dark:text-slate-200">
+                  {new Date(form.contractEndDate).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Welcome Banner with School Info */}
       {form.name && (

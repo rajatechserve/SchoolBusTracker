@@ -57,6 +57,12 @@ export default function Login({ onLogin }) {
         if (!schoolValid) return;
         // username already derived from selected school; ensure present
         const r = await api.post('/auth/school-login', { username, password });
+        
+        // Check for contract warnings or expiration
+        if (r.data.message) {
+          alert('⚠️ ' + r.data.message);
+        }
+        
         setAuthToken(r.data.token); setAuthUser({ role: 'school', ...r.data.school }); if(onLogin) onLogin(r.data.school.name);
         // Optional: refresh school record through scoped /api/schools (will return only this school)
         try { const sr = await api.get('/schools'); const only = sr.data?.data?.[0]; if(only){ setAuthUser({ role:'school', ...only }); } } catch {}

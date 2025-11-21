@@ -83,10 +83,34 @@ export default function Parents(){
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Parents {isViewer && <span className='text-xs text-slate-500'>(read-only)</span>}</h2>
-        <input placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} className="border p-2"/>
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold mb-3">Parents {isViewer && <span className='text-xs text-slate-500'>(read-only)</span>}</h2>
+        
+        {/* Bulk Import (CSV) - Single Line */}
+        <div className='mb-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg'>
+          <div className='flex flex-wrap items-center gap-3'>
+            <span className='font-semibold text-sm whitespace-nowrap'>Bulk Import (CSV):</span>
+            <input type='file' accept='.csv' onChange={onFileChange} className='text-sm' />
+            <button onClick={parseCsv} disabled={!csvFile || isViewer} className={`btn-secondary text-sm px-3 py-1.5 ${isViewer?'opacity-50 cursor-not-allowed':''}`}>Parse</button>
+            <button onClick={importCsv} disabled={!csvPreview.length || importing || isViewer} className={`btn-primary text-sm px-3 py-1.5 ${isViewer?'opacity-50 cursor-not-allowed':''}`}>{importing? 'Importing...' : 'Import'}</button>
+          </div>
+          {csvPreview.length>0 && (
+            <div className='text-xs max-h-60 overflow-auto border rounded p-2 bg-white dark:bg-slate-700 mt-3'>
+              <div className='mb-1'>Rows: {csvPreview.length}</div>
+              {csvPreview.map((r,i)=>(<div key={i} className='flex justify-between border-b py-1'>
+                <span>{r.name} - {r.phone}</span>
+                <span className={r.status.includes('duplicate')||r.status==='error'?'text-red-600': r.status==='imported'?'text-green-600':'text-slate-500'}>{r.status}</span>
+              </div>))}
+            </div>
+          )}
+        </div>
+
+        {/* Search */}
+        <div className="flex items-center justify-end mb-4">
+          <input placeholder="Search" value={q} onChange={e=>setQ(e.target.value)} className="border p-2 rounded dark:bg-slate-700 dark:border-slate-600"/>
+        </div>
       </div>
+
       {isViewer && <div className='mb-4 p-3 bg-yellow-50 text-xs text-yellow-700 rounded'>Viewer role: modifications disabled.</div>}
       <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
         <input placeholder='Name' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className='border p-2'/>
@@ -96,23 +120,6 @@ export default function Parents(){
           {form.id && <button onClick={()=>setForm({id:null,name:'',phone:''})} className='btn-secondary'>Cancel</button>}
         </div>
         {error && <div className='md:col-span-3 text-sm text-red-600'>{error}</div>}
-      </div>
-      <div className='mb-6 space-y-2'>
-        <h3 className='font-semibold'>Bulk Import (CSV)</h3>
-        <input type='file' accept='.csv' onChange={onFileChange} />
-        <div className='flex gap-2'>
-          <button onClick={parseCsv} disabled={!csvFile || isViewer} className={`btn-secondary ${isViewer?'opacity-50 cursor-not-allowed':''}`}>Parse</button>
-          <button onClick={importCsv} disabled={!csvPreview.length || importing || isViewer} className={`btn-primary ${isViewer?'opacity-50 cursor-not-allowed':''}`}>{importing? 'Importing...' : 'Import'}</button>
-        </div>
-        {csvPreview.length>0 && (
-          <div className='text-xs max-h-60 overflow-auto border rounded p-2 bg-white'>
-            <div className='mb-1'>Rows: {csvPreview.length}</div>
-            {csvPreview.map((r,i)=>(<div key={i} className='flex justify-between border-b py-1'>
-              <span>{r.name} - {r.phone}</span>
-              <span className={r.status.includes('duplicate')||r.status==='error'?'text-red-600': r.status==='imported'?'text-green-600':'text-slate-500'}>{r.status}</span>
-            </div>))}
-          </div>
-        )}
       </div>
       <div className='space-y-2'>
         {list.map(p=> (

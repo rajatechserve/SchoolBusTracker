@@ -265,8 +265,57 @@ app.post('/api/auth/school-login', async (req, res) => {
         if (!row) return res.status(401).json({ error: 'Invalid credentials' });
         const match = await bcrypt.compare(password, row.passwordHash);
         if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+        
+        // Check contract status and expiry
+        const isActive = row.isActive !== 0; // Default to active if null
+        const contractEndDate = row.contractEndDate;
+        const contractStatus = row.contractStatus || 'active';
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        let accessAllowed = isActive;
+        let message = null;
+        let daysRemaining = null;
+        
+        if (contractEndDate) {
+            const endDate = new Date(contractEndDate);
+            const currentDate = new Date(today);
+            daysRemaining = Math.ceil((endDate - currentDate) / (1000 * 60 * 60 * 24));
+            
+            if (currentDate > endDate) {
+                // Contract expired
+                accessAllowed = false;
+                message = 'Your contract has expired. Please contact the administrator for renewal.';
+            } else if (daysRemaining <= 30 && daysRemaining > 0) {
+                // Show renewal warning
+                message = `Your contract will expire in ${daysRemaining} days. Please contact the administrator for renewal.`;
+            }
+        }
+        
+        if (!accessAllowed) {
+            return res.status(403).json({ 
+                error: message || 'Your account has been deactivated. Please contact the administrator.',
+                contractExpired: true,
+                contractEndDate: contractEndDate,
+                contractStatus: contractStatus
+            });
+        }
+        
         const token = jwt.sign({ id: row.id, username: row.username, name: row.name, role: 'school' }, JWT_SECRET, { expiresIn: '12h' });
-        res.json({ token, school: { id: row.id, name: row.name, username: row.username, logo: row.logo, photo: row.photo } });
+        res.json({ 
+            token, 
+            school: { 
+                id: row.id, 
+                name: row.name, 
+                username: row.username, 
+                logo: row.logo, 
+                photo: row.photo,
+                contractStartDate: row.contractStartDate,
+                contractEndDate: row.contractEndDate,
+                contractStatus: row.contractStatus,
+                daysRemaining: daysRemaining
+            },
+            message: message // Warning message if contract expiring soon
+        });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -783,18 +832,18 @@ app.get('/api/schools', authenticateToken, async (req, res) => {
                 params = [`%${search}%`, `%${search}%`, `%${search}%`];
             }
             const countRow = await getSql(`SELECT COUNT(*) as total ${base}${where}`, params);
-            const rows = await allSql(`SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo ${base}${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, [...params, pageLimit, offset]);
+            const rows = await allSql(`SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive ${base}${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, [...params, pageLimit, offset]);
             return res.json({ data: rows, total: countRow.total || 0, page: pageNum, limit: pageLimit });
         }
         // School admin: only its own record
         if (req.user?.role === 'school') {
-            const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo FROM schools WHERE id=?', [req.user.id]);
+            const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?', [req.user.id]);
             return res.json({ data: row ? [row] : [], total: row ? 1 : 0 });
         }
         // School sub-user / driver / parent: only their school's record (if schoolId present)
         if (['schoolUser','driver','parent'].includes(req.user?.role)) {
             if (!req.user.schoolId) return res.json({ data: [], total: 0 });
-            const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo FROM schools WHERE id=?', [req.user.schoolId]);
+            const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?', [req.user.schoolId]);
             return res.json({ data: row ? [row] : [], total: row ? 1 : 0 });
         }
         return res.status(403).json({ error: 'Unauthorized role' });
@@ -880,11 +929,23 @@ app.put('/api/schools/:id', authenticateToken, async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized' });
         }
         
-        const { name, address, city, state, county, phone, mobile, logo, photo, headerColorFrom, headerColorTo, sidebarColorFrom, sidebarColorTo } = req.body || {};
+        const { name, address, city, state, county, phone, mobile, logo, photo, headerColorFrom, headerColorTo, sidebarColorFrom, sidebarColorTo, contractStartDate, contractEndDate, contractStatus, isActive } = req.body || {};
         if (!name || !name.trim()) return res.status(400).json({ error: 'School name is required' });
         
-        await runSql('UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=?,headerColorFrom=?,headerColorTo=?,sidebarColorFrom=?,sidebarColorTo=? WHERE id=?', [name, address, city, state, county, phone, mobile, logo||null, photo||null, headerColorFrom||null, headerColorTo||null, sidebarColorFrom||null, sidebarColorTo||null, req.params.id]);
-        const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo FROM schools WHERE id=?',[req.params.id]);
+        // Build dynamic SQL based on who is updating
+        let sql, params;
+        if(req.user?.role === 'admin') {
+            // Admin can update everything including contract fields
+            sql = 'UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=?,headerColorFrom=?,headerColorTo=?,sidebarColorFrom=?,sidebarColorTo=?,contractStartDate=?,contractEndDate=?,contractStatus=?,isActive=? WHERE id=?';
+            params = [name, address, city, state, county, phone, mobile, logo||null, photo||null, headerColorFrom||null, headerColorTo||null, sidebarColorFrom||null, sidebarColorTo||null, contractStartDate||null, contractEndDate||null, contractStatus||null, isActive !== undefined ? isActive : null, req.params.id];
+        } else {
+            // School admin cannot update contract fields
+            sql = 'UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=?,headerColorFrom=?,headerColorTo=?,sidebarColorFrom=?,sidebarColorTo=? WHERE id=?';
+            params = [name, address, city, state, county, phone, mobile, logo||null, photo||null, headerColorFrom||null, headerColorTo||null, sidebarColorFrom||null, sidebarColorTo||null, req.params.id];
+        }
+        
+        await runSql(sql, params);
+        const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?',[req.params.id]);
         if(!row) return res.status(404).json({ error: 'not found' });
         res.json(row);
     } catch (e) {
@@ -900,6 +961,22 @@ app.post('/api/schools/:id/reset-password', authenticateToken, async (req, res) 
         const hash = await new Promise((resolve,reject)=>{ require('bcrypt').hash(password,10,(err,h)=> err?reject(err):resolve(h)); });
         await runSql('UPDATE schools SET passwordHash=? WHERE id=?',[hash, req.params.id]);
         res.json({ reset: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Update school contract details (admin only)
+app.post('/api/schools/:id/contract', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role!=='admin') return res.status(403).json({ error: 'admin only' });
+        const { contractStartDate, contractEndDate, contractStatus, isActive } = req.body || {};
+        
+        await runSql('UPDATE schools SET contractStartDate=?, contractEndDate=?, contractStatus=?, isActive=? WHERE id=?', 
+            [contractStartDate||null, contractEndDate||null, contractStatus||'active', isActive !== undefined ? (isActive ? 1 : 0) : 1, req.params.id]);
+        
+        const row = await getSql('SELECT id,name,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?', [req.params.id]);
+        res.json(row);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
