@@ -2,22 +2,59 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
+const multer = require('multer');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'please_change_this_secret';
 const DB_FILE = path.join(__dirname, '..', 'app.db');
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 const db = new sqlite3.Database(DB_FILE);
 const initDb = require('./dbInit');
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, UPLOADS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 2 * 1024 * 1024 // 2MB max for banner, we'll check logo separately
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files (JPEG, PNG, GIF, WEBP) are allowed'));
+        }
+    }
+});
 
 function runSql(sql, params = [])
 {
@@ -763,6 +800,52 @@ app.get('/api/schools', authenticateToken, async (req, res) => {
         return res.status(403).json({ error: 'Unauthorized role' });
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+// Upload school logo (500KB limit)
+app.post('/api/upload/logo', authenticateToken, (req, res) => {
+    const logoUpload = multer({
+        storage: storage,
+        limits: { fileSize: 500 * 1024 }, // 500KB
+        fileFilter: (req, file, cb) => {
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (allowedTypes.includes(file.mimetype)) {
+                cb(null, true);
+            } else {
+                cb(new Error('Only image files are allowed'));
+            }
+        }
+    }).single('logo');
+
+    logoUpload(req, res, (err) => {
+        if (err) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'Logo file size must be less than 500KB' });
+            }
+            return res.status(400).json({ error: err.message });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        const filePath = `/uploads/${req.file.filename}`;
+        res.json({ path: filePath, filename: req.file.filename });
+    });
+});
+
+// Upload school banner (2MB limit)
+app.post('/api/upload/banner', authenticateToken, upload.single('banner'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        const filePath = `/uploads/${req.file.filename}`;
+        res.json({ path: filePath, filename: req.file.filename });
+    } catch (e) {
+        if (e.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'Banner file size must be less than 2MB' });
+        }
+        res.status(400).json({ error: e.message });
     }
 });
 

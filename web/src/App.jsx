@@ -16,7 +16,7 @@ import SchoolDetails from './pages/SchoolDetails';
 import SchoolUsers from './pages/SchoolUsers';
 import SchoolProfile from './pages/SchoolProfile';
 import Login from './pages/Login';
-import api, { getAuthUser, setAuthToken, setAuthUser } from './services/api';
+import api, { getAuthUser, setAuthToken, setAuthUser, SERVER_URL } from './services/api';
 import { useTheme } from './context/ThemeContext';
 
 function Sidebar({ authUser, onLogoUpdate }){ 
@@ -56,13 +56,21 @@ function Sidebar({ authUser, onLogoUpdate }){
             id="admin-logo-upload"
           />
           {adminLogo ? (
-            <img src={adminLogo} alt="Admin Logo" className="h-10 w-10 object-contain" />
+            <img 
+              src={adminLogo.startsWith('/uploads') ? `${SERVER_URL}${adminLogo}` : adminLogo} 
+              alt="Admin Logo" 
+              className="h-12 w-auto max-w-[150px] object-contain" 
+            />
           ) : (
             <span>SchoolBus</span>
           )}
         </div>
       ) : logo ? (
-        <img src={logo} alt="Logo" className="h-10 w-10 object-contain" />
+        <img 
+          src={logo.startsWith('/uploads') ? `${SERVER_URL}${logo}` : logo} 
+          alt="School Logo" 
+          className="h-12 w-auto max-w-[150px] object-contain" 
+        />
       ) : (
         'SchoolBus'
       )}

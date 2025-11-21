@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api, { getAuthUser } from '../services/api';
+import api, { getAuthUser, SERVER_URL } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 
 export default function SchoolProfile() {
@@ -85,36 +85,58 @@ export default function SchoolProfile() {
     }
   };
 
-  const handleLogoUpload = (e) => {
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 500 * 1024) {
+      setError('Logo file size must be less than 500KB');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      
+      const response = await api.post('/upload/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setForm({ ...form, logo: response.data.path });
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to upload logo');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBannerUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     if (file.size > 2 * 1024 * 1024) {
-      setError('Logo file size must be less than 2MB');
+      setError('Banner file size must be less than 2MB');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm({ ...form, logo: reader.result });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleBannerUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Banner file size must be less than 5MB');
-      return;
+    setError('');
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('banner', file);
+      
+      const response = await api.post('/upload/banner', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setForm({ ...form, photo: response.data.path });
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to upload banner');
+    } finally {
+      setLoading(false);
     }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setForm({ ...form, photo: reader.result });
-    };
-    reader.readAsDataURL(file);
   };
 
   return (
@@ -300,11 +322,15 @@ export default function SchoolProfile() {
                 onChange={handleLogoUpload}
                 className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded p-2 text-sm"
               />
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Max size: 2MB. Recommended: 200x200px</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Max size: 500KB. Recommended: square aspect ratio</p>
             </div>
             {form.logo && (
-              <div className="w-24 h-24 border border-slate-300 dark:border-slate-600 rounded overflow-hidden bg-slate-50 dark:bg-slate-700">
-                <img src={form.logo} alt="Logo preview" className="w-full h-full object-contain" />
+              <div className="w-32 h-32 border border-slate-300 dark:border-slate-600 rounded overflow-hidden bg-slate-50 dark:bg-slate-700">
+                <img 
+                  src={form.logo.startsWith('/uploads') ? `${SERVER_URL}${form.logo}` : form.logo} 
+                  alt="Logo preview" 
+                  className="w-full h-full object-contain" 
+                />
               </div>
             )}
           </div>
@@ -322,10 +348,14 @@ export default function SchoolProfile() {
               onChange={handleBannerUpload}
               className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded p-2 text-sm"
             />
-            <p className="text-xs text-slate-500 dark:text-slate-400">Max size: 5MB. Recommended: 1200x300px</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Max size: 2MB. Recommended: wide aspect ratio (16:4)</p>
             {form.photo && (
-              <div className="w-full h-48 border border-slate-300 dark:border-slate-600 rounded overflow-hidden bg-slate-50 dark:bg-slate-700">
-                <img src={form.photo} alt="Banner preview" className="w-full h-full object-cover" />
+              <div className="w-full h-64 border border-slate-300 dark:border-slate-600 rounded overflow-hidden bg-slate-50 dark:bg-slate-700">
+                <img 
+                  src={form.photo.startsWith('/uploads') ? `${SERVER_URL}${form.photo}` : form.photo} 
+                  alt="Banner preview" 
+                  className="w-full h-full object-cover" 
+                />
               </div>
             )}
           </div>
