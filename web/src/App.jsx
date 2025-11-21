@@ -44,10 +44,10 @@ function Sidebar({ authUser, onLogoUpdate }){
   };
   
   return (
-  <aside className="w-64 bg-white dark:bg-slate-800 border-r dark:border-slate-700 hidden md:block">
-    <div className="p-6 text-2xl font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+  <aside className="w-64 bg-gradient-to-b from-indigo-600 to-indigo-800 dark:from-slate-800 dark:to-slate-900 border-r border-indigo-700 dark:border-slate-700 hidden md:block shadow-lg">
+    <div className="p-6 text-2xl font-semibold text-white flex items-center justify-center">
       {isAdmin ? (
-        <div className="flex items-center gap-2 cursor-pointer group relative" title="Click to upload logo">
+        <div className="flex items-center justify-center cursor-pointer group relative w-full" title="Click to upload logo">
           <input
             type="file"
             accept="image/*"
@@ -59,42 +59,42 @@ function Sidebar({ authUser, onLogoUpdate }){
             <img 
               src={adminLogo.startsWith('/uploads') ? `${SERVER_URL}${adminLogo}` : adminLogo} 
               alt="Admin Logo" 
-              className="h-12 w-auto max-w-[150px] object-contain" 
+              className="h-20 w-auto max-w-[180px] object-contain" 
             />
           ) : (
-            <span>SchoolBus</span>
+            <span className="text-center">SchoolBus</span>
           )}
         </div>
       ) : logo ? (
         <img 
           src={logo.startsWith('/uploads') ? `${SERVER_URL}${logo}` : logo} 
           alt="School Logo" 
-          className="h-12 w-auto max-w-[150px] object-contain" 
+          className="h-20 w-auto max-w-[180px] object-contain" 
         />
       ) : (
-        'SchoolBus'
+        <span className="text-center">SchoolBus</span>
       )}
     </div>
     <nav className="p-4 space-y-2 text-sm">
       {isAdmin && (
         <>
-          <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/">Dashboard</Link>
-          <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/schools">Schools</Link>
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/">Dashboard</Link>
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/schools">Schools</Link>
         </>
       )}
       {(isSchoolAdmin || isSchoolUser) && (
         <>
-          <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/school-dashboard">Dashboard</Link>
-          {isSchoolAdmin && <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/school-profile">School Profile</Link>}
-          <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/buses">Buses</Link>
-          <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/drivers">Drivers</Link>
-          <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/students">Students</Link>
-          <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/map">Live Map</Link>
-          {isSchoolAdmin && <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/school-users">Users & Roles</Link>}
-          {!isViewer && <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/parents">Parents</Link>}
-          {!isViewer && <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/assignments">Assignments</Link>}
-          {!isViewer && <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/attendance">Attendance</Link>}
-          {!isViewer && <Link className="block py-2 px-3 rounded text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" to="/routes">Routes</Link>}
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/school-dashboard">Dashboard</Link>
+          {isSchoolAdmin && <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/school-profile">School Profile</Link>}
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/buses">Buses</Link>
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/drivers">Drivers</Link>
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/students">Students</Link>
+          <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/map">Live Map</Link>
+          {isSchoolAdmin && <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/school-users">Users & Roles</Link>}
+          {!isViewer && <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/parents">Parents</Link>}
+          {!isViewer && <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/assignments">Assignments</Link>}
+          {!isViewer && <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/attendance">Attendance</Link>}
+          {!isViewer && <Link className="block py-3 px-4 rounded-lg text-white hover:bg-white/20 hover:backdrop-blur-sm transition-all duration-200 font-medium" to="/routes">Routes</Link>}
         </>
       )}
     </nav>
@@ -115,39 +115,39 @@ function Header({ onLogout, authUser }) {
   };
   
   return (
-    <header className="bg-white dark:bg-slate-800 border-b dark:border-slate-700">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <header className="bg-gradient-to-r from-blue-500 to-purple-600 dark:from-slate-800 dark:to-slate-900 border-b border-blue-600 dark:border-slate-700 shadow-md">
+      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         {isSchool ? (
           <>
             <div className="flex-1"></div>
-            <div className="text-xl font-bold text-slate-800 dark:text-slate-200">{schoolName}</div>
+            <div className="text-xl font-bold text-white drop-shadow-md">{schoolName}</div>
             <div className="flex-1 flex items-center justify-end gap-4">
-              <div className="flex items-center gap-2 border dark:border-slate-600 rounded-lg p-1">
-                <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="Light mode"><ThemeIcon type="light" /></button>
-                <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="Dark mode"><ThemeIcon type="dark" /></button>
-                <button onClick={() => setTheme('auto')} className={`p-1.5 rounded ${theme === 'auto' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="Auto (system)"><ThemeIcon type="auto" /></button>
+              <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg p-1">
+                <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-white text-blue-600' : 'text-white hover:bg-white/20'}`} title="Light mode"><ThemeIcon type="light" /></button>
+                <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-white text-blue-600' : 'text-white hover:bg-white/20'}`} title="Dark mode"><ThemeIcon type="dark" /></button>
+                <button onClick={() => setTheme('auto')} className={`p-1.5 rounded ${theme === 'auto' ? 'bg-white text-blue-600' : 'text-white hover:bg-white/20'}`} title="Auto (system)"><ThemeIcon type="auto" /></button>
               </div>
-              <div className="text-sm text-slate-700 dark:text-slate-300">Signed in as <strong>{username}</strong></div>
-              <button onClick={onLogout} className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">Logout</button>
+              <div className="text-sm text-white">Signed in as <strong className="font-semibold">{username}</strong></div>
+              <button onClick={onLogout} className="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg transition-all duration-200 font-medium">Logout</button>
             </div>
           </>
         ) : (
           <>
             <div className="flex-1"></div>
-            <div className="text-xl font-bold text-slate-800 dark:text-slate-200">{isAdmin ? 'Admin Console' : ''}</div>
+            <div className="text-xl font-bold text-white drop-shadow-md">{isAdmin ? 'Admin Console' : ''}</div>
             <div className="flex-1 flex items-center justify-end gap-4">
               {authUser ? (
                 <>
-                  <div className="flex items-center gap-2 border dark:border-slate-600 rounded-lg p-1">
-                    <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="Light mode"><ThemeIcon type="light" /></button>
-                    <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="Dark mode"><ThemeIcon type="dark" /></button>
-                    <button onClick={() => setTheme('auto')} className={`p-1.5 rounded ${theme === 'auto' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="Auto (system)"><ThemeIcon type="auto" /></button>
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg p-1">
+                    <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-white text-blue-600' : 'text-white hover:bg-white/20'}`} title="Light mode"><ThemeIcon type="light" /></button>
+                    <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-white text-blue-600' : 'text-white hover:bg-white/20'}`} title="Dark mode"><ThemeIcon type="dark" /></button>
+                    <button onClick={() => setTheme('auto')} className={`p-1.5 rounded ${theme === 'auto' ? 'bg-white text-blue-600' : 'text-white hover:bg-white/20'}`} title="Auto (system)"><ThemeIcon type="auto" /></button>
                   </div>
-                  <div className="text-sm text-slate-700 dark:text-slate-300">Signed in as <strong>{username}</strong></div>
-                  <button onClick={onLogout} className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">Logout</button>
+                  <div className="text-sm text-white">Signed in as <strong className="font-semibold">{username}</strong></div>
+                  <button onClick={onLogout} className="text-sm bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg transition-all duration-200 font-medium">Logout</button>
                 </>
               ) : (
-                <Link to="/login" className="text-sm text-slate-600 dark:text-slate-400">Sign in</Link>
+                <Link to="/login" className="text-sm text-white hover:text-white/80">Sign in</Link>
               )}
             </div>
           </>
