@@ -14,6 +14,7 @@ function ColorPicker() {
   const [success, setSuccess] = useState('');
 
   const colorOptions = [
+    { name: 'White', value: 'white' },
     { name: 'Blue', value: 'blue-500' },
     { name: 'Indigo', value: 'indigo-600' },
     { name: 'Purple', value: 'purple-600' },
@@ -36,6 +37,7 @@ function ColorPicker() {
 
   const getColorPreview = (colorClass) => {
     const colorMap = {
+      'white': '#ffffff',
       'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
       'pink-500': '#ec4899', 'red-500': '#ef4444', 'orange-500': '#f97316',
       'amber-500': '#f59e0b', 'yellow-500': '#eab308', 'lime-500': '#84cc16',
@@ -319,6 +321,43 @@ export default function SchoolProfile() {
     <div className="max-w-4xl mx-auto">
       <h2 className="text-2xl font-semibold mb-6 text-slate-800 dark:text-slate-200">School Profile</h2>
 
+      {/* Welcome Banner with School Info */}
+      {form.name && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-8 mb-6 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            {form.logo && (
+              <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                <img 
+                  src={form.logo.startsWith('/uploads') ? `${SERVER_URL}${form.logo}` : form.logo} 
+                  alt="School Logo" 
+                  className="w-full h-full object-contain" 
+                />
+              </div>
+            )}
+            <div>
+              <h3 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-2">
+                Welcome to {form.name}
+              </h3>
+              {(form.address || form.city || form.state) && (
+                <div className="text-slate-600 dark:text-slate-400 space-y-1">
+                  {form.address && <p>{form.address}</p>}
+                  {(form.city || form.state) && (
+                    <p>{[form.city, form.state].filter(Boolean).join(', ')}</p>
+                  )}
+                  {(form.phone || form.mobile) && (
+                    <p className="text-sm">
+                      {form.phone && <span>📞 {form.phone}</span>}
+                      {form.phone && form.mobile && <span className="mx-2">•</span>}
+                      {form.mobile && <span>📱 {form.mobile}</span>}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded border border-red-200 dark:border-red-800">
           {error}
@@ -330,12 +369,6 @@ export default function SchoolProfile() {
           {success}
         </div>
       )}
-
-      {/* Color Customization */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Color Customization</h3>
-        <ColorPicker />
-      </div>
 
       {/* Theme Preference */}
       <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6 mb-6">
@@ -493,21 +526,12 @@ export default function SchoolProfile() {
 
         {/* Logo Upload */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 text-center">
             School Logo
           </label>
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded p-2 text-sm"
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Max size: 500KB. Recommended: square aspect ratio</p>
-            </div>
+          <div className="flex flex-col items-center gap-4">
             {form.logo && (
-              <div className="w-32 h-32 border border-slate-300 dark:border-slate-600 rounded overflow-hidden bg-slate-50 dark:bg-slate-700">
+              <div className="w-32 h-32 border border-slate-300 dark:border-slate-600 rounded-full overflow-hidden bg-slate-50 dark:bg-slate-700">
                 <img 
                   src={form.logo.startsWith('/uploads') ? `${SERVER_URL}${form.logo}` : form.logo} 
                   alt="Logo preview" 
@@ -515,6 +539,15 @@ export default function SchoolProfile() {
                 />
               </div>
             )}
+            <div className="w-full max-w-md">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoUpload}
+                className="w-full border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded p-2 text-sm"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-center">Max size: 500KB. Recommended: square aspect ratio</p>
+            </div>
           </div>
         </div>
 
@@ -563,6 +596,12 @@ export default function SchoolProfile() {
           </button>
         </div>
       </form>
+
+      {/* Color Customization */}
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6 mt-6">
+        <h3 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Color Customization</h3>
+        <ColorPicker />
+      </div>
     </div>
   );
 }

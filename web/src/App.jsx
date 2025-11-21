@@ -44,15 +44,26 @@ function Sidebar({ authUser, onLogoUpdate }){
     reader.readAsDataURL(file);
   };
   
-  const getSidebarColors = () => {
+  const getSidebarStyle = () => {
     const prefix = isAdmin ? 'admin' : 'school';
     const from = localStorage.getItem(`${prefix}SidebarFrom`);
     const to = localStorage.getItem(`${prefix}SidebarTo`);
     
     if (from && to) {
-      return `bg-gradient-to-b from-${from} to-${to} dark:from-slate-800 dark:to-slate-900`;
+      const colorMap = {
+        'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
+        'pink-500': '#ec4899', 'red-500': '#ef4444', 'orange-500': '#f97316',
+        'amber-500': '#f59e0b', 'yellow-500': '#eab308', 'lime-500': '#84cc16',
+        'green-600': '#16a34a', 'emerald-600': '#059669', 'teal-600': '#0d9488',
+        'cyan-500': '#06b6d4', 'sky-500': '#0ea5e9', 'violet-600': '#7c3aed',
+        'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155',
+        'white': '#ffffff'
+      };
+      return {
+        background: `linear-gradient(to bottom, ${colorMap[from]}, ${colorMap[to]})`
+      };
     }
-    return 'bg-white dark:bg-slate-800';
+    return {};
   };
 
   const hasCustomSidebarColors = () => {
@@ -61,7 +72,7 @@ function Sidebar({ authUser, onLogoUpdate }){
   };
 
   return (
-  <aside className={`w-64 ${getSidebarColors()} border-r dark:border-slate-700 hidden md:block`}>
+  <aside className={`w-64 ${hasCustomSidebarColors() ? '' : 'bg-white dark:bg-slate-800'} border-r dark:border-slate-700 hidden md:block`} style={getSidebarStyle()}>
     <div className={`p-6 text-2xl font-semibold ${hasCustomSidebarColors() ? 'text-white' : 'text-slate-700 dark:text-slate-200'} flex items-center justify-center`}>
       {isAdmin ? (
         <div className="flex items-center justify-center cursor-pointer group relative w-full" title="Click to upload logo">
@@ -132,15 +143,26 @@ function Header({ onLogout, authUser }) {
     return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
   };
   
-  const getHeaderColors = () => {
+  const getHeaderStyle = () => {
     const prefix = isAdmin ? 'admin' : 'school';
     const from = localStorage.getItem(`${prefix}HeaderFrom`);
     const to = localStorage.getItem(`${prefix}HeaderTo`);
     
     if (from && to) {
-      return `bg-gradient-to-r from-${from} to-${to} dark:from-slate-800 dark:to-slate-900`;
+      const colorMap = {
+        'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
+        'pink-500': '#ec4899', 'red-500': '#ef4444', 'orange-500': '#f97316',
+        'amber-500': '#f59e0b', 'yellow-500': '#eab308', 'lime-500': '#84cc16',
+        'green-600': '#16a34a', 'emerald-600': '#059669', 'teal-600': '#0d9488',
+        'cyan-500': '#06b6d4', 'sky-500': '#0ea5e9', 'violet-600': '#7c3aed',
+        'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155',
+        'white': '#ffffff'
+      };
+      return {
+        background: `linear-gradient(to right, ${colorMap[from]}, ${colorMap[to]})`
+      };
     }
-    return 'bg-white dark:bg-slate-800';
+    return {};
   };
 
   const hasCustomHeaderColors = () => {
@@ -149,7 +171,7 @@ function Header({ onLogout, authUser }) {
   };
 
   return (
-    <header className={`${getHeaderColors()} border-b dark:border-slate-700`}>
+    <header className={`${hasCustomHeaderColors() ? '' : 'bg-white dark:bg-slate-800'} border-b dark:border-slate-700`} style={getHeaderStyle()}>
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         {isSchool ? (
           <>

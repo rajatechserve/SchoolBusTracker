@@ -14,6 +14,7 @@ export default function AdminSettings() {
   const [success, setSuccess] = useState('');
 
   const colorOptions = [
+    { name: 'White', value: 'white' },
     { name: 'Blue', value: 'blue-500' },
     { name: 'Indigo', value: 'indigo-600' },
     { name: 'Purple', value: 'purple-600' },
@@ -62,6 +63,7 @@ export default function AdminSettings() {
 
   const getColorPreview = (colorClass) => {
     const colorMap = {
+      'white': '#ffffff',
       'blue-500': '#3b82f6',
       'indigo-600': '#4f46e5',
       'purple-600': '#9333ea',
