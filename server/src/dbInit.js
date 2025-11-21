@@ -61,10 +61,28 @@ module.exports = function initDb(db){
         ['headerColorFrom','TEXT'],['headerColorTo','TEXT'],['sidebarColorFrom','TEXT'],['sidebarColorTo','TEXT'],
         ['contractStartDate','TEXT'],['contractEndDate','TEXT'],['contractStatus','TEXT'],['isActive','INTEGER']
       ].filter(([c])=>!have(c));
-      toAdd.forEach(([c,t])=>{ db.run(`ALTER TABLE schools ADD COLUMN ${c} ${t}`); });
-      // Set default values for existing schools
-      if(!have('isActive')) db.run("UPDATE schools SET isActive = 1 WHERE isActive IS NULL");
-      if(!have('contractStatus')) db.run("UPDATE schools SET contractStatus = 'active' WHERE contractStatus IS NULL");
+      
+      // Add columns first
+      toAdd.forEach(([c,t])=>{ 
+        db.run(`ALTER TABLE schools ADD COLUMN ${c} ${t}`, (err) => {
+          if (err) console.error(`Error adding column ${c}:`, err.message);
+        }); 
+      });
+      
+      // Set default values for existing schools after a delay to ensure columns are added
+      setTimeout(() => {
+        if(!have('isActive')) {
+          db.run("UPDATE schools SET isActive = 1 WHERE isActive IS NULL", (err) => {
+            if (err) console.error('Error setting default isActive:', err.message);
+          });
+        }
+        if(!have('contractStatus')) {
+          db.run("UPDATE schools SET contractStatus = 'active' WHERE contractStatus IS NULL", (err) => {
+            if (err) console.error('Error setting default contractStatus:', err.message);
+          });
+        }
+      }, 100);
+      
       // Ensure username uniqueness if column exists
       if(have('username')) db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_schools_username ON schools(username)');
     });
