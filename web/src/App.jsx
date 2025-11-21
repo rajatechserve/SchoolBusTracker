@@ -186,14 +186,14 @@ function Header({ onLogout, authUser }) {
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         {isSchool ? (
           <>
-            <div className="flex-1 flex items-center">
-              <div className={`text-base font-semibold ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>
-                {schoolName}
+            <div className="flex-1 flex flex-col justify-center">
+              <div className={`text-2xl md:text-3xl font-bold leading-tight ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>{schoolName}</div>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 {authUser?.address && (
-                  <span className={`ml-4 font-normal ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>| {authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
+                  <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>{authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
                 )}
                 {(authUser?.phone || authUser?.mobile) && (
-                  <span className={`ml-4 font-normal ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-500 dark:text-slate-500'}`}>
+                  <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-500 dark:text-slate-500'}`}>
                     {authUser.phone && <span>📞 {authUser.phone}</span>}
                     {authUser.phone && authUser.mobile && <span className="mx-2">•</span>}
                     {authUser.mobile && <span>📱 {authUser.mobile}</span>}
