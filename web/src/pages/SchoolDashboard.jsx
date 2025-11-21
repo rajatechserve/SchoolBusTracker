@@ -19,7 +19,18 @@ export default function SchoolDashboard(){
 
   return (
     <div>
-      {/* Banner image above statistics removed as per request */}
+      {/* Banner image above statistics */}
+      {user?.photo && (
+        <div className="mb-8 flex justify-center w-full">
+          <div className="rounded-2xl overflow-hidden shadow-lg w-full">
+            <img
+              src={user.photo.startsWith('/uploads') ? `${SERVER_URL}${user.photo}` : user.photo}
+              alt="School Banner"
+              className="w-full h-36 object-cover"
+            />
+          </div>
+        </div>
+      )}
       <h2 className="text-xl font-semibold mb-6 text-slate-800 dark:text-slate-200">School Statistics</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <div 
@@ -68,18 +79,7 @@ export default function SchoolDashboard(){
           <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">Routes</div>
         </div>
       </div>
-      {/* Banner image below statistics */}
-      {user?.photo && (
-        <div className="mt-8 flex justify-center">
-          <div className="rounded-2xl overflow-hidden shadow-lg w-full max-w-3xl">
-            <img
-              src={user.photo.startsWith('/uploads') ? `${SERVER_URL}${user.photo}` : user.photo}
-              alt="School Banner"
-              className="w-full h-56 object-cover"
-            />
-          </div>
-        </div>
-      )}
+      {/* Banner image below statistics removed as per request */}
     </div>
   );
 }
