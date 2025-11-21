@@ -785,8 +785,21 @@ app.post('/api/schools', authenticateToken, async (req, res) => {
 // Update school profile (excluding password)
 app.put('/api/schools/:id', authenticateToken, async (req, res) => {
     try {
-        if(req.user?.role!=='admin') return res.status(403).json({ error: 'admin only' });
+        // Admin can edit any school, school admin can edit only their own
+        if(req.user?.role === 'admin') {
+            // Admin logic
+        } else if(req.user?.role === 'school') {
+            // School admin can only edit their own profile
+            if(req.user.id !== req.params.id) {
+                return res.status(403).json({ error: 'Cannot edit other school profiles' });
+            }
+        } else {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+        
         const { name, address, city, state, county, phone, mobile, logo, photo } = req.body || {};
+        if (!name || !name.trim()) return res.status(400).json({ error: 'School name is required' });
+        
         await runSql('UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=? WHERE id=?', [name, address, city, state, county, phone, mobile, logo||null, photo||null, req.params.id]);
         const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools WHERE id=?',[req.params.id]);
         if(!row) return res.status(404).json({ error: 'not found' });
