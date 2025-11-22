@@ -266,7 +266,9 @@ export default function App(){
   return (
     <BrowserRouter>
       <div className="min-h-screen flex bg-gray-50 dark:bg-slate-900">
-        <Sidebar authUser={authUserState} onLogoUpdate={() => setAuthUserState(getAuthUser())} />
+        {!(authUserState?.role === 'driver' || authUserState?.role === 'parent') && (
+          <Sidebar authUser={authUserState} onLogoUpdate={() => setAuthUserState(getAuthUser())} />
+        )}
         <div className="flex-1">
           <Header onLogout={logout} authUser={authUserState} />
           <main className="p-6 max-w-7xl mx-auto">

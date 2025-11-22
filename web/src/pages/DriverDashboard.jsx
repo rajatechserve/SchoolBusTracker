@@ -80,37 +80,51 @@ export default function DriverDashboard() {
         <h1 className="text-2xl font-bold mb-2">Driver Dashboard</h1>
         {driver && (
           <div className="card p-4 mb-4">
-            <h2 className="text-xl font-semibold mb-2">Welcome, {driver.name}</h2>
-            <p className="text-slate-600"><strong>Phone:</strong> {driver.phone}</p>
-            {driver.license && <p className="text-slate-600"><strong>License:</strong> {driver.license}</p>}
+            <h2 className="text-xl font-semibold mb-4">{driver.name}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-slate-500">Phone</p>
+                <p className="font-medium">{driver.phone || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">License</p>
+                <p className="font-medium">{driver.license || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">School</p>
+                <p className="font-medium">{driver.schoolId || '—'}</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       <div className="card p-4">
-        <h2 className="text-xl font-semibold mb-4">Your Route Assignments (Next 30 Days)</h2>
+        <h2 className="text-xl font-semibold mb-4">Assignments (Viewing Only)</h2>
         {assignments.length === 0 ? (
-          <p className="text-slate-500">No assignments found for the next month.</p>
+          <p className="text-slate-500">No assignments found.</p>
         ) : (
-          <div className="space-y-3">
-            {assignments.map((a) => (
-              <div key={a.id} className="border rounded p-4 bg-slate-50">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <div>
-                    <p className="text-xs text-slate-500">Period</p>
-                    <p className="font-semibold">{formatDateRange(a.startDate, a.endDate)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Bus</p>
-                    <p className="font-semibold">{getBusName(a.busId)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Route</p>
-                    <p className="font-semibold">{getRouteName(a.routeId)}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-slate-100">
+                  <th className="text-left p-2">Start Date</th>
+                  <th className="text-left p-2">End Date</th>
+                  <th className="text-left p-2">Bus</th>
+                  <th className="text-left p-2">Route</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignments.map(a => (
+                  <tr key={a.id} className="border-b hover:bg-slate-50">
+                    <td className="p-2">{formatDate(a.startDate)}</td>
+                    <td className="p-2">{formatDate(a.endDate)}</td>
+                    <td className="p-2">{getBusName(a.busId)}</td>
+                    <td className="p-2">{getRouteName(a.routeId)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
