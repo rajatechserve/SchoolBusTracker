@@ -45,11 +45,33 @@ export default function Map(){
         const res = await api.get('/buses');
         const user = getAuthUser();
         let buses = res.data||[];
-        if(user?.role==='driver' && user.bus){
-          buses = buses.filter(b=> b.number===user.bus || b.id===user.bus);
-        } else if(user?.role==='parent' && user.bus){
-          buses = buses.filter(b=> b.id===user.bus || b.number===user.bus);
+        
+        // Filter buses based on user role
+        if(user?.role==='driver'){
+          // For drivers: show only buses assigned to them today
+          try {
+            const today = new Date().toISOString().split('T')[0];
+            const assignmentsRes = await api.get('/assignments', {
+              params: { driverId: user.id, startDate: today, endDate: today }
+            });
+            const todayAssignments = assignmentsRes.data?.data || [];
+            const assignedBusIds = todayAssignments.map(a => a.busId);
+            buses = buses.filter(b => assignedBusIds.includes(b.id));
+          } catch(e) {
+            console.log('Failed to load driver assignments', e);
+          }
+        } else if(user?.role==='parent'){
+          // For parents: show only buses assigned to their children
+          try {
+            const studentsRes = await api.get(`/parents/${user.id}/students`);
+            const students = studentsRes.data || [];
+            const childrenBusIds = students.map(s => s.busId).filter(Boolean);
+            buses = buses.filter(b => childrenBusIds.includes(b.id));
+          } catch(e) {
+            console.log('Failed to load parent students', e);
+          }
         }
+        
         setAllBuses(buses);
         
         // Update markers

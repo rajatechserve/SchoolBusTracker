@@ -77,13 +77,15 @@ export default function Login({ onLogin }) {
         if(onLogin) onLogin(u.schoolName);
         window.location.href = '/school-dashboard';
       } else if (mode === 'driver') {
-        if (!driverValid) return; const r = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: bus.trim() });
-        setAuthToken(r.data.token); setAuthUser({ role: 'driver', id: phone.trim(), name: name.trim(), bus: bus.trim() }); window.location.href = '/map';
+        if (!/^\d{10}$/.test(phone.trim())) return;
+        const r = await api.post('/auth/driver-login', { phone: phone.trim() });
+        setAuthToken(r.data.token); setAuthUser({ role: 'driver', id: r.data.driver.id, name: r.data.driver.name, phone: r.data.driver.phone, schoolId: r.data.driver.schoolId }); 
+        window.location.href = '/driver-dashboard';
       } else if (mode === 'parent') {
-        if (!parentValid) return; const r = await api.post('/auth/parent-login', { phone: phone.trim(), name: name.trim() });
-        // Fetch students to locate busId
-        let busId = null; try { if (r.data?.parent?.id) { const studentsR = await api.get(`/parents/${r.data.parent.id}/students`); const first = (studentsR.data||[]).find(s=>s.busId); if(first) busId = first.busId; } } catch {}
-        setAuthToken(r.data.token); setAuthUser({ role: 'parent', id: phone.trim(), name: name.trim(), bus: busId }); window.location.href = '/map';
+        if (!/^\d{10}$/.test(phone.trim())) return;
+        const r = await api.post('/auth/parent-login', { phone: phone.trim() });
+        setAuthToken(r.data.token); setAuthUser({ role: 'parent', id: r.data.parent.id, name: r.data.parent.name, phone: r.data.parent.phone, schoolId: r.data.parent.schoolId }); 
+        window.location.href = '/parent-dashboard';
       }
     } catch (err) {
       alert('Login failed: ' + (err?.response?.data?.error || err.message));
@@ -132,11 +134,10 @@ export default function Login({ onLogin }) {
         {mode === 'driver' && (
           <>
             <h2 className="text-xl font-semibold mb-2">Driver Login</h2>
-            <input placeholder="Name" value={name} onChange={e=>setName(e.target.value)} className="w-full border rounded px-3 py-2"/>
-            <input placeholder="Mobile (+123...)" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full border rounded px-3 py-2"/>
-            <input placeholder="Bus Number" value={bus} onChange={e=>setBus(e.target.value)} className="w-full border rounded px-3 py-2"/>
-            <div className="text-xs text-slate-500">{driverValid? 'Ready':'Provide name, valid phone, bus (2+ chars)'}</div>
-            <button disabled={!driverValid||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
+            <label className="block text-sm">Mobile Number</label>
+            <input placeholder="Mobile (10 digits)" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full border rounded px-3 py-2" maxLength="10"/>
+            <div className="text-xs text-slate-500">{/^\d{10}$/.test(phone.trim())? 'Ready':'Enter valid 10-digit mobile number'}</div>
+            <button disabled={!/^\d{10}$/.test(phone.trim())||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
           </>
         )}
         {mode === 'schoolUser' && (
@@ -153,10 +154,10 @@ export default function Login({ onLogin }) {
         {mode === 'parent' && (
           <>
             <h2 className="text-xl font-semibold mb-2">Parent Login</h2>
-            <input placeholder="Name" value={name} onChange={e=>setName(e.target.value)} className="w-full border rounded px-3 py-2"/>
-            <input placeholder="Mobile (+123...)" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full border rounded px-3 py-2"/>
-            <div className="text-xs text-slate-500">{parentValid? 'Ready':'Provide name & valid phone'}</div>
-            <button disabled={!parentValid||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
+            <label className="block text-sm">Mobile Number</label>
+            <input placeholder="Mobile (10 digits)" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full border rounded px-3 py-2" maxLength="10"/>
+            <div className="text-xs text-slate-500">{/^\d{10}$/.test(phone.trim())? 'Ready':'Enter valid 10-digit mobile number'}</div>
+            <button disabled={!/^\d{10}$/.test(phone.trim())||loading} className="btn-primary w-full">{loading?'...':'Login'}</button>
           </>
         )}
       </form>

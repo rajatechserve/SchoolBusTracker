@@ -217,40 +217,26 @@ app.post('/api/auth/login', async (req, res) =>
 // Driver login / auto-registration by phone
 app.post('/api/auth/driver-login', async (req, res) => {
     try {
-        const { id, phone, name, bus } = req.body || {};
-        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
-        let row = null;
-        if (id) row = await getSql('SELECT * FROM drivers WHERE id=?', [id]);
-        else if (phone) row = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
-        if (!row) {
-            if (!name || !phone) return res.status(404).json({ error: 'Driver not found. Provide name and phone to create.' });
-            const newId = uuidv4();
-            await runSql('INSERT INTO drivers(id,name,phone,license,schoolId) VALUES(?,?,?,?,?)', [newId, name, phone, null, req.body.schoolId || null]);
-            row = await getSql('SELECT * FROM drivers WHERE id=?', [newId]);
-        }
-        const token = jwt.sign({ id: row.id, name: row.name, role: 'driver', bus: bus || null, schoolId: row.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, driver: { id: row.id, name: row.name, phone: row.phone } });
+        const { phone } = req.body || {};
+        if (!phone) return res.status(400).json({ error: 'phone required' });
+        const row = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
+        if (!row) return res.status(404).json({ error: 'Driver not found with this phone number' });
+        const token = jwt.sign({ id: row.id, name: row.name, role: 'driver', schoolId: row.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, driver: { id: row.id, name: row.name, phone: row.phone, schoolId: row.schoolId } });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// Parent login / auto-registration by phone
+// Parent login by phone
 app.post('/api/auth/parent-login', async (req, res) => {
     try {
-        const { phone, id, name } = req.body || {};
-        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
-        let row = null;
-        if (id) row = await getSql('SELECT * FROM parents WHERE id=?', [id]);
-        else if (phone) row = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
-        if (!row) {
-            if (!name || !phone) return res.status(404).json({ error: 'Parent not found. Provide name and phone to create.' });
-            const newId = uuidv4();
-            await runSql('INSERT INTO parents(id,name,phone,schoolId) VALUES(?,?,?,?)', [newId, name, phone, req.body.schoolId || null]);
-            row = await getSql('SELECT * FROM parents WHERE id=?', [newId]);
-        }
+        const { phone } = req.body || {};
+        if (!phone) return res.status(400).json({ error: 'phone required' });
+        const row = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
+        if (!row) return res.status(404).json({ error: 'Parent not found with this phone number' });
         const token = jwt.sign({ id: row.id, name: row.name, role: 'parent', schoolId: row.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, parent: { id: row.id, name: row.name, phone: row.phone } });
+        res.json({ token, parent: { id: row.id, name: row.name, phone: row.phone, schoolId: row.schoolId } });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

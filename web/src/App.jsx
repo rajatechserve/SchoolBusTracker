@@ -16,6 +16,8 @@ import SchoolDetails from './pages/SchoolDetails';
 import SchoolUsers from './pages/SchoolUsers';
 import SchoolProfile from './pages/SchoolProfile';
 import AdminSettings from './pages/AdminSettings';
+import DriverDashboard from './pages/DriverDashboard';
+import ParentDashboard from './pages/ParentDashboard';
 import Login from './pages/Login';
 import api, { getAuthUser, setAuthToken, setAuthUser, SERVER_URL } from './services/api';
 import { useTheme } from './context/ThemeContext';
@@ -264,6 +266,8 @@ export default function App(){
               <Route path="/school-details" element={<SchoolDetails/>} />
               <Route path="/school-users" element={<SchoolUsers/>} />
               <Route path="/school-profile" element={<SchoolProfile/>} />
+              <Route path="/driver-dashboard" element={<DriverDashboard/>} />
+              <Route path="/parent-dashboard" element={<ParentDashboard/>} />
             </Routes>
           </main>
         </div>
