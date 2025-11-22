@@ -2,22 +2,59 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
+const multer = require('multer');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'please_change_this_secret';
 const DB_FILE = path.join(__dirname, '..', 'app.db');
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 const db = new sqlite3.Database(DB_FILE);
 const initDb = require('./dbInit');
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, UPLOADS_DIR);
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${uuidv4()}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 2 * 1024 * 1024 // 2MB max for banner, we'll check logo separately
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files (JPEG, PNG, GIF, WEBP) are allowed'));
+        }
+    }
+});
 
 function runSql(sql, params = [])
 {
@@ -126,6 +163,27 @@ function authenticateToken(req, res, next)
     });
 }
 
+// Role-based permission check middleware
+function requirePermission(permission) {
+    return (req, res, next) => {
+        const userRole = req.user?.userRole; // userRole from school_users.role
+        if (req.user?.role === 'admin' || req.user?.role === 'school') return next(); // Admins and school owners bypass
+        if (req.user?.role !== 'schoolUser') return res.status(403).json({ error: 'Unauthorized' });
+        
+        // Check schoolUser permissions
+        if (permission === 'read') {
+            return next(); // All schoolUser roles can read
+        } else if (permission === 'write') {
+            if (userRole === 'editor' || userRole === 'manager') return next();
+            return res.status(403).json({ error: 'Write permission required (editor/manager role)' });
+        } else if (permission === 'manage') {
+            if (userRole === 'manager') return next();
+            return res.status(403).json({ error: 'Manager permission required' });
+        }
+        return res.status(403).json({ error: 'Permission denied' });
+    };
+}
+
 // Serve swagger UI
 try
 {
@@ -159,40 +217,26 @@ app.post('/api/auth/login', async (req, res) =>
 // Driver login / auto-registration by phone
 app.post('/api/auth/driver-login', async (req, res) => {
     try {
-        const { id, phone, name, bus } = req.body || {};
-        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
-        let row = null;
-        if (id) row = await getSql('SELECT * FROM drivers WHERE id=?', [id]);
-        else if (phone) row = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
-        if (!row) {
-            if (!name || !phone) return res.status(404).json({ error: 'Driver not found. Provide name and phone to create.' });
-            const newId = uuidv4();
-            await runSql('INSERT INTO drivers(id,name,phone,license) VALUES(?,?,?,?)', [newId, name, phone, null]);
-            row = await getSql('SELECT * FROM drivers WHERE id=?', [newId]);
-        }
-        const token = jwt.sign({ id: row.id, name: row.name, role: 'driver', bus: bus || null }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, driver: { id: row.id, name: row.name, phone: row.phone } });
+        const { phone } = req.body || {};
+        if (!phone) return res.status(400).json({ error: 'phone required' });
+        const row = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
+        if (!row) return res.status(404).json({ error: 'Driver not found with this phone number' });
+        const token = jwt.sign({ id: row.id, name: row.name, role: 'driver', schoolId: row.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, driver: { id: row.id, name: row.name, phone: row.phone, schoolId: row.schoolId } });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// Parent login / auto-registration by phone
+// Parent login by phone
 app.post('/api/auth/parent-login', async (req, res) => {
     try {
-        const { phone, id, name } = req.body || {};
-        if (!phone && !id) return res.status(400).json({ error: 'phone or id required' });
-        let row = null;
-        if (id) row = await getSql('SELECT * FROM parents WHERE id=?', [id]);
-        else if (phone) row = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
-        if (!row) {
-            if (!name || !phone) return res.status(404).json({ error: 'Parent not found. Provide name and phone to create.' });
-            const newId = uuidv4();
-            await runSql('INSERT INTO parents(id,name,phone) VALUES(?,?,?)', [newId, name, phone]);
-            row = await getSql('SELECT * FROM parents WHERE id=?', [newId]);
-        }
-        const token = jwt.sign({ id: row.id, name: row.name, role: 'parent' }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, parent: { id: row.id, name: row.name, phone: row.phone } });
+        const { phone } = req.body || {};
+        if (!phone) return res.status(400).json({ error: 'phone required' });
+        const row = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
+        if (!row) return res.status(404).json({ error: 'Parent not found with this phone number' });
+        const token = jwt.sign({ id: row.id, name: row.name, role: 'parent', schoolId: row.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, parent: { id: row.id, name: row.name, phone: row.phone, schoolId: row.schoolId } });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -207,20 +251,108 @@ app.post('/api/auth/school-login', async (req, res) => {
         if (!row) return res.status(401).json({ error: 'Invalid credentials' });
         const match = await bcrypt.compare(password, row.passwordHash);
         if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+        
+        // Check contract status and expiry
+        const isActive = row.isActive !== 0; // Default to active if null
+        const contractStartDate = row.contractStartDate;
+        const contractEndDate = row.contractEndDate;
+        const contractStatus = row.contractStatus || 'active';
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        let accessAllowed = isActive;
+        let message = null;
+        let daysRemaining = null;
+        
+        // Check if contract dates are set
+        if (!contractStartDate || !contractEndDate) {
+            return res.status(403).json({ 
+                error: 'Your contract has not been set up yet. Please contact the administrator to activate your account.',
+                contractExpired: true,
+                contractEndDate: null,
+                contractStatus: 'pending'
+            });
+        }
+        
+        // Check contract expiry
+        const endDate = new Date(contractEndDate);
+        const currentDate = new Date(today);
+        daysRemaining = Math.ceil((endDate - currentDate) / (1000 * 60 * 60 * 24));
+        
+        if (currentDate > endDate) {
+            // Contract expired
+            accessAllowed = false;
+            message = 'Your contract has expired. Please contact the administrator for renewal.';
+        } else if (daysRemaining <= 30 && daysRemaining > 0) {
+            // Show renewal warning
+            message = `Your contract will expire in ${daysRemaining} days. Please contact the administrator for renewal.`;
+        }
+        
+        if (!accessAllowed) {
+            return res.status(403).json({ 
+                error: message || 'Your account has been deactivated. Please contact the administrator.',
+                contractExpired: true,
+                contractEndDate: contractEndDate,
+                contractStatus: contractStatus
+            });
+        }
+        
         const token = jwt.sign({ id: row.id, username: row.username, name: row.name, role: 'school' }, JWT_SECRET, { expiresIn: '12h' });
-        res.json({ token, school: { id: row.id, name: row.name, username: row.username, logo: row.logo, photo: row.photo } });
+        res.json({ 
+            token, 
+            school: { 
+                id: row.id, 
+                name: row.name, 
+                username: row.username, 
+                logo: row.logo, 
+                photo: row.photo,
+                contractStartDate: row.contractStartDate,
+                contractEndDate: row.contractEndDate,
+                contractStatus: row.contractStatus,
+                daysRemaining: daysRemaining
+            },
+            message: message // Warning message if contract expiring soon
+        });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
+// School user (sub-account) login
+app.post('/api/auth/school-user-login', async (req, res) => {
+    try {
+        const { username, password } = req.body || {};
+        if(!username || !password) return res.status(400).json({ error: 'username and password required' });
+        const user = await getSql('SELECT su.*, s.name as schoolName, s.logo as schoolLogo, s.photo as schoolPhoto FROM school_users su JOIN schools s ON su.schoolId=s.id WHERE su.username=? AND su.active=1', [username]);
+        if(!user) return res.status(401).json({ error: 'Invalid credentials' });
+        const match = await bcrypt.compare(password, user.passwordHash);
+        if(!match) return res.status(401).json({ error: 'Invalid credentials' });
+        const token = jwt.sign({ id: user.id, username: user.username, role: 'schoolUser', userRole: user.role, schoolId: user.schoolId, schoolName: user.schoolName }, JWT_SECRET, { expiresIn: '12h' });
+        res.json({ token, user: { id: user.id, username: user.username, role: user.role, schoolId: user.schoolId, schoolName: user.schoolName, logo: user.schoolLogo, photo: user.schoolPhoto } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ------------------ DRIVERS CRUD ------------------
-app.get('/api/drivers', async (req, res) =>
+app.get('/api/drivers', authenticateToken, async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
-        const rows = schoolId ? await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,phone,license,schoolId FROM drivers');
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE schoolId=? AND (name LIKE ? OR phone LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            // Admin sees all
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE name LIKE ? OR phone LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,license,schoolId FROM drivers');
+            }
+        }
         res.json(rows);
     } catch (e)
     {
@@ -228,11 +360,13 @@ app.get('/api/drivers', async (req, res) =>
     }
 });
 
-app.get('/api/drivers/:id', async (req, res) =>
+app.get('/api/drivers/:id', authenticateToken, async (req, res) =>
 {
     try
     {
-        const row = await getSql('SELECT id,name,phone,license FROM drivers WHERE id=?', [req.params.id]);
+        const row = await getSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE id=?', [req.params.id]);
+        const schoolScope = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        if (schoolScope && row && row.schoolId && row.schoolId !== schoolScope) return res.status(404).json({ error: 'not found' });
         if (!row) return res.status(404).json({ error: 'not found' });
         res.json(row);
     } catch (e)
@@ -241,13 +375,13 @@ app.get('/api/drivers/:id', async (req, res) =>
     }
 });
 
-app.post('/api/drivers', authenticateToken, async (req, res) =>
+app.post('/api/drivers', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
         const { name, phone, license } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO drivers(id,name,phone,license,schoolId) VALUES(?,?,?,?,?)', [id, name, phone || null, license || null, schoolId]);
         const row = await getSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE id=?', [id]);
@@ -258,7 +392,7 @@ app.post('/api/drivers', authenticateToken, async (req, res) =>
     }
 });
 
-app.put('/api/drivers/:id', authenticateToken, async (req, res) =>
+app.put('/api/drivers/:id', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -272,7 +406,7 @@ app.put('/api/drivers/:id', authenticateToken, async (req, res) =>
     }
 });
 
-app.delete('/api/drivers/:id', authenticateToken, async (req, res) =>
+app.delete('/api/drivers/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -284,22 +418,97 @@ app.delete('/api/drivers/:id', authenticateToken, async (req, res) =>
     }
 });
 
-// ------------------ STUDENTS CRUD ------------------
-app.get('/api/students', async (req, res) => {
+// Check if driver phone exists across all schools
+app.get('/api/drivers/check-phone/:phone', authenticateToken, async (req, res) => {
     try {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
-        const rows = schoolId ? await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students');
+        const phone = req.params.phone;
+        const row = await getSql('SELECT id FROM drivers WHERE phone=?', [phone]);
+        res.json({ exists: !!row });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ------------------ STUDENTS CRUD ------------------
+app.get('/api/students', authenticateToken, async (req, res) => {
+    try {
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search, class: classFilter } = req.query || {};
+        const params = [];
+        let sql = 'SELECT id,name,cls,parentId,busId,schoolId FROM students';
+        const where = [];
+        if (schoolId) { where.push('schoolId=?'); params.push(schoolId); }
+        if (search && search.trim()) { where.push('(name LIKE ? OR cls LIKE ?)'); params.push(`%${search.trim()}%`, `%${search.trim()}%`); }
+        if (classFilter && classFilter.trim()) { where.push('cls=?'); params.push(classFilter.trim()); }
+        if (where.length) sql += ' WHERE ' + where.join(' AND ');
+        const rows = await allSql(sql, params);
         res.json(rows);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-app.post('/api/students', authenticateToken, async (req, res) => {
+// ------------------ CLASSES CRUD ------------------
+app.get('/api/classes', authenticateToken, async (req, res) => {
+    try {
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.query.schoolId || null);
+        const { includeInactive } = req.query || {};
+        if (!schoolId && req.user?.role !== 'admin') return res.status(400).json({ error: 'schoolId required' });
+        let sql = 'SELECT id,name,active,schoolId FROM classes WHERE schoolId=?';
+        const params = [schoolId];
+        if (!includeInactive) sql += ' AND active=1';
+        const rows = await allSql(sql, params);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/classes', authenticateToken, async (req, res) => {
+    try {
+        const isViewer = req.user?.role === 'schoolUser' && req.user.userRole === 'viewer';
+        if (isViewer) return res.status(403).json({ error: 'viewer cannot modify' });
+        const { name, active } = req.body || {};
+        if (!name || !name.trim()) return res.status(400).json({ error: 'name required' });
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
+        if (!schoolId) return res.status(400).json({ error: 'schoolId required' });
+        const id = uuidv4();
+        try {
+            await runSql('INSERT INTO classes(id,name,active,schoolId) VALUES(?,?,?,?)', [id, name.trim(), active === 0 ? 0 : 1, schoolId]);
+        } catch (err) {
+            if (err && err.message.includes('UNIQUE')) return res.status(409).json({ error: 'class name exists' });
+            throw err;
+        }
+        const row = await getSql('SELECT id,name,active,schoolId FROM classes WHERE id=?', [id]);
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/classes/:id', authenticateToken, async (req, res) => {
+    try {
+        const isViewer = req.user?.role === 'schoolUser' && req.user.userRole === 'viewer';
+        if (isViewer) return res.status(403).json({ error: 'viewer cannot modify' });
+        const { name, active } = req.body || {};
+        if (!name || !name.trim()) return res.status(400).json({ error: 'name required' });
+        // ensure belongs to same school
+        const existing = await getSql('SELECT id,schoolId FROM classes WHERE id=?', [req.params.id]);
+        if (!existing) return res.status(404).json({ error: 'not found' });
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        if (schoolId && existing.schoolId !== schoolId && req.user?.role !== 'admin') return res.status(403).json({ error: 'forbidden' });
+        try {
+            await runSql('UPDATE classes SET name=?, active=? WHERE id=?', [name.trim(), active === 0 ? 0 : 1, req.params.id]);
+        } catch (err) {
+            if (err && err.message.includes('UNIQUE')) return res.status(409).json({ error: 'class name exists' });
+            throw err;
+        }
+        const row = await getSql('SELECT id,name,active,schoolId FROM classes WHERE id=?', [req.params.id]);
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/students', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { name, cls, parentId, busId } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO students(id,name,cls,parentId,busId,schoolId) VALUES(?,?,?,?,?,?)', [id, name, cls || null, parentId || null, busId || null, schoolId]);
         const row = await getSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE id=?', [id]);
@@ -309,7 +518,7 @@ app.post('/api/students', authenticateToken, async (req, res) => {
     }
 });
 
-app.put('/api/students/:id', authenticateToken, async (req, res) => {
+app.put('/api/students/:id', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { name, cls, parentId, busId } = req.body || {};
         await runSql('UPDATE students SET name=?,cls=?,parentId=?,busId=? WHERE id=?', [name, cls, parentId, busId, req.params.id]);
@@ -320,7 +529,7 @@ app.put('/api/students/:id', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/students/:id', authenticateToken, async (req, res) =>
+app.delete('/api/students/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -333,12 +542,26 @@ app.delete('/api/students/:id', authenticateToken, async (req, res) =>
 });
 
 // ------------------ PARENTS CRUD ------------------
-app.get('/api/parents', async (req, res) =>
+app.get('/api/parents', authenticateToken, async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
-        const rows = schoolId ? await allSql('SELECT id,name,phone,schoolId FROM parents WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,phone,schoolId FROM parents');
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents WHERE schoolId=? AND (name LIKE ? OR phone LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents WHERE name LIKE ? OR phone LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,phone,schoolId FROM parents');
+            }
+        }
         res.json(rows);
     } catch (e)
     {
@@ -346,13 +569,13 @@ app.get('/api/parents', async (req, res) =>
     }
 });
 
-app.post('/api/parents', authenticateToken, async (req, res) =>
+app.post('/api/parents', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
         const { name, phone } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO parents(id,name,phone,schoolId) VALUES(?,?,?,?)', [id, name, phone || null, schoolId]);
         const row = await getSql('SELECT id,name,phone,schoolId FROM parents WHERE id=?', [id]);
@@ -362,11 +585,27 @@ app.post('/api/parents', authenticateToken, async (req, res) =>
         res.status(500).json({ error: e.message });
     }
 });
+// Check if parent phone exists across all schools
+app.get('/api/parents/check-phone/:phone', authenticateToken, async (req, res) => {
+    try {
+        const phone = req.params.phone;
+        const row = await getSql('SELECT id FROM parents WHERE phone=?', [phone]);
+        res.json({ exists: !!row });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 // Fetch students belonging to a parent
-app.get('/api/parents/:id/students', async (req, res) => {
+app.get('/api/parents/:id/students', authenticateToken, async (req, res) => {
     try {
         const parentId = req.params.id;
-        const rows = await allSql('SELECT id,name,cls,parentId,busId FROM students WHERE parentId=?', [parentId]);
+        const schoolScope = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        let rows;
+        if (schoolScope) {
+            rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE parentId=? AND schoolId=?', [parentId, schoolScope]);
+        } else {
+            rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE parentId=?', [parentId]);
+        }
         res.json(rows);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -374,21 +613,35 @@ app.get('/api/parents/:id/students', async (req, res) => {
 });
 
 // ------------------ BUSES CRUD + LOCATION ------------------
-app.get('/api/buses', async (req, res) => {
+app.get('/api/buses', authenticateToken, async (req, res) => {
     try {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
-        const rows = schoolId ? await allSql('SELECT * FROM buses WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM buses');
-        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.schoolId=? AND b.number LIKE ?', [schoolId, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id WHERE b.number LIKE ?', [`%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id');
+            }
+        }
+        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, driverName: r.driverName || null, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-app.post('/api/buses', authenticateToken, async (req, res) => {
+app.post('/api/buses', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { number, driverId, routeId, started } = req.body || {};
         if (!number) return res.status(400).json({ error: 'number is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO buses(id,number,driverId,routeId,started,schoolId) VALUES(?,?,?,?,?,?)', [id, number, driverId || null, routeId || null, started ? 1 : 0, schoolId]);
         const row = await getSql('SELECT * FROM buses WHERE id=?', [id]);
@@ -398,7 +651,7 @@ app.post('/api/buses', authenticateToken, async (req, res) => {
     }
 });
 
-app.put('/api/buses/:id', authenticateToken, async (req, res) => {
+app.put('/api/buses/:id', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
         const { number, driverId, routeId, started } = req.body || {};
         await runSql('UPDATE buses SET number=?,driverId=?,routeId=?,started=? WHERE id=?', [number, driverId, routeId, started ? 1 : 0, req.params.id]);
@@ -409,7 +662,7 @@ app.put('/api/buses/:id', authenticateToken, async (req, res) => {
     }
 });
 
-app.delete('/api/buses/:id', authenticateToken, async (req, res) =>
+app.delete('/api/buses/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -441,12 +694,26 @@ app.post('/api/buses/:id/location', authenticateToken, async (req, res) =>
 });
 
 // ------------------ ROUTES CRUD ------------------
-app.get('/api/routes', async (req, res) =>
+app.get('/api/routes', authenticateToken, async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
-        const rows = schoolId ? await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=?', [schoolId]) : await allSql('SELECT id,name,stops,schoolId FROM routes');
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=? AND name LIKE ?', [schoolId, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE name LIKE ?', [`%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT id,name,stops,schoolId FROM routes');
+            }
+        }
         const parsed = rows.map(r => ({ id: r.id, name: r.name, stops: r.stops ? JSON.parse(r.stops) : [], schoolId: r.schoolId }));
         res.json(parsed);
     } catch (e)
@@ -455,13 +722,13 @@ app.get('/api/routes', async (req, res) =>
     }
 });
 
-app.post('/api/routes', authenticateToken, async (req, res) =>
+app.post('/api/routes', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
         const { name, stops } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO routes(id,name,stops,schoolId) VALUES(?,?,?,?)', [id, name, JSON.stringify(stops || []), schoolId]);
         const row = await getSql('SELECT id,name,stops,schoolId FROM routes WHERE id=?', [id]);
@@ -472,7 +739,7 @@ app.post('/api/routes', authenticateToken, async (req, res) =>
     }
 });
 
-app.put('/api/routes/:id', authenticateToken, async (req, res) =>
+app.put('/api/routes/:id', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
@@ -486,7 +753,7 @@ app.put('/api/routes/:id', authenticateToken, async (req, res) =>
     }
 });
 
-app.delete('/api/routes/:id', authenticateToken, async (req, res) =>
+app.delete('/api/routes/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -499,15 +766,15 @@ app.delete('/api/routes/:id', authenticateToken, async (req, res) =>
 });
 
 // ------------------ ASSIGNMENTS ------------------
-app.post('/api/assignments', authenticateToken, async (req, res) =>
+app.post('/api/assignments', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
-        const { driverId, busId, routeId } = req.body || {};
+        const { driverId, busId, routeId, startDate, endDate } = req.body || {};
         if (!driverId || !busId) return res.status(400).json({ error: 'driverId and busId required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
-        await runSql('INSERT INTO assignments(id,driverId,busId,routeId,schoolId) VALUES(?,?,?,?,?)', [id, driverId, busId, routeId || null, schoolId]);
+        await runSql('INSERT INTO assignments(id,driverId,busId,routeId,schoolId,startDate,endDate) VALUES(?,?,?,?,?,?,?)', [id, driverId, busId, routeId || null, schoolId, startDate || null, endDate || null]);
         const row = await getSql('SELECT * FROM assignments WHERE id=?', [id]);
         res.json(row);
     } catch (e)
@@ -520,8 +787,26 @@ app.get('/api/assignments', authenticateToken, async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
-        const rows = schoolId ? await allSql('SELECT * FROM assignments WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM assignments');
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search, startDate, endDate, busId, driverId, routeId } = req.query || {};
+        const params = [];
+        let sql = 'SELECT * FROM assignments';
+        const where = [];
+        
+        if (schoolId) { where.push('schoolId=?'); params.push(schoolId); }
+        if (search && search.trim()) { 
+            where.push('(driverId LIKE ? OR busId LIKE ? OR routeId LIKE ? OR startDate LIKE ? OR endDate LIKE ?)');
+            params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
+        }
+        if (startDate && startDate.trim()) { where.push('startDate>=?'); params.push(startDate.trim()); }
+        if (endDate && endDate.trim()) { where.push('endDate<=?'); params.push(endDate.trim()); }
+        if (busId && busId.trim()) { where.push('busId=?'); params.push(busId.trim()); }
+        if (driverId && driverId.trim()) { where.push('driverId=?'); params.push(driverId.trim()); }
+        if (routeId && routeId.trim()) { where.push('routeId=?'); params.push(routeId.trim()); }
+        
+        if (where.length) sql += ' WHERE ' + where.join(' AND ');
+        sql += ' ORDER BY startDate DESC, endDate DESC';
+        const rows = await allSql(sql, params);
         res.json(rows);
     } catch (e)
     {
@@ -529,7 +814,7 @@ app.get('/api/assignments', authenticateToken, async (req, res) =>
     }
 });
 
-app.delete('/api/assignments/:id', authenticateToken, async (req, res) =>
+app.delete('/api/assignments/:id', authenticateToken, requirePermission('manage'), async (req, res) =>
 {
     try
     {
@@ -542,13 +827,13 @@ app.delete('/api/assignments/:id', authenticateToken, async (req, res) =>
 });
 
 // ------------------ ATTENDANCE ------------------
-app.post('/api/attendance', authenticateToken, async (req, res) =>
+app.post('/api/attendance', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
     {
         const { studentId, busId, timestamp, status } = req.body || {};
         if (!studentId) return res.status(400).json({ error: 'studentId required' });
-        const schoolId = req.user?.role === 'school' ? req.user.id : req.body.schoolId || null;
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
         await runSql('INSERT INTO attendance(id,studentId,busId,timestamp,status,schoolId) VALUES(?,?,?,?,?,?)', [id, studentId, busId || null, timestamp || Date.now(), status || 'present', schoolId]);
         const row = await getSql('SELECT * FROM attendance WHERE id=?', [id]);
@@ -563,8 +848,22 @@ app.get('/api/attendance', authenticateToken, async (req, res) =>
 {
     try
     {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
-        const rows = schoolId ? await allSql('SELECT * FROM attendance WHERE schoolId=?', [schoolId]) : await allSql('SELECT * FROM attendance');
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        const { search } = req.query || {};
+        let rows;
+        if (schoolId) {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT * FROM attendance WHERE schoolId=? AND (studentId LIKE ? OR status LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT * FROM attendance WHERE schoolId=?', [schoolId]);
+            }
+        } else {
+            if (search && search.trim()) {
+                rows = await allSql('SELECT * FROM attendance WHERE studentId LIKE ? OR status LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
+            } else {
+                rows = await allSql('SELECT * FROM attendance');
+            }
+        }
         res.json(rows);
     } catch (e)
     {
@@ -573,26 +872,111 @@ app.get('/api/attendance', authenticateToken, async (req, res) =>
 });
 
 // ------------------ SCHOOLS ------------------
-app.get('/api/schools', async (req, res) => {
+// Public minimal schools list for login dropdown (no auth required)
+app.get('/api/public/schools', async (req, res) => {
     try {
-        const { search, page, limit } = req.query;
-        const pageNum = parseInt(page) || 1;
-        const pageLimit = parseInt(limit) || 10;
-        const offset = (pageNum - 1) * pageLimit;
-        let query = 'SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools';
-        let countQuery = 'SELECT COUNT(*) as total FROM schools';
-        let params = [];
-        if(search) {
-            query += ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
-            countQuery += ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
-            params = [`%${search}%`, `%${search}%`, `%${search}%`];
+        const { search } = req.query || {};
+        let rows;
+        if (search && search.trim()) {
+            rows = await allSql('SELECT id,name,username,logo FROM schools WHERE name LIKE ? ORDER BY name ASC', [ `%${search.trim()}%` ]);
+        } else {
+            rows = await allSql('SELECT id,name,username,logo FROM schools ORDER BY name ASC');
         }
-        const total = await getSql(countQuery, params);
-        query += ' LIMIT ? OFFSET ?';
-        const rows = await allSql(query, [...params, pageLimit, offset]);
-        res.json({ data: rows, total: total.total || 0, page: pageNum, limit: pageLimit });
+        res.json(rows.map(r => ({ id: r.id, name: r.name, username: r.username, logo: r.logo })));
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+// Public single school profile (minimal but with branding fields)
+app.get('/api/public/schools/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const row = await getSql('SELECT id,name,address,city,state,phone,mobile,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo FROM schools WHERE id=?', [id]);
+        if(!row) return res.status(404).json({ error: 'School not found' });
+        res.json(row);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+app.get('/api/schools', authenticateToken, async (req, res) => {
+    try {
+        // Admin: full paginated list with search
+        if (req.user?.role === 'admin') {
+            const { search, page, limit } = req.query;
+            const pageNum = parseInt(page) || 1;
+            const pageLimit = parseInt(limit) || 10;
+            const offset = (pageNum - 1) * pageLimit;
+            let base = 'FROM schools';
+            let where = '';
+            let params = [];
+            if (search) {
+                where = ' WHERE name LIKE ? OR city LIKE ? OR state LIKE ?';
+                params = [`%${search}%`, `%${search}%`, `%${search}%`];
+            }
+            const countRow = await getSql(`SELECT COUNT(*) as total ${base}${where}`, params);
+            const rows = await allSql(`SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive ${base}${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`, [...params, pageLimit, offset]);
+            return res.json({ data: rows, total: countRow.total || 0, page: pageNum, limit: pageLimit });
+        }
+        // School admin: only its own record
+        if (req.user?.role === 'school') {
+            const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?', [req.user.id]);
+            return res.json({ data: row ? [row] : [], total: row ? 1 : 0 });
+        }
+        // School sub-user / driver / parent: only their school's record (if schoolId present)
+        if (['schoolUser','driver','parent'].includes(req.user?.role)) {
+            if (!req.user.schoolId) return res.json({ data: [], total: 0 });
+            const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?', [req.user.schoolId]);
+            return res.json({ data: row ? [row] : [], total: row ? 1 : 0 });
+        }
+        return res.status(403).json({ error: 'Unauthorized role' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Upload school logo (500KB limit)
+app.post('/api/upload/logo', authenticateToken, (req, res) => {
+    const logoUpload = multer({
+        storage: storage,
+        limits: { fileSize: 500 * 1024 }, // 500KB
+        fileFilter: (req, file, cb) => {
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (allowedTypes.includes(file.mimetype)) {
+                cb(null, true);
+            } else {
+                cb(new Error('Only image files are allowed'));
+            }
+        }
+    }).single('logo');
+
+    logoUpload(req, res, (err) => {
+        if (err) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'Logo file size must be less than 500KB' });
+            }
+            return res.status(400).json({ error: err.message });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        const filePath = `/uploads/${req.file.filename}`;
+        res.json({ path: filePath, filename: req.file.filename });
+    });
+});
+
+// Upload school banner (2MB limit)
+app.post('/api/upload/banner', authenticateToken, upload.single('banner'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        const filePath = `/uploads/${req.file.filename}`;
+        res.json({ path: filePath, filename: req.file.filename });
+    } catch (e) {
+        if (e.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'Banner file size must be less than 2MB' });
+        }
+        res.status(400).json({ error: e.message });
     }
 });
 
@@ -615,10 +999,35 @@ app.post('/api/schools', authenticateToken, async (req, res) => {
 // Update school profile (excluding password)
 app.put('/api/schools/:id', authenticateToken, async (req, res) => {
     try {
-        if(req.user?.role!=='admin') return res.status(403).json({ error: 'admin only' });
-        const { name, address, city, state, county, phone, mobile, logo, photo } = req.body || {};
-        await runSql('UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=? WHERE id=?', [name, address, city, state, county, phone, mobile, logo||null, photo||null, req.params.id]);
-        const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo FROM schools WHERE id=?',[req.params.id]);
+        // Admin can edit any school, school admin can edit only their own
+        if(req.user?.role === 'admin') {
+            // Admin logic
+        } else if(req.user?.role === 'school') {
+            // School admin can only edit their own profile
+            if(req.user.id !== req.params.id) {
+                return res.status(403).json({ error: 'Cannot edit other school profiles' });
+            }
+        } else {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+        
+        const { name, address, city, state, county, phone, mobile, logo, photo, headerColorFrom, headerColorTo, sidebarColorFrom, sidebarColorTo, contractStartDate, contractEndDate, contractStatus, isActive } = req.body || {};
+        if (!name || !name.trim()) return res.status(400).json({ error: 'School name is required' });
+        
+        // Build dynamic SQL based on who is updating
+        let sql, params;
+        if(req.user?.role === 'admin') {
+            // Admin can update everything including contract fields
+            sql = 'UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=?,headerColorFrom=?,headerColorTo=?,sidebarColorFrom=?,sidebarColorTo=?,contractStartDate=?,contractEndDate=?,contractStatus=?,isActive=? WHERE id=?';
+            params = [name, address, city, state, county, phone, mobile, logo||null, photo||null, headerColorFrom||null, headerColorTo||null, sidebarColorFrom||null, sidebarColorTo||null, contractStartDate||null, contractEndDate||null, contractStatus||null, isActive !== undefined ? isActive : null, req.params.id];
+        } else {
+            // School admin cannot update contract fields
+            sql = 'UPDATE schools SET name=?,address=?,city=?,state=?,county=?,phone=?,mobile=?,logo=?,photo=?,headerColorFrom=?,headerColorTo=?,sidebarColorFrom=?,sidebarColorTo=? WHERE id=?';
+            params = [name, address, city, state, county, phone, mobile, logo||null, photo||null, headerColorFrom||null, headerColorTo||null, sidebarColorFrom||null, sidebarColorTo||null, req.params.id];
+        }
+        
+        await runSql(sql, params);
+        const row = await getSql('SELECT id,name,address,city,state,county,phone,mobile,username,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?',[req.params.id]);
         if(!row) return res.status(404).json({ error: 'not found' });
         res.json(row);
     } catch (e) {
@@ -634,6 +1043,22 @@ app.post('/api/schools/:id/reset-password', authenticateToken, async (req, res) 
         const hash = await new Promise((resolve,reject)=>{ require('bcrypt').hash(password,10,(err,h)=> err?reject(err):resolve(h)); });
         await runSql('UPDATE schools SET passwordHash=? WHERE id=?',[hash, req.params.id]);
         res.json({ reset: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Update school contract details (admin only)
+app.post('/api/schools/:id/contract', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role!=='admin') return res.status(403).json({ error: 'admin only' });
+        const { contractStartDate, contractEndDate, contractStatus, isActive } = req.body || {};
+        
+        await runSql('UPDATE schools SET contractStartDate=?, contractEndDate=?, contractStatus=?, isActive=? WHERE id=?', 
+            [contractStartDate||null, contractEndDate||null, contractStatus||'active', isActive !== undefined ? (isActive ? 1 : 0) : 1, req.params.id]);
+        
+        const row = await getSql('SELECT id,name,contractStartDate,contractEndDate,contractStatus,isActive FROM schools WHERE id=?', [req.params.id]);
+        res.json(row);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -657,22 +1082,75 @@ app.post('/api/notifications/email', authenticateToken, async (req, res) =>
 });
 
 // ------------------ DASHBOARD/HEALTH ------------------
-app.get('/api/dashboard/summary', authenticateToken, async (req, res) =>
-{
-    try
-    {
-        const schoolId = req.user?.role === 'school' ? req.user.id : null;
+app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
+    try {
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        if (req.user?.role !== 'admin' && !schoolId) {
+            return res.status(403).json({ error: 'No school scope available for this user' });
+        }
         const buses = schoolId ? await getSql('SELECT COUNT(*) as c FROM buses WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM buses');
         const drivers = schoolId ? await getSql('SELECT COUNT(*) as c FROM drivers WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM drivers');
         const students = schoolId ? await getSql('SELECT COUNT(*) as c FROM students WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM students');
         const parents = schoolId ? await getSql('SELECT COUNT(*) as c FROM parents WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM parents');
         const routes = schoolId ? await getSql('SELECT COUNT(*) as c FROM routes WHERE schoolId=?', [schoolId]) : await getSql('SELECT COUNT(*) as c FROM routes');
-        const schools = !schoolId ? await getSql('SELECT COUNT(*) as c FROM schools') : null;
+        const schools = req.user?.role === 'admin' ? await getSql('SELECT COUNT(*) as c FROM schools') : null;
         res.json({ buses: buses.c || 0, drivers: drivers.c || 0, students: students.c || 0, parents: parents.c || 0, routes: routes.c || 0, schools: schools?.c || 0 });
-    } catch (e)
-    {
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// ------------------ SCHOOL USERS MANAGEMENT ------------------
+// All endpoints restricted to main school admin (role 'school')
+app.get('/api/school-users', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const rows = await allSql('SELECT id,username,role,active,createdAt FROM school_users WHERE schoolId=? ORDER BY createdAt DESC', [req.user.id]);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/school-users', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const { username, password, role } = req.body || {};
+        if(!username || !password || password.length < 6) return res.status(400).json({ error: 'username & password (>=6) required' });
+        const exist = await getSql('SELECT id FROM school_users WHERE schoolId=? AND username=?', [req.user.id, username]);
+        if(exist) return res.status(409).json({ error: 'username exists' });
+        const id = uuidv4(); const hash = await bcrypt.hash(password,10); const now = Date.now();
+        await runSql('INSERT INTO school_users(id,schoolId,username,passwordHash,role,active,createdAt) VALUES(?,?,?,?,?,?,?)',[id, req.user.id, username, hash, role||'editor',1, now]);
+        const row = await getSql('SELECT id,username,role,active,createdAt FROM school_users WHERE id=?',[id]);
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/school-users/:id/reset-password', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const { password } = req.body || {}; if(!password || password.length<6) return res.status(400).json({ error: 'password min 6' });
+        const hash = await bcrypt.hash(password,10);
+        await runSql('UPDATE school_users SET passwordHash=? WHERE id=? AND schoolId=?',[hash, req.params.id, req.user.id]);
+        res.json({ reset:true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/school-users/:id', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        const { role, active } = req.body || {};
+        await runSql('UPDATE school_users SET role=COALESCE(?,role), active=COALESCE(?,active) WHERE id=? AND schoolId=?',[role, typeof active==='number'?active:null, req.params.id, req.user.id]);
+        const row = await getSql('SELECT id,username,role,active,createdAt FROM school_users WHERE id=? AND schoolId=?',[req.params.id, req.user.id]);
+        if(!row) return res.status(404).json({ error:'not found' });
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/school-users/:id', authenticateToken, async (req, res) => {
+    try {
+        if(req.user?.role !== 'school') return res.status(403).json({ error: 'school admin only' });
+        await runSql('DELETE FROM school_users WHERE id=? AND schoolId=?',[req.params.id, req.user.id]);
+        res.json({ deleted:true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Get school details/dashboard by ID (for admin viewing specific school)
