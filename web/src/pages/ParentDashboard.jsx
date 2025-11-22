@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api, { getAuthUser } from '../services/api';
+import Map from './Map';
 
 export default function ParentDashboard() {
   const [parent, setParent] = useState(null);
@@ -165,9 +166,7 @@ export default function ParentDashboard() {
       </div>
 
       <div className="mt-6">
-        <a href="/map" className="btn-primary inline-block">
-          View Live Bus Tracking
-        </a>
+        <Map embedded />
       </div>
     </div>
   );

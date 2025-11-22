@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api, { getAuthUser } from '../services/api';
+import Map from './Map';
 
 export default function DriverDashboard() {
   const [driver, setDriver] = useState(null);
@@ -115,9 +116,7 @@ export default function DriverDashboard() {
       </div>
 
       <div className="mt-6">
-        <a href="/map" className="btn-primary inline-block">
-          View Live Map
-        </a>
+        <Map embedded />
       </div>
     </div>
   );

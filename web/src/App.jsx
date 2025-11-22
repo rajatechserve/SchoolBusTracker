@@ -26,9 +26,11 @@ function Sidebar({ authUser, onLogoUpdate }){
   const isAdmin = authUser?.role === 'admin';
   const isSchoolAdmin = authUser?.role === 'school';
   const isSchoolUser = authUser?.role === 'schoolUser';
+  const isDriver = authUser?.role === 'driver';
+  const isParent = authUser?.role === 'parent';
   const userRole = authUser?.userRole; // viewer | editor | manager
   const isViewer = isSchoolUser && userRole === 'viewer';
-  const logo = (isSchoolAdmin || isSchoolUser) ? authUser?.logo : null;
+  const logo = (isSchoolAdmin || isSchoolUser || isDriver || isParent) ? authUser?.logo : null;
   const [adminLogo, setAdminLogo] = React.useState(localStorage.getItem('adminLogo') || null);
   
   const handleLogoUpload = (e) => {
@@ -47,10 +49,12 @@ function Sidebar({ authUser, onLogoUpdate }){
   };
   
   const getSidebarStyle = () => {
+    if(!isAdmin && authUser?.sidebarColorFrom && authUser?.sidebarColorTo){
+      return { background: `linear-gradient(to bottom, ${authUser.sidebarColorFrom}, ${authUser.sidebarColorTo})` };
+    }
     const prefix = isAdmin ? 'admin' : 'school';
     const from = localStorage.getItem(`${prefix}SidebarFrom`);
     const to = localStorage.getItem(`${prefix}SidebarTo`);
-    
     if (from && to) {
       const colorMap = {
         'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
@@ -61,19 +65,18 @@ function Sidebar({ authUser, onLogoUpdate }){
         'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155',
         'white': '#ffffff'
       };
-      return {
-        background: `linear-gradient(to bottom, ${colorMap[from]}, ${colorMap[to]})`
-      };
+      return { background: `linear-gradient(to bottom, ${colorMap[from]}, ${colorMap[to]})` };
     }
     return {};
   };
 
   const hasCustomSidebarColors = () => {
+    if(!isAdmin && authUser?.sidebarColorFrom && authUser?.sidebarColorTo) return true;
     const prefix = isAdmin ? 'admin' : 'school';
     return localStorage.getItem(`${prefix}SidebarFrom`) && localStorage.getItem(`${prefix}SidebarTo`);
   };
 
-  const isSchoolRole = authUser?.role === 'school' || authUser?.role === 'schoolUser';
+  const isSchoolRole = ['school','schoolUser','driver','parent'].includes(authUser?.role);
   const schoolName = authUser?.name || authUser?.schoolName;
 
   return (
@@ -123,7 +126,7 @@ function Sidebar({ authUser, onLogoUpdate }){
           <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/admin-settings">Settings</Link>
         </>
       )}
-      {(isSchoolAdmin || isSchoolUser) && (
+      {(isSchoolAdmin || isSchoolUser || isDriver || isParent) && (
         <>
           <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/school-dashboard">Dashboard</Link>
           <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/map">Live Map</Link>
@@ -145,7 +148,7 @@ function Header({ onLogout, authUser }) {
   const username = authUser?.username;
   const schoolName = authUser?.name || authUser?.schoolName;
   const schoolPhoto = authUser?.photo;
-  const isSchool = authUser?.role === 'school' || authUser?.role === 'schoolUser';
+  const isSchool = ['school','schoolUser','driver','parent'].includes(authUser?.role);
   const isAdmin = authUser?.role === 'admin';
   const { theme, setTheme } = useTheme();
   
@@ -156,10 +159,12 @@ function Header({ onLogout, authUser }) {
   };
   
   const getHeaderStyle = () => {
+    if(!isAdmin && authUser?.headerColorFrom && authUser?.headerColorTo){
+      return { background: `linear-gradient(to right, ${authUser.headerColorFrom}, ${authUser.headerColorTo})` };
+    }
     const prefix = isAdmin ? 'admin' : 'school';
     const from = localStorage.getItem(`${prefix}HeaderFrom`);
     const to = localStorage.getItem(`${prefix}HeaderTo`);
-    
     if (from && to) {
       const colorMap = {
         'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
@@ -170,14 +175,13 @@ function Header({ onLogout, authUser }) {
         'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155',
         'white': '#ffffff'
       };
-      return {
-        background: `linear-gradient(to right, ${colorMap[from]}, ${colorMap[to]})`
-      };
+      return { background: `linear-gradient(to right, ${colorMap[from]}, ${colorMap[to]})` };
     }
     return {};
   };
 
   const hasCustomHeaderColors = () => {
+    if(!isAdmin && authUser?.headerColorFrom && authUser?.headerColorTo) return true;
     const prefix = isAdmin ? 'admin' : 'school';
     return localStorage.getItem(`${prefix}HeaderFrom`) && localStorage.getItem(`${prefix}HeaderTo`);
   };
@@ -241,6 +245,23 @@ function Header({ onLogout, authUser }) {
 export default function App(){
   const [authUserState, setAuthUserState] = useState(getAuthUser());
   useEffect(()=>{ setAuthUserState(getAuthUser()); },[]);
+  // Fetch school profile for driver/parent and merge branding
+  useEffect(() => {
+    const u = authUserState;
+    if(!u) return;
+    if(['driver','parent'].includes(u.role) && u.schoolId && !u._schoolLoaded){
+      (async () => {
+        try {
+          const r = await api.get(`/public/schools/${u.schoolId}`);
+          if(r.data){
+            const merged = { ...u, ...r.data, _schoolLoaded: true };
+            setAuthUser(merged);
+            setAuthUserState(merged);
+          }
+        } catch(e){ console.log('school load (public) failed', e.message); }
+      })();
+    }
+  }, [authUserState]);
   const logout = () => { setAuthToken(null); setAuthUser(null); setAuthUserState(null); window.location.href = '/login'; };
   return (
     <BrowserRouter>

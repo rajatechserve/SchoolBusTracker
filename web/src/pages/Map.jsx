@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import api, { getAuthUser } from '../services/api';
-export default function Map(){
+export default function Map({ embedded = false }){
   const mapRef = useRef(null);
   const markersRef = useRef(null);
   const [allBuses, setAllBuses] = useState([]);
@@ -96,51 +96,56 @@ export default function Map(){
   },[selectedBuses]);
   
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-3 relative z-[1000]">
-        <h2 className="text-xl font-semibold">Live Bus Tracking</h2>
-        <div className="flex-1 relative">
-          <input 
-            type="text"
-            placeholder="🔍 Search buses..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setShowDropdown(true)}
-            className="w-full max-w-md border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 dark:bg-slate-700 dark:text-slate-100"
-          />
-          {showDropdown && filteredBuses.length > 0 && (
-            <div className="absolute z-[1001] mt-1 w-full max-w-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-              <div className="p-2 border-b border-slate-200 dark:border-slate-700 flex gap-2">
-                <button onClick={selectAllBuses} className="text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">Select All</button>
-                <button onClick={clearAllSelections} className="text-xs px-2 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded">Clear All</button>
-                <button onClick={() => setShowDropdown(false)} className="ml-auto text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-400 rounded">Close</button>
+    <div className={embedded ? '' : ''}>
+      {!embedded && (
+        <div className="mb-4 flex items-center gap-3 relative z-[1000]">
+          <h2 className="text-xl font-semibold">Live Bus Tracking</h2>
+          <div className="flex-1 relative">
+            <input 
+              type="text"
+              placeholder="🔍 Search buses..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setShowDropdown(true)}
+              className="w-full max-w-md border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 dark:bg-slate-700 dark:text-slate-100"
+            />
+            {showDropdown && filteredBuses.length > 0 && (
+              <div className="absolute z-[1001] mt-1 w-full max-w-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                <div className="p-2 border-b border-slate-200 dark:border-slate-700 flex gap-2">
+                  <button onClick={selectAllBuses} className="text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">Select All</button>
+                  <button onClick={clearAllSelections} className="text-xs px-2 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded">Clear All</button>
+                  <button onClick={() => setShowDropdown(false)} className="ml-auto text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-400 rounded">Close</button>
+                </div>
+                {filteredBuses.map(bus => (
+                  <label key={bus.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-b-0">
+                    <input 
+                      type="checkbox"
+                      checked={selectedBuses.includes(bus.id)}
+                      onChange={() => toggleBusSelection(bus.id)}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-slate-900 dark:text-slate-100">{bus.number}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{bus.driverName || 'No driver assigned'}</div>
+                    </div>
+                    {bus.location && (
+                      <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">●  Active</span>
+                    )}
+                  </label>
+                ))}
               </div>
-              {filteredBuses.map(bus => (
-                <label key={bus.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-b-0">
-                  <input 
-                    type="checkbox"
-                    checked={selectedBuses.includes(bus.id)}
-                    onChange={() => toggleBusSelection(bus.id)}
-                    className="w-4 h-4 text-blue-600 rounded"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-slate-900 dark:text-slate-100">{bus.number}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">{bus.driverName || 'No driver assigned'}</div>
-                  </div>
-                  {bus.location && (
-                    <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">●  Active</span>
-                  )}
-                </label>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
+          <div className="text-sm text-slate-600 dark:text-slate-400">
+            {selectedBuses.length > 0 ? `${selectedBuses.length} bus${selectedBuses.length > 1 ? 'es' : ''} selected` : `Showing all ${allBuses.length} buses`}
+          </div>
         </div>
-        <div className="text-sm text-slate-600 dark:text-slate-400">
-          {selectedBuses.length > 0 ? `${selectedBuses.length} bus${selectedBuses.length > 1 ? 'es' : ''} selected` : `Showing all ${allBuses.length} buses`}
-        </div>
-      </div>
-      <div className="card">
-        <div id="map" style={{height:'70vh', borderRadius: '8px'}}></div>
+      )}
+      {embedded && (
+        <div className="mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">Live Bus Tracking (Today)</div>
+      )}
+      <div className={embedded ? 'card p-2' : 'card'}>
+        <div id="map" style={{height: embedded ? '50vh':'70vh', borderRadius: '8px'}}></div>
       </div>
     </div>
   );

@@ -887,6 +887,17 @@ app.get('/api/public/schools', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+// Public single school profile (minimal but with branding fields)
+app.get('/api/public/schools/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const row = await getSql('SELECT id,name,address,city,state,phone,mobile,logo,photo,headerColorFrom,headerColorTo,sidebarColorFrom,sidebarColorTo FROM schools WHERE id=?', [id]);
+        if(!row) return res.status(404).json({ error: 'School not found' });
+        res.json(row);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 app.get('/api/schools', authenticateToken, async (req, res) => {
     try {
         // Admin: full paginated list with search
