@@ -6,6 +6,7 @@ export default function Students(){
 	const [form,setForm]=useState({id:null,name:'',cls:'',parentId:'',busId:''});
 	const [buses,setBuses]=useState([]);
 	const [parents,setParents]=useState([]);
+	const [parentSearch,setParentSearch]=useState('');
 	const [classes,setClasses]=useState([]);
 	const [q,setQ]=useState('');
 	const [classFilter,setClassFilter]=useState('');
@@ -69,10 +70,23 @@ export default function Students(){
 					{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
 				</select>
 				{user?.role!=='parent' && (
-					<select value={form.parentId} onChange={e=>setForm({...form,parentId:e.target.value})} className='border p-2 rounded min-w-[140px]' disabled={isViewer}>
-						<option value=''>Select Parent</option>
-						{parents.map(p=>(<option key={p.id} value={p.id}>{p.name}</option>))}
-					</select>
+					<div className='flex flex-col'>
+						<input
+							placeholder='Search Parents...'
+							value={parentSearch}
+							onChange={e=>setParentSearch(e.target.value)}
+							className='border p-2 rounded mb-1 text-sm'
+							disabled={isViewer}
+						/>
+						<select value={form.parentId} onChange={e=>setForm({...form,parentId:e.target.value})} className='border p-2 rounded min-w-[200px]' disabled={isViewer}>
+							<option value=''>Select Parent</option>
+							{parents
+								.filter(p=> !parentSearch.trim() || p.name.toLowerCase().includes(parentSearch.toLowerCase()) || (p.phone||'').toLowerCase().includes(parentSearch.toLowerCase()))
+								.map(p=>(
+									<option key={p.id} value={p.id}>{p.name}{p.phone? ` (${p.phone})`:''}</option>
+								))}
+						</select>
+					</div>
 				)}
 				<button onClick={save} className={`btn-primary ${isViewer?'opacity-50 cursor-not-allowed':''}`} disabled={isViewer}>{form.id?'Update':'Add'}</button>
 			</div>

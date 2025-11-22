@@ -10,7 +10,7 @@ module.exports = function initDb(db){
     db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT, schoolId TEXT)`);
-    db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT, schoolId TEXT)`);
+    db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT, schoolId TEXT, assignmentDate TEXT)`);
     // Classes (per school, unique name)
     db.run(`CREATE TABLE IF NOT EXISTS classes(id TEXT PRIMARY KEY, name TEXT, active INTEGER DEFAULT 1, schoolId TEXT)`);
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_classes_unique ON classes(schoolId, name)');
@@ -70,6 +70,12 @@ module.exports = function initDb(db){
       }
       if(!err && rows && !rows.some(c=>c.name==='schoolId')){
         db.run("ALTER TABLE buses ADD COLUMN schoolId TEXT");
+      }
+    });
+    
+    db.all("PRAGMA table_info(assignments)", (err, rows)=>{
+      if(!err && rows && !rows.some(c=>c.name==='assignmentDate')){
+        db.run("ALTER TABLE assignments ADD COLUMN assignmentDate TEXT");
       }
     });
     

@@ -763,11 +763,11 @@ app.post('/api/assignments', authenticateToken, requirePermission('write'), asyn
 {
     try
     {
-        const { driverId, busId, routeId } = req.body || {};
+        const { driverId, busId, routeId, assignmentDate } = req.body || {};
         if (!driverId || !busId) return res.status(400).json({ error: 'driverId and busId required' });
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
-        await runSql('INSERT INTO assignments(id,driverId,busId,routeId,schoolId) VALUES(?,?,?,?,?)', [id, driverId, busId, routeId || null, schoolId]);
+        await runSql('INSERT INTO assignments(id,driverId,busId,routeId,schoolId,assignmentDate) VALUES(?,?,?,?,?,?)', [id, driverId, busId, routeId || null, schoolId, assignmentDate || null]);
         const row = await getSql('SELECT * FROM assignments WHERE id=?', [id]);
         res.json(row);
     } catch (e)
@@ -781,21 +781,24 @@ app.get('/api/assignments', authenticateToken, async (req, res) =>
     try
     {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const { search } = req.query || {};
-        let rows;
-        if (schoolId) {
-            if (search && search.trim()) {
-                rows = await allSql('SELECT * FROM assignments WHERE schoolId=? AND (driverId LIKE ? OR busId LIKE ? OR routeId LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`]);
-            } else {
-                rows = await allSql('SELECT * FROM assignments WHERE schoolId=?', [schoolId]);
-            }
-        } else {
-            if (search && search.trim()) {
-                rows = await allSql('SELECT * FROM assignments WHERE driverId LIKE ? OR busId LIKE ? OR routeId LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`]);
-            } else {
-                rows = await allSql('SELECT * FROM assignments');
-            }
+        const { search, date, busId, driverId, routeId } = req.query || {};
+        const params = [];
+        let sql = 'SELECT * FROM assignments';
+        const where = [];
+        
+        if (schoolId) { where.push('schoolId=?'); params.push(schoolId); }
+        if (search && search.trim()) { 
+            where.push('(driverId LIKE ? OR busId LIKE ? OR routeId LIKE ? OR assignmentDate LIKE ?)');
+            params.push(`%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`, `%${search.trim()}%`);
         }
+        if (date && date.trim()) { where.push('assignmentDate=?'); params.push(date.trim()); }
+        if (busId && busId.trim()) { where.push('busId=?'); params.push(busId.trim()); }
+        if (driverId && driverId.trim()) { where.push('driverId=?'); params.push(driverId.trim()); }
+        if (routeId && routeId.trim()) { where.push('routeId=?'); params.push(routeId.trim()); }
+        
+        if (where.length) sql += ' WHERE ' + where.join(' AND ');
+        sql += ' ORDER BY assignmentDate DESC';
+        const rows = await allSql(sql, params);
         res.json(rows);
     } catch (e)
     {
