@@ -9,6 +9,7 @@ export default function Parents(){
   const [form,setForm]=useState({id:null,name:'',phone:''});
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
+  const [phoneExists,setPhoneExists]=useState(false);
   const [csvFile,setCsvFile]=useState(null);
   const [csvPreview,setCsvPreview]=useState([]); // [{name,phone,status}]
   const [importing,setImporting]=useState(false);
@@ -16,10 +17,24 @@ export default function Parents(){
   const load=()=>api.get('/parents', { params: { search: q || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
   useEffect(()=>{ load(); },[q]);
 
+  const handlePhoneChange=async(value)=>{
+    setForm({...form,phone:value});
+    setPhoneExists(false);
+    setError('');
+    if(value.length===10 && /^\d{10}$/.test(value) && !form.id){
+      try{
+        const res = await api.get(`/parents/check-phone/${value}`);
+        setPhoneExists(res.data.exists);
+      }catch(e){ console.log('Check failed',e); }
+    }
+  };
+
   const save=async()=>{
     if(isViewer) return;
     setError('');
-    if(!form.name.trim() || !/^\+?\d{7,15}$/.test(form.phone.trim())){ setError('Provide name and valid phone'); return; }
+    if(!form.name.trim()){ setError('Name is required'); return; }
+    if(!/^\d{10}$/.test(form.phone.trim())){ setError('Phone must be exactly 10 digits'); return; }
+    if(phoneExists && !form.id){ setError('This phone number already exists'); return; }
     setLoading(true);
     try{
       if(form.id){
@@ -113,11 +128,14 @@ export default function Parents(){
 
       {isViewer && <div className='mb-4 p-3 bg-yellow-50 text-xs text-yellow-700 rounded'>Viewer role: modifications disabled.</div>}
       <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-        <input placeholder='Name' value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className='border p-2'/>
-        <input placeholder='Phone' value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className='border p-2'/>
+        <input placeholder='Name' value={form.name} onChange={e=>{setForm({...form,name:e.target.value});setError('');}} className='border p-2 rounded' disabled={isViewer}/>
+        <div>
+          <input placeholder='Phone (10 digits)' value={form.phone} onChange={e=>handlePhoneChange(e.target.value)} className='border p-2 rounded w-full' maxLength='10' disabled={isViewer}/>
+          {phoneExists && !form.id && <div className='text-xs text-red-600 mt-1'>This phone number already exists</div>}
+        </div>
         <div className='md:col-span-3 flex gap-2'>
           <button onClick={save} disabled={loading || isViewer} className={`btn-primary ${isViewer?'opacity-50 cursor-not-allowed':''}`}>{form.id?'Update':'Add'} Parent</button>
-          {form.id && <button onClick={()=>setForm({id:null,name:'',phone:''})} className='btn-secondary'>Cancel</button>}
+          {form.id && <button onClick={()=>{setForm({id:null,name:'',phone:''});setPhoneExists(false);setError('');}} className='btn-secondary'>Cancel</button>}
         </div>
         {error && <div className='md:col-span-3 text-sm text-red-600'>{error}</div>}
       </div>

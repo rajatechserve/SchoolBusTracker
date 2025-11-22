@@ -432,6 +432,17 @@ app.delete('/api/drivers/:id', authenticateToken, requirePermission('manage'), a
     }
 });
 
+// Check if driver phone exists across all schools
+app.get('/api/drivers/check-phone/:phone', authenticateToken, async (req, res) => {
+    try {
+        const phone = req.params.phone;
+        const row = await getSql('SELECT id FROM drivers WHERE phone=?', [phone]);
+        res.json({ exists: !!row });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // ------------------ STUDENTS CRUD ------------------
 app.get('/api/students', authenticateToken, async (req, res) => {
     try {
@@ -585,6 +596,16 @@ app.post('/api/parents', authenticateToken, requirePermission('write'), async (r
         res.json(row);
     } catch (e)
     {
+        res.status(500).json({ error: e.message });
+    }
+});
+// Check if parent phone exists across all schools
+app.get('/api/parents/check-phone/:phone', authenticateToken, async (req, res) => {
+    try {
+        const phone = req.params.phone;
+        const row = await getSql('SELECT id FROM parents WHERE phone=?', [phone]);
+        res.json({ exists: !!row });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
