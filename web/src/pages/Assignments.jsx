@@ -6,9 +6,10 @@ export default function Assignments(){
 	const [buses,setBuses]=useState([]);
 	const [routes,setRoutes]=useState([]);
 	const [list,setList]=useState([]);
-	const [form,setForm]=useState({driverId:'',busId:'',routeId:'',assignmentDate:''});
+	const [form,setForm]=useState({driverId:'',busId:'',routeId:'',startDate:'',endDate:''});
 	const [q,setQ]=useState('');
-	const [dateFilter,setDateFilter]=useState('');
+	const [startDateFilter,setStartDateFilter]=useState('');
+	const [endDateFilter,setEndDateFilter]=useState('');
 	const [busFilter,setBusFilter]=useState('');
 	const [driverFilter,setDriverFilter]=useState('');
 	const [routeFilter,setRouteFilter]=useState('');
@@ -18,14 +19,15 @@ export default function Assignments(){
 	const load=()=>api.get('/assignments', { 
 		params: { 
 			search: q || undefined,
-			date: dateFilter || undefined,
+			startDate: startDateFilter || undefined,
+			endDate: endDateFilter || undefined,
 			busId: busFilter || undefined,
 			driverId: driverFilter || undefined,
 			routeId: routeFilter || undefined
 		} 
 	}).then(r=>setList(r.data||[])).catch(()=>{});
 	
-	useEffect(()=>{ load(); },[q,dateFilter,busFilter,driverFilter,routeFilter]);
+	useEffect(()=>{ load(); },[q,startDateFilter,endDateFilter,busFilter,driverFilter,routeFilter]);
 	useEffect(()=>{ 
 		api.get('/drivers').then(r=>setDrivers(r.data||[])); 
 		api.get('/buses').then(r=>setBuses(r.data||[])); 
@@ -35,10 +37,11 @@ export default function Assignments(){
 	const save=async()=>{ 
 		if(isViewer) return; 
 		if(!form.driverId || !form.busId) { alert('Driver and Bus are required'); return; }
-		if(!form.assignmentDate) { alert('Assignment date is required'); return; }
+		if(!form.startDate || !form.endDate) { alert('Start date and End date are required'); return; }
+		if(new Date(form.startDate) > new Date(form.endDate)) { alert('Start date must be before or equal to End date'); return; }
 		try{ 
 			await api.post('/assignments', form); 
-			setForm({driverId:'',busId:'',routeId:'',assignmentDate:''}); 
+			setForm({driverId:'',busId:'',routeId:'',startDate:'',endDate:''}); 
 			load(); 
 		}catch(e){alert('Error: '+(e.response?.data?.error||e.message));} 
 	};
@@ -49,6 +52,11 @@ export default function Assignments(){
 	const getBusNumber=(id)=> buses.find(b=>b.id===id)?.number || id || '—';
 	const getRouteName=(id)=> routes.find(r=>r.id===id)?.name || id || '—';
 	const formatDate=(d)=> d ? new Date(d).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : '—';
+	const formatDateRange=(start,end)=> {
+		if(!start && !end) return '—';
+		if(start && end) return `${formatDate(start)} - ${formatDate(end)}`;
+		return formatDate(start || end);
+	};
 	
 	return (
 		<div>
@@ -56,7 +64,8 @@ export default function Assignments(){
 				<h2 className='text-xl font-semibold'>Assignments {isViewer && <span className='text-xs text-slate-500'>(read-only)</span>}</h2>
 				<div className='flex flex-wrap gap-2 items-center'>
 					<input placeholder='Search...' value={q} onChange={e=>setQ(e.target.value)} className='border p-2 rounded'/>
-					<input type='date' value={dateFilter} onChange={e=>setDateFilter(e.target.value)} className='border p-2 rounded' placeholder='Date'/>
+					<input type='date' value={startDateFilter} onChange={e=>setStartDateFilter(e.target.value)} className='border p-2 rounded text-sm' placeholder='Start Date'/>
+					<input type='date' value={endDateFilter} onChange={e=>setEndDateFilter(e.target.value)} className='border p-2 rounded text-sm' placeholder='End Date'/>
 					<select value={busFilter} onChange={e=>setBusFilter(e.target.value)} className='border p-2 rounded min-w-[120px]'>
 						<option value=''>All Buses</option>
 						{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
@@ -77,9 +86,19 @@ export default function Assignments(){
 				<div className='flex flex-wrap gap-2'>
 					<input 
 						type='date' 
-						value={form.assignmentDate} 
-						onChange={e=>setForm({...form,assignmentDate:e.target.value})} 
+						value={form.startDate} 
+						onChange={e=>setForm({...form,startDate:e.target.value})} 
 						className='border p-2 rounded' 
+						placeholder='Start Date'
+						disabled={isViewer}
+						required
+					/>
+					<input 
+						type='date' 
+						value={form.endDate} 
+						onChange={e=>setForm({...form,endDate:e.target.value})} 
+						className='border p-2 rounded' 
+						placeholder='End Date'
 						disabled={isViewer}
 						required
 					/>
@@ -103,7 +122,7 @@ export default function Assignments(){
 					<div key={a.id} className='p-4 bg-white dark:bg-slate-800 rounded-lg shadow flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
 						<div className='flex-1'>
 							<div className='flex flex-wrap gap-3 items-center'>
-								<span className='text-sm font-semibold text-blue-600 dark:text-blue-400'>{formatDate(a.assignmentDate)}</span>
+								<span className='text-sm font-semibold text-blue-600 dark:text-blue-400'>{formatDateRange(a.startDate,a.endDate)}</span>
 								<span className='text-slate-400'>•</span>
 								<span className='font-medium'>{getDriverName(a.driverId)}</span>
 								<span className='text-slate-400'>→</span>
