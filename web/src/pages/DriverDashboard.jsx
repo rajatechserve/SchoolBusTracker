@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api, { getAuthUser } from '../services/api';
 import Map from './Map';
 
 export default function DriverDashboard() {
   const [driver, setDriver] = useState(null);
   const [assignments, setAssignments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,16 +23,9 @@ export default function DriverDashboard() {
       const driverRes = await api.get(`/drivers/${user.id}`);
       setDriver(driverRes.data);
 
-      // Get assignments for the current driver for the next month
-      const today = new Date();
-      const oneMonthLater = new Date();
-      oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
-      
-      const startDate = today.toISOString().split('T')[0];
-      const endDate = oneMonthLater.toISOString().split('T')[0];
-      
+      // Get ALL assignments for this driver (no date filter)
       const assignmentsRes = await api.get('/assignments', {
-        params: { driverId: user.id, startDate, endDate }
+        params: { driverId: user.id }
       });
       setAssignments(assignmentsRes.data?.data || []);
 
@@ -70,9 +64,19 @@ export default function DriverDashboard() {
     return formatDate(start || end);
   };
 
-  if (loading) {
-    return <div className="p-6">Loading...</div>;
-  }
+  const filteredAssignments = useMemo(() => {
+    if(!searchTerm.trim()) return assignments;
+    const term = searchTerm.toLowerCase();
+    return assignments.filter(a => {
+      const busName = getBusName(a.busId).toLowerCase();
+      const routeName = getRouteName(a.routeId).toLowerCase();
+      const start = (a.startDate||'').toLowerCase();
+      const end = (a.endDate||'').toLowerCase();
+      return busName.includes(term) || routeName.includes(term) || start.includes(term) || end.includes(term);
+    });
+  }, [assignments, searchTerm]);
+
+  if (loading) return <div className="p-6">Loading...</div>;
 
   return (
     <div className="p-6">
@@ -81,7 +85,7 @@ export default function DriverDashboard() {
         {driver && (
           <div className="card p-4 mb-4">
             <h2 className="text-xl font-semibold mb-4">{driver.name}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-slate-500">Phone</p>
                 <p className="font-medium">{driver.phone || '—'}</p>
@@ -90,19 +94,24 @@ export default function DriverDashboard() {
                 <p className="text-xs text-slate-500">License</p>
                 <p className="font-medium">{driver.license || '—'}</p>
               </div>
-              <div>
-                <p className="text-xs text-slate-500">School</p>
-                <p className="font-medium">{driver.schoolId || '—'}</p>
-              </div>
             </div>
           </div>
         )}
       </div>
 
       <div className="card p-4">
-        <h2 className="text-xl font-semibold mb-4">Assignments (Viewing Only)</h2>
-        {assignments.length === 0 ? (
-          <p className="text-slate-500">No assignments found.</p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <h2 className="text-xl font-semibold">Assignments (All)</h2>
+          <input
+            type="text"
+            placeholder="Search bus, route or date..."
+            value={searchTerm}
+            onChange={e=>setSearchTerm(e.target.value)}
+            className="border rounded px-3 py-2 w-full md:w-64"
+          />
+        </div>
+        {filteredAssignments.length === 0 ? (
+          <p className="text-slate-500">No assignments match.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -115,7 +124,7 @@ export default function DriverDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {assignments.map(a => (
+                {filteredAssignments.map(a => (
                   <tr key={a.id} className="border-b hover:bg-slate-50">
                     <td className="p-2">{formatDate(a.startDate)}</td>
                     <td className="p-2">{formatDate(a.endDate)}</td>

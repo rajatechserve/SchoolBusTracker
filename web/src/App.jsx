@@ -148,7 +148,9 @@ function Header({ onLogout, authUser }) {
   const username = authUser?.username;
   const schoolName = authUser?.name || authUser?.schoolName;
   const schoolPhoto = authUser?.photo;
-  const isSchool = ['school','schoolUser','driver','parent'].includes(authUser?.role);
+  const isSchool = ['school','schoolUser'].includes(authUser?.role);
+  const isDriver = authUser?.role === 'driver';
+  const isParent = authUser?.role === 'parent';
   const isAdmin = authUser?.role === 'admin';
   const { theme, setTheme } = useTheme();
   
@@ -188,24 +190,44 @@ function Header({ onLogout, authUser }) {
 
   return (
     <header className={`${hasCustomHeaderColors() ? '' : 'bg-white dark:bg-slate-800'} border-b dark:border-slate-700`} style={getHeaderStyle()}>
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        {isSchool ? (
+      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        {isDriver || isParent ? (
           <>
-            <div className="flex-1 flex flex-col justify-center">
-              <div className={`text-2xl md:text-3xl font-bold leading-tight ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>{schoolName}</div>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                {authUser?.address && (
-                  <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>{authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
-                )}
-                {(authUser?.phone || authUser?.mobile) && (
-                  <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-500 dark:text-slate-500'}`}>
-                    {authUser.phone && <span>📞 {authUser.phone}</span>}
-                    {authUser.phone && authUser.mobile && <span className="mx-2">•</span>}
-                    {authUser.mobile && <span>📱 {authUser.mobile}</span>}
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center gap-4">
+              {authUser?.logo && (
+                <img src={authUser.logo.startsWith('/uploads') ? `${SERVER_URL}${authUser.logo}` : authUser.logo} alt="School Logo" className="h-12 w-auto object-contain" />
+              )}
+              <div className={`text-base font-medium ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}>{authUser?.role === 'driver' ? 'Driver Dashboard' : 'Parent Dashboard'}</div>
             </div>
+            <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-2 ${hasCustomHeaderColors() ? 'bg-white/20 backdrop-blur-sm border-white/30' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600'} border rounded-lg p-1`}>
+                <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Light mode"><ThemeIcon type="light" /></button>
+                <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Dark mode"><ThemeIcon type="dark" /></button>
+                <button onClick={() => setTheme('auto')} className={`p-1.5 rounded ${theme === 'auto' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Auto (system)"><ThemeIcon type="auto" /></button>
+              </div>
+              <div className={`text-sm ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>Signed in as <strong>{username}</strong></div>
+              <button onClick={onLogout} className={`text-sm px-3 py-1.5 rounded-lg transition-all duration-200 font-medium ${hasCustomHeaderColors() ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'}`}>Logout</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {isSchool ? (
+              <div className="flex-1 flex flex-col justify-center">
+                <div className={`text-2xl md:text-3xl font-bold leading-tight ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>{schoolName}</div>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {authUser?.address && (
+                    <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>{authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
+                  )}
+                  {(authUser?.phone || authUser?.mobile) && (
+                    <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-500 dark:text-slate-500'}`}>
+                      {authUser.phone && <span>📞 {authUser.phone}</span>}
+                      {authUser.phone && authUser.mobile && <span className="mx-2">•</span>}
+                      {authUser.mobile && <span>📱 {authUser.mobile}</span>}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : <div className="flex-1" />}
             <div className="flex items-center justify-end gap-4">
               <div className={`flex items-center gap-2 ${hasCustomHeaderColors() ? 'bg-white/20 backdrop-blur-sm border-white/30' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600'} border rounded-lg p-1`}>
                 <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Light mode"><ThemeIcon type="light" /></button>
@@ -214,26 +236,6 @@ function Header({ onLogout, authUser }) {
               </div>
               <div className={`text-sm ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>Signed in as <strong className="font-semibold">{username}</strong></div>
               <button onClick={onLogout} className={`text-sm px-3 py-1.5 rounded-lg transition-all duration-200 font-medium ${hasCustomHeaderColors() ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'}`}>Logout</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex-1"></div>
-            <div className={`text-xl font-bold ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>{isAdmin ? 'Admin Console' : ''}</div>
-            <div className="flex-1 flex items-center justify-end gap-4">
-              {authUser ? (
-                <>
-                  <div className={`flex items-center gap-2 ${hasCustomHeaderColors() ? 'bg-white/20 backdrop-blur-sm border-white/30' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600'} border rounded-lg p-1`}>
-                    <button onClick={() => setTheme('light')} className={`p-1.5 rounded ${theme === 'light' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Light mode"><ThemeIcon type="light" /></button>
-                    <button onClick={() => setTheme('dark')} className={`p-1.5 rounded ${theme === 'dark' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Dark mode"><ThemeIcon type="dark" /></button>
-                    <button onClick={() => setTheme('auto')} className={`p-1.5 rounded ${theme === 'auto' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : hasCustomHeaderColors() ? 'text-white hover:bg-white/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'}`} title="Auto (system)"><ThemeIcon type="auto" /></button>
-                  </div>
-                  <div className={`text-sm ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`}>Signed in as <strong className="font-semibold">{username}</strong></div>
-                  <button onClick={onLogout} className={`text-sm px-3 py-1.5 rounded-lg transition-all duration-200 font-medium ${hasCustomHeaderColors() ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400'}`}>Logout</button>
-                </>
-              ) : (
-                <Link to="/login" className={`text-sm ${hasCustomHeaderColors() ? 'text-white hover:text-white/80' : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300'}`}>Sign in</Link>
-              )}
             </div>
           </>
         )}
