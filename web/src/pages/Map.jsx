@@ -75,7 +75,7 @@ export default function Map(){
   
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3 relative z-[1000]">
         <h2 className="text-xl font-semibold">Live Bus Tracking</h2>
         <div className="flex-1 relative">
           <input 
@@ -87,7 +87,7 @@ export default function Map(){
             className="w-full max-w-md border border-slate-300 dark:border-slate-600 rounded-lg px-4 py-2 dark:bg-slate-700 dark:text-slate-100"
           />
           {showDropdown && filteredBuses.length > 0 && (
-            <div className="absolute z-50 mt-1 w-full max-w-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+            <div className="absolute z-[1001] mt-1 w-full max-w-md bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto">
               <div className="p-2 border-b border-slate-200 dark:border-slate-700 flex gap-2">
                 <button onClick={selectAllBuses} className="text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded">Select All</button>
                 <button onClick={clearAllSelections} className="text-xs px-2 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded">Clear All</button>
