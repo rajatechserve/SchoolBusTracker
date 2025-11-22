@@ -193,11 +193,25 @@ function Header({ onLogout, authUser }) {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         {isDriver || isParent ? (
           <>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1">
               {authUser?.logo && (
                 <img src={authUser.logo.startsWith('/uploads') ? `${SERVER_URL}${authUser.logo}` : authUser.logo} alt="School Logo" className="h-12 w-auto object-contain" />
               )}
-              <div className={`text-base font-medium ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}>{authUser?.role === 'driver' ? 'Driver Dashboard' : 'Parent Dashboard'}</div>
+              <div className="flex flex-col">
+                <div className={`text-xl font-semibold ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>{authUser?.name || 'School'}</div>
+                <div className={`text-xs ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-600 dark:text-slate-400'}`}>
+                  {authUser?.address && (
+                    <span>{authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
+                  )}
+                  {(authUser?.phone || authUser?.mobile) && (
+                    <span className="block mt-1">
+                      {authUser.phone && <span>📞 {authUser.phone}</span>}
+                      {authUser.phone && authUser.mobile && <span className="mx-2">•</span>}
+                      {authUser.mobile && <span>📱 {authUser.mobile}</span>}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <div className={`flex items-center gap-2 ${hasCustomHeaderColors() ? 'bg-white/20 backdrop-blur-sm border-white/30' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600'} border rounded-lg p-1`}>

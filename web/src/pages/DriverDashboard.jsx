@@ -24,10 +24,8 @@ export default function DriverDashboard() {
       setDriver(driverRes.data);
 
       // Get ALL assignments for this driver (no date filter)
-      const assignmentsRes = await api.get('/assignments', {
-        params: { driverId: user.id }
-      });
-      setAssignments(assignmentsRes.data?.data || []);
+      const assignmentsRes = await api.get('/assignments', { params: { driverId: user.id } });
+      setAssignments(Array.isArray(assignmentsRes.data) ? assignmentsRes.data : (assignmentsRes.data?.data || []));
 
       // Get all buses and routes for reference
       const busesRes = await api.get('/buses');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api, { getAuthUser } from '../services/api';
 import Map from './Map';
 
@@ -8,6 +8,9 @@ export default function ParentDashboard() {
   const [attendance, setAttendance] = useState([]);
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [routes, setRoutes] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [assignmentsSearch, setAssignmentsSearch] = useState('');
 
   useEffect(() => {
     loadData();
@@ -45,9 +48,19 @@ export default function ParentDashboard() {
       );
       setAttendance(filteredAttendance);
 
-      // Get all buses for reference
+      // Get all buses and routes for reference
       const busesRes = await api.get('/buses');
       setBuses(busesRes.data?.data || []);
+      const routesRes = await api.get('/routes');
+      setRoutes(routesRes.data || routesRes.data?.data || []);
+
+      // Load assignments for this school (will be auto-filtered by schoolId on backend)
+      const assignmentsRes = await api.get('/assignments');
+      const allAssignments = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : (assignmentsRes.data?.data || []);
+      // Keep only those assignments whose busId matches a child's busId
+      const childBusIds = (studentsRes.data || []).map(s => s.busId).filter(Boolean);
+      const relevant = allAssignments.filter(a => a.busId && childBusIds.includes(a.busId));
+      setAssignments(relevant);
     } catch (e) {
       console.error('Failed to load data:', e);
     } finally {
@@ -58,6 +71,11 @@ export default function ParentDashboard() {
   const getBusName = (busId) => {
     const bus = buses.find(b => b.id === busId);
     return bus?.number || 'Not Assigned';
+  };
+
+  const getRouteName = (routeId) => {
+    const r = routes.find(rt => rt.id === routeId);
+    return r?.name || '—';
   };
 
   const getStudentAttendance = (studentId) => {
@@ -72,6 +90,18 @@ export default function ParentDashboard() {
     const d = new Date(timestamp);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  const filteredAssignments = useMemo(() => {
+    if(!assignmentsSearch.trim()) return assignments;
+    const term = assignmentsSearch.toLowerCase();
+    return assignments.filter(a => {
+      const busName = getBusName(a.busId).toLowerCase();
+      const routeName = getRouteName(a.routeId).toLowerCase();
+      const start = (a.startDate||'').toLowerCase();
+      const end = (a.endDate||'').toLowerCase();
+      return busName.includes(term) || routeName.includes(term) || start.includes(term) || end.includes(term);
+    });
+  }, [assignments, assignmentsSearch, buses, routes]);
 
   if (loading) {
     return <div className="p-6">Loading...</div>;
@@ -122,6 +152,45 @@ export default function ParentDashboard() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div className="card p-4 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+          <h2 className="text-xl font-semibold">Bus Assignments</h2>
+          <input
+            type="text"
+            value={assignmentsSearch}
+            onChange={e=>setAssignmentsSearch(e.target.value)}
+            placeholder="Search bus, route or date..."
+            className="border rounded px-3 py-2 w-full md:w-64"
+          />
+        </div>
+        {filteredAssignments.length === 0 ? (
+          <p className="text-slate-500">No assignments for your children's buses.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-slate-100">
+                  <th className="text-left p-2">Start Date</th>
+                  <th className="text-left p-2">End Date</th>
+                  <th className="text-left p-2">Bus</th>
+                  <th className="text-left p-2">Route</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAssignments.map(a => (
+                  <tr key={a.id} className="border-b hover:bg-slate-50">
+                    <td className="p-2">{a.startDate || '—'}</td>
+                    <td className="p-2">{a.endDate || '—'}</td>
+                    <td className="p-2">{getBusName(a.busId)}</td>
+                    <td className="p-2">{getRouteName(a.routeId)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
