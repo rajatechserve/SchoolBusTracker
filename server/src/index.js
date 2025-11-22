@@ -436,25 +436,75 @@ app.delete('/api/drivers/:id', authenticateToken, requirePermission('manage'), a
 app.get('/api/students', authenticateToken, async (req, res) => {
     try {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const { search } = req.query || {};
-        let rows;
-        if (schoolId) {
-            if (search && search.trim()) {
-                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=? AND (name LIKE ? OR cls LIKE ?)', [schoolId, `%${search.trim()}%`, `%${search.trim()}%`]);
-            } else {
-                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE schoolId=?', [schoolId]);
-            }
-        } else {
-            if (search && search.trim()) {
-                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students WHERE name LIKE ? OR cls LIKE ?', [`%${search.trim()}%`, `%${search.trim()}%`]);
-            } else {
-                rows = await allSql('SELECT id,name,cls,parentId,busId,schoolId FROM students');
-            }
-        }
+        const { search, class: classFilter } = req.query || {};
+        const params = [];
+        let sql = 'SELECT id,name,cls,parentId,busId,schoolId FROM students';
+        const where = [];
+        if (schoolId) { where.push('schoolId=?'); params.push(schoolId); }
+        if (search && search.trim()) { where.push('(name LIKE ? OR cls LIKE ?)'); params.push(`%${search.trim()}%`, `%${search.trim()}%`); }
+        if (classFilter && classFilter.trim()) { where.push('cls=?'); params.push(classFilter.trim()); }
+        if (where.length) sql += ' WHERE ' + where.join(' AND ');
+        const rows = await allSql(sql, params);
         res.json(rows);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// ------------------ CLASSES CRUD ------------------
+app.get('/api/classes', authenticateToken, async (req, res) => {
+    try {
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.query.schoolId || null);
+        const { includeInactive } = req.query || {};
+        if (!schoolId && req.user?.role !== 'admin') return res.status(400).json({ error: 'schoolId required' });
+        let sql = 'SELECT id,name,active,schoolId FROM classes WHERE schoolId=?';
+        const params = [schoolId];
+        if (!includeInactive) sql += ' AND active=1';
+        const rows = await allSql(sql, params);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/classes', authenticateToken, async (req, res) => {
+    try {
+        const isViewer = req.user?.role === 'schoolUser' && req.user.userRole === 'viewer';
+        if (isViewer) return res.status(403).json({ error: 'viewer cannot modify' });
+        const { name, active } = req.body || {};
+        if (!name || !name.trim()) return res.status(400).json({ error: 'name required' });
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
+        if (!schoolId) return res.status(400).json({ error: 'schoolId required' });
+        const id = uuidv4();
+        try {
+            await runSql('INSERT INTO classes(id,name,active,schoolId) VALUES(?,?,?,?)', [id, name.trim(), active === 0 ? 0 : 1, schoolId]);
+        } catch (err) {
+            if (err && err.message.includes('UNIQUE')) return res.status(409).json({ error: 'class name exists' });
+            throw err;
+        }
+        const row = await getSql('SELECT id,name,active,schoolId FROM classes WHERE id=?', [id]);
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/classes/:id', authenticateToken, async (req, res) => {
+    try {
+        const isViewer = req.user?.role === 'schoolUser' && req.user.userRole === 'viewer';
+        if (isViewer) return res.status(403).json({ error: 'viewer cannot modify' });
+        const { name, active } = req.body || {};
+        if (!name || !name.trim()) return res.status(400).json({ error: 'name required' });
+        // ensure belongs to same school
+        const existing = await getSql('SELECT id,schoolId FROM classes WHERE id=?', [req.params.id]);
+        if (!existing) return res.status(404).json({ error: 'not found' });
+        const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
+        if (schoolId && existing.schoolId !== schoolId && req.user?.role !== 'admin') return res.status(403).json({ error: 'forbidden' });
+        try {
+            await runSql('UPDATE classes SET name=?, active=? WHERE id=?', [name.trim(), active === 0 ? 0 : 1, req.params.id]);
+        } catch (err) {
+            if (err && err.message.includes('UNIQUE')) return res.status(409).json({ error: 'class name exists' });
+            throw err;
+        }
+        const row = await getSql('SELECT id,name,active,schoolId FROM classes WHERE id=?', [req.params.id]);
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/students', authenticateToken, requirePermission('write'), async (req, res) => {

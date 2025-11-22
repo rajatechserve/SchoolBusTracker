@@ -11,6 +11,9 @@ module.exports = function initDb(db){
     db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT, schoolId TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT, schoolId TEXT)`);
+    // Classes (per school, unique name)
+    db.run(`CREATE TABLE IF NOT EXISTS classes(id TEXT PRIMARY KEY, name TEXT, active INTEGER DEFAULT 1, schoolId TEXT)`);
+    db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_classes_unique ON classes(schoolId, name)');
     
     // Extended schools schema with all columns including contract management
     db.run(`CREATE TABLE IF NOT EXISTS schools(
