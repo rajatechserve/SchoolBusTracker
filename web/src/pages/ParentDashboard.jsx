@@ -27,6 +27,7 @@ export default function ParentDashboard() {
 
       // Get students for this parent
       const studentsRes = await api.get(`/parents/${user.id}/students`);
+      console.log('Students response:', studentsRes.data);
       setStudents(studentsRes.data || []);
 
       // Get attendance for the last 30 days for all students
@@ -43,23 +44,25 @@ export default function ParentDashboard() {
       
       // Filter attendance for this parent's students
       const studentIds = studentsRes.data?.map(s => s.id) || [];
-      const filteredAttendance = (attendanceRes.data?.data || []).filter(a => 
-        studentIds.includes(a.studentId)
-      );
+      const allAttendance = Array.isArray(attendanceRes.data) ? attendanceRes.data : (attendanceRes.data?.data || []);
+      const filteredAttendance = allAttendance.filter(a => studentIds.includes(a.studentId));
       setAttendance(filteredAttendance);
 
       // Get all buses and routes for reference
       const busesRes = await api.get('/buses');
-      setBuses(busesRes.data?.data || []);
+      setBuses(Array.isArray(busesRes.data) ? busesRes.data : (busesRes.data?.data || []));
       const routesRes = await api.get('/routes');
-      setRoutes(routesRes.data || routesRes.data?.data || []);
+      setRoutes(Array.isArray(routesRes.data) ? routesRes.data : (routesRes.data?.data || []));
 
       // Load assignments for this school (will be auto-filtered by schoolId on backend)
       const assignmentsRes = await api.get('/assignments');
       const allAssignments = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : (assignmentsRes.data?.data || []);
+      console.log('All assignments:', allAssignments);
       // Keep only those assignments whose busId matches a child's busId
       const childBusIds = (studentsRes.data || []).map(s => s.busId).filter(Boolean);
+      console.log('Child bus IDs:', childBusIds);
       const relevant = allAssignments.filter(a => a.busId && childBusIds.includes(a.busId));
+      console.log('Relevant assignments:', relevant);
       setAssignments(relevant);
     } catch (e) {
       console.error('Failed to load data:', e);
