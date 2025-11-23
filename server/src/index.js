@@ -375,6 +375,16 @@ app.get('/api/drivers/:id', authenticateToken, async (req, res) =>
     }
 });
 
+app.get('/api/drivers/:id', authenticateToken, async (req, res) => {
+    try {
+        const row = await getSql('SELECT id,name,phone,license,schoolId FROM drivers WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Driver not found' });
+        res.json(row);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/drivers', authenticateToken, requirePermission('write'), async (req, res) =>
 {
     try
@@ -565,6 +575,16 @@ app.get('/api/parents', authenticateToken, async (req, res) =>
         res.json(rows);
     } catch (e)
     {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/parents/:id', authenticateToken, async (req, res) => {
+    try {
+        const row = await getSql('SELECT id,name,phone,schoolId FROM parents WHERE id=?', [req.params.id]);
+        if (!row) return res.status(404).json({ error: 'Parent not found' });
+        res.json(row);
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });

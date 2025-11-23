@@ -20,9 +20,11 @@ export default function ParentDashboard() {
     try {
       setLoading(true);
       const user = getAuthUser();
+      console.log('Logged in user:', user);
       
       // Get parent details
       const parentRes = await api.get(`/parents/${user.id}`);
+      console.log('Parent response:', parentRes.data);
       setParent(parentRes.data);
 
       // Get students for this parent
