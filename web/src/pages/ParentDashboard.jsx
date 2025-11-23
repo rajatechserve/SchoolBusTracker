@@ -11,6 +11,7 @@ export default function ParentDashboard() {
   const [routes, setRoutes] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [assignmentsSearch, setAssignmentsSearch] = useState('');
+  const [drivers, setDrivers] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -50,11 +51,13 @@ export default function ParentDashboard() {
       const filteredAttendance = allAttendance.filter(a => studentIds.includes(a.studentId));
       setAttendance(filteredAttendance);
 
-      // Get all buses and routes for reference
+      // Get all buses, routes, and drivers for reference
       const busesRes = await api.get('/buses');
       setBuses(Array.isArray(busesRes.data) ? busesRes.data : (busesRes.data?.data || []));
       const routesRes = await api.get('/routes');
       setRoutes(Array.isArray(routesRes.data) ? routesRes.data : (routesRes.data?.data || []));
+      const driversRes = await api.get('/drivers');
+      setDrivers(Array.isArray(driversRes.data) ? driversRes.data : (driversRes.data?.data || []));
 
       // Load assignments for this school (will be auto-filtered by schoolId on backend)
       const assignmentsRes = await api.get('/assignments');
@@ -81,6 +84,12 @@ export default function ParentDashboard() {
   const getRouteName = (routeId) => {
     const r = routes.find(rt => rt.id === routeId);
     return r?.name || '—';
+  };
+
+  const getDriverInfo = (driverId) => {
+    const driver = drivers.find(d => d.id === driverId);
+    if (!driver) return { name: '—', phone: '—' };
+    return { name: driver.name || '—', phone: driver.phone || '—' };
   };
 
   const getStudentAttendance = (studentId) => {
@@ -115,7 +124,6 @@ export default function ParentDashboard() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Parent Dashboard</h1>
         {parent && (
           <div className="card p-4 mb-4">
             <h2 className="text-xl font-semibold mb-2">Welcome, {parent.name}</h2>
@@ -183,17 +191,24 @@ export default function ParentDashboard() {
                   <th className="text-left p-2">End Date</th>
                   <th className="text-left p-2">Bus</th>
                   <th className="text-left p-2">Route</th>
+                  <th className="text-left p-2">Driver Name</th>
+                  <th className="text-left p-2">Driver Mobile</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredAssignments.map(a => (
-                  <tr key={a.id} className="border-b hover:bg-slate-50">
-                    <td className="p-2">{a.startDate || '—'}</td>
-                    <td className="p-2">{a.endDate || '—'}</td>
-                    <td className="p-2">{getBusName(a.busId)}</td>
-                    <td className="p-2">{getRouteName(a.routeId)}</td>
-                  </tr>
-                ))}
+                {filteredAssignments.map(a => {
+                  const driverInfo = getDriverInfo(a.driverId);
+                  return (
+                    <tr key={a.id} className="border-b hover:bg-slate-50">
+                      <td className="p-2">{a.startDate || '—'}</td>
+                      <td className="p-2">{a.endDate || '—'}</td>
+                      <td className="p-2">{getBusName(a.busId)}</td>
+                      <td className="p-2">{getRouteName(a.routeId)}</td>
+                      <td className="p-2">{driverInfo.name}</td>
+                      <td className="p-2">{driverInfo.phone}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
