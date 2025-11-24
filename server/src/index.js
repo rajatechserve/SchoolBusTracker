@@ -610,12 +610,31 @@ app.post('/api/students', authenticateToken, requirePermission('write'), async (
     }
 });
 
-app.put('/api/students/:id', authenticateToken, requirePermission('write'), async (req, res) => {
+app.put('/api/students/:id', authenticateToken, async (req, res) => {
     try {
-        const { name, cls, parentId, busId, routeId, pickupLocation, pickupLat, pickupLng, dropLat, dropLng } = req.body || {};
-        await runSql('UPDATE students SET name=?,cls=?,parentId=?,busId=?,routeId=?,pickupLocation=?,pickupLat=?,pickupLng=?,dropLat=?,dropLng=? WHERE id=?', [name, cls, parentId, busId, routeId, pickupLocation, pickupLat, pickupLng, dropLat, dropLng, req.params.id]);
-        const row = await getSql('SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students WHERE id=?', [req.params.id]);
-        res.json(row);
+        // Allow drivers to update only location fields, otherwise require write permission
+        if (req.user?.role === 'driver') {
+            // Drivers can only update location fields
+            const { pickupLat, pickupLng, dropLat, dropLng } = req.body || {};
+            await runSql('UPDATE students SET pickupLat=?,pickupLng=?,dropLat=?,dropLng=? WHERE id=?', [pickupLat, pickupLng, dropLat, dropLng, req.params.id]);
+            const row = await getSql('SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students WHERE id=?', [req.params.id]);
+            res.json(row);
+        } else {
+            // Other roles need write permission and can update all fields
+            if (req.user?.role === 'schoolUser') {
+                const userRole = req.user?.userRole;
+                if (userRole !== 'editor' && userRole !== 'manager') {
+                    return res.status(403).json({ error: 'Write permission required (editor/manager role)' });
+                }
+            } else if (req.user?.role !== 'admin' && req.user?.role !== 'school') {
+                return res.status(403).json({ error: 'Unauthorized' });
+            }
+            
+            const { name, cls, parentId, busId, routeId, pickupLocation, pickupLat, pickupLng, dropLat, dropLng } = req.body || {};
+            await runSql('UPDATE students SET name=?,cls=?,parentId=?,busId=?,routeId=?,pickupLocation=?,pickupLat=?,pickupLng=?,dropLat=?,dropLng=? WHERE id=?', [name, cls, parentId, busId, routeId, pickupLocation, pickupLat, pickupLng, dropLat, dropLng, req.params.id]);
+            const row = await getSql('SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students WHERE id=?', [req.params.id]);
+            res.json(row);
+        }
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
