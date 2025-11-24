@@ -823,10 +823,10 @@ app.put('/api/routes/:id', authenticateToken, requirePermission('write'), async 
 {
     try
     {
-        const { name, stops } = req.body || {};
-        await runSql('UPDATE routes SET name=?,stops=? WHERE id=?', [name, JSON.stringify(stops || []), req.params.id]);
-        const row = await getSql('SELECT id,name,stops,schoolId FROM routes WHERE id=?', [req.params.id]);
-        res.json({ id: row.id, name: row.name, stops: row.stops ? JSON.parse(row.stops) : [], schoolId: row.schoolId });
+        const { name, stops, busId } = req.body || {};
+        await runSql('UPDATE routes SET name=?,stops=?,busId=? WHERE id=?', [name, JSON.stringify(stops || []), busId || null, req.params.id]);
+        const row = await getSql('SELECT id,name,stops,busId,schoolId FROM routes WHERE id=?', [req.params.id]);
+        res.json({ id: row.id, name: row.name, stops: row.stops ? JSON.parse(row.stops) : [], busId: row.busId || null, schoolId: row.schoolId });
     } catch (e)
     {
         res.status(500).json({ error: e.message });
