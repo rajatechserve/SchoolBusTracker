@@ -11,18 +11,20 @@ export default function Students(){
 	const [classes,setClasses]=useState([]);
 	const [q,setQ]=useState('');
 	const [classFilter,setClassFilter]=useState('');
+	const [busFilter,setBusFilter]=useState('');
+	const [routeFilter,setRouteFilter]=useState('');
 	const [showClassModal,setShowClassModal]=useState(false);
 	const [classForm,setClassForm]=useState({id:null,name:'',active:true});
 	const user = getAuthUser();
 	const isViewer = user?.role==='schoolUser' && user?.userRole==='viewer';
 
-	const load=()=>api.get('/students', { params: { search: q || undefined, class: classFilter || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
+	const load=()=>api.get('/students', { params: { search: q || undefined, class: classFilter || undefined, bus: busFilter || undefined, route: routeFilter || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
 	const loadBuses=()=>api.get('/buses').then(r=>setBuses(r.data||[])).catch(()=>{});
 	const loadRoutes=()=>api.get('/routes').then(r=>setRoutes(r.data||[])).catch(()=>{});
 	const loadParents=()=>api.get('/parents').then(r=>setParents(r.data||[])).catch(()=>{});
 	const loadClasses=()=>api.get('/classes', { params: { includeInactive: 1 } }).then(r=>setClasses(r.data||[])).catch(()=>{});
 
-	useEffect(()=>{ load(); },[q,classFilter]);
+	useEffect(()=>{ load(); },[q,classFilter,busFilter,routeFilter]);
 	useEffect(()=>{ loadBuses(); loadRoutes(); if(user?.role!=='parent') loadParents(); loadClasses(); },[]);
 
 	const save=async()=>{ if(isViewer) return; try{ const payload={ name: form.name, cls: form.cls, parentId: form.parentId||null, busId: form.busId||null, routeId: form.routeId||null, pickupLocation: form.pickupLocation||null }; if(!payload.parentId && user?.role==='parent') payload.parentId = user.id; if(form.id) await api.put('/students/'+form.id, payload); else await api.post('/students', payload); setForm({id:null,name:'',cls:'',parentId:'',busId:'',routeId:'',pickupLocation:''}); load(); }catch(e){ alert('Error: '+(e.response?.data?.error||e.message)); } };
@@ -53,11 +55,19 @@ export default function Students(){
 			<div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4'>
 				<h2 className='text-xl font-semibold'>Students {isViewer && <span className="text-xs text-slate-500">(read-only)</span>}</h2>
 				<div className='flex flex-wrap gap-2 items-center'>
-					<input placeholder='Search' value={q} onChange={e=>setQ(e.target.value)} className='border p-2 rounded'/>
-					<select value={classFilter} onChange={e=>setClassFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
-						<option value=''>All Classes</option>
-						{classes.filter(c=>c.active===1).map(c=>(<option key={c.id} value={c.name}>{c.name}</option>))}
-					</select>
+				<input placeholder='Search' value={q} onChange={e=>setQ(e.target.value)} className='border p-2 rounded'/>
+				<select value={classFilter} onChange={e=>setClassFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
+					<option value=''>All Classes</option>
+					{classes.filter(c=>c.active===1).map(c=>(<option key={c.id} value={c.name}>{c.name}</option>))}
+				</select>
+				<select value={busFilter} onChange={e=>setBusFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
+					<option value=''>All Buses</option>
+					{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
+				</select>
+				<select value={routeFilter} onChange={e=>setRouteFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
+					<option value=''>All Routes</option>
+					{routes.map(r=>(<option key={r.id} value={r.id}>{r.name}</option>))}
+				</select>
 					{!isViewer && <button onClick={openClassModal} className='px-3 py-2 bg-blue-600 text-white rounded text-sm'>Add Class</button>}
 				</div>
 			</div>
