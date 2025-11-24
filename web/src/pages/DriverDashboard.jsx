@@ -8,7 +8,10 @@ export default function DriverDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [buses, setBuses] = useState([]);
   const [routes, setRoutes] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [todayAttendance, setTodayAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('attendance'); // 'attendance' or 'assignments'
 
   useEffect(() => {
     loadData();
@@ -33,10 +36,29 @@ export default function DriverDashboard() {
       
       const routesRes = await api.get('/routes');
       setRoutes(routesRes.data?.data || []);
+      
+      // Get students for attendance
+      const studentsRes = await api.get('/students');
+      setStudents(studentsRes.data || []);
+      
+      // Get today's attendance
+      loadTodayAttendance();
     } catch (e) {
       console.error('Failed to load data:', e);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const loadTodayAttendance = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const attendanceRes = await api.get('/attendance', {
+        params: { dateFrom: today, dateTo: today }
+      });
+      setTodayAttendance(attendanceRes.data || []);
+    } catch (e) {
+      console.error('Failed to load attendance:', e);
     }
   };
 
@@ -74,6 +96,26 @@ export default function DriverDashboard() {
     });
   }, [assignments, searchTerm]);
 
+  const markAttendance = async (studentId, status) => {
+    try {
+      await api.post('/attendance', {
+        studentId,
+        busId: null,
+        status,
+        timestamp: Date.now()
+      });
+      loadTodayAttendance();
+      alert(`Student marked as ${status}`);
+    } catch (e) {
+      alert('Error marking attendance: ' + (e.response?.data?.error || e.message));
+    }
+  };
+  
+  const getStudentAttendanceStatus = (studentId) => {
+    const record = todayAttendance.find(a => a.studentId === studentId);
+    return record?.status || null;
+  };
+  
   if (loading) return <div className="p-6">Loading...</div>;
 
   return (
@@ -97,44 +139,131 @@ export default function DriverDashboard() {
         )}
       </div>
 
-      <div className="card p-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <h2 className="text-xl font-semibold">Assignments (All)</h2>
-          <input
-            type="text"
-            placeholder="Search bus, route or date..."
-            value={searchTerm}
-            onChange={e=>setSearchTerm(e.target.value)}
-            className="border rounded px-3 py-2 w-full md:w-64"
-          />
-        </div>
-        {filteredAssignments.length === 0 ? (
-          <p className="text-slate-500">No assignments match.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-slate-100">
-                  <th className="text-left p-2">Start Date</th>
-                  <th className="text-left p-2">End Date</th>
-                  <th className="text-left p-2">Bus</th>
-                  <th className="text-left p-2">Route</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAssignments.map(a => (
-                  <tr key={a.id} className="border-b hover:bg-slate-50">
-                    <td className="p-2">{formatDate(a.startDate)}</td>
-                    <td className="p-2">{formatDate(a.endDate)}</td>
-                    <td className="p-2">{getBusName(a.busId)}</td>
-                    <td className="p-2">{getRouteName(a.routeId)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Tab Navigation */}
+      <div className="mb-4 flex gap-2 border-b">
+        <button
+          onClick={() => setActiveTab('attendance')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'attendance'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          📝 Today's Attendance
+        </button>
+        <button
+          onClick={() => setActiveTab('assignments')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'assignments'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          📋 My Assignments
+        </button>
       </div>
+
+      {/* Today's Attendance Tab */}
+      {activeTab === 'attendance' && (
+        <div className="card p-4 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Student Attendance - {new Date().toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}</h2>
+            <button onClick={loadTodayAttendance} className="text-sm px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded">
+              🔄 Refresh
+            </button>
+          </div>
+          {students.length === 0 ? (
+            <p className="text-slate-500">No students found.</p>
+          ) : (
+            <div className="space-y-2">
+              {students.map(student => {
+                const status = getStudentAttendanceStatus(student.id);
+                return (
+                  <div key={student.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg gap-3">
+                    <div className="flex-1">
+                      <div className="font-medium">{student.name}</div>
+                      <div className="text-xs text-slate-500">
+                        Class: {student.cls || '—'} | Pickup: {student.pickupLocation || '—'}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {status === 'present' ? (
+                        <span className="px-4 py-2 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded font-medium text-sm">
+                          ✓ Present
+                        </span>
+                      ) : status === 'absent' ? (
+                        <span className="px-4 py-2 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 rounded font-medium text-sm">
+                          ✗ Absent
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => markAttendance(student.id, 'present')}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium text-sm transition-colors"
+                          >
+                            ✓ Present
+                          </button>
+                          <button
+                            onClick={() => markAttendance(student.id, 'absent')}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-medium text-sm transition-colors"
+                          >
+                            ✗ Absent
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded text-sm">
+            <strong>Summary:</strong> {todayAttendance.filter(a=>a.status==='present').length} Present • {todayAttendance.filter(a=>a.status==='absent').length} Absent • {students.length - todayAttendance.length} Pending
+          </div>
+        </div>
+      )}
+
+      {/* Assignments Tab */}
+      {activeTab === 'assignments' && (
+        <div className="card p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+            <h2 className="text-xl font-semibold">Assignments (All)</h2>
+            <input
+              type="text"
+              placeholder="Search bus, route or date..."
+              value={searchTerm}
+              onChange={e=>setSearchTerm(e.target.value)}
+              className="border rounded px-3 py-2 w-full md:w-64"
+            />
+          </div>
+          {filteredAssignments.length === 0 ? (
+            <p className="text-slate-500">No assignments match.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-100">
+                    <th className="text-left p-2">Start Date</th>
+                    <th className="text-left p-2">End Date</th>
+                    <th className="text-left p-2">Bus</th>
+                    <th className="text-left p-2">Route</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAssignments.map(a => (
+                    <tr key={a.id} className="border-b hover:bg-slate-50">
+                      <td className="p-2">{formatDate(a.startDate)}</td>
+                      <td className="p-2">{formatDate(a.endDate)}</td>
+                      <td className="p-2">{getBusName(a.busId)}</td>
+                      <td className="p-2">{getRouteName(a.routeId)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-6">
         <Map embedded />

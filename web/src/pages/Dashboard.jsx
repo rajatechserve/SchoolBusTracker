@@ -6,11 +6,13 @@ import api, { getAuthUser, SERVER_URL } from '../services/api';
 export default function Dashboard(){
   const [summary, setSummary] = useState({ buses: 0, drivers: 0, students: 0, parents: 0, routes: 0, schools: 0 });
   const [schools, setSchools] = useState([]);
+  const [unassignedAlerts, setUnassignedAlerts] = useState({ buses: [], drivers: [], routes: [] });
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(10);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showAlerts, setShowAlerts] = useState(true);
   const [showContractModal, setShowContractModal] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [contractForm, setContractForm] = useState({
@@ -34,6 +36,54 @@ export default function Dashboard(){
       return;
     }
     api.get('/dashboard/summary').then(r => setSummary(r.data || {})).catch(() => { });
+    
+    // Fetch unassigned resources
+    const fetchUnassigned = async () => {
+      try {
+        const [busesRes, driversRes, routesRes, assignmentsRes] = await Promise.all([
+          api.get('/buses'),
+          api.get('/drivers'),
+          api.get('/routes'),
+          api.get('/assignments')
+        ]);
+        
+        const buses = busesRes.data?.data || busesRes.data || [];
+        const drivers = driversRes.data?.data || driversRes.data || [];
+        const routes = routesRes.data?.data || routesRes.data || [];
+        const assignments = assignmentsRes.data?.data || assignmentsRes.data || [];
+        
+        // Get today's date
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Filter active assignments (current or future)
+        const activeAssignments = assignments.filter(a => {
+          const endDate = new Date(a.endDate);
+          endDate.setHours(0, 0, 0, 0);
+          return endDate >= today;
+        });
+        
+        // Get assigned IDs
+        const assignedBusIds = new Set(activeAssignments.map(a => a.busId));
+        const assignedDriverIds = new Set(activeAssignments.map(a => a.driverId));
+        const assignedRouteIds = new Set(activeAssignments.filter(a => a.routeId).map(a => a.routeId));
+        
+        // Find unassigned resources
+        const unassignedBuses = buses.filter(b => !assignedBusIds.has(b.id));
+        const unassignedDrivers = drivers.filter(d => !assignedDriverIds.has(d.id));
+        const unassignedRoutes = routes.filter(r => !assignedRouteIds.has(r.id));
+        
+        setUnassignedAlerts({
+          buses: unassignedBuses,
+          drivers: unassignedDrivers,
+          routes: unassignedRoutes
+        });
+      } catch (e) {
+        console.error('Failed to fetch unassigned resources:', e);
+      }
+    };
+    
+    fetchUnassigned();
   }, [isAdmin, navigate]);
 
   useEffect(() => {
@@ -116,6 +166,55 @@ export default function Dashboard(){
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      
+      {/* Unassigned Resources Alerts */}
+      {showAlerts && (unassignedAlerts.buses.length > 0 || unassignedAlerts.drivers.length > 0 || unassignedAlerts.routes.length > 0) && (
+        <div className="mb-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">⚠️ Unassigned Resources</h3>
+            <button onClick={() => setShowAlerts(false)} className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+              Dismiss
+            </button>
+          </div>
+          
+          {unassignedAlerts.buses.length > 0 && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 rounded">
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-600 dark:text-yellow-400 font-semibold text-sm">🚌 {unassignedAlerts.buses.length} Unassigned Bus{unassignedAlerts.buses.length > 1 ? 'es' : ''}:</span>
+                <div className="flex-1 text-xs text-slate-700 dark:text-slate-300">
+                  {unassignedAlerts.buses.slice(0, 10).map(b => b.number).join(', ')}
+                  {unassignedAlerts.buses.length > 10 && ` and ${unassignedAlerts.buses.length - 10} more...`}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {unassignedAlerts.drivers.length > 0 && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-400 dark:border-orange-600 p-4 rounded">
+              <div className="flex items-start gap-2">
+                <span className="text-orange-600 dark:text-orange-400 font-semibold text-sm">👤 {unassignedAlerts.drivers.length} Unassigned Driver{unassignedAlerts.drivers.length > 1 ? 's' : ''}:</span>
+                <div className="flex-1 text-xs text-slate-700 dark:text-slate-300">
+                  {unassignedAlerts.drivers.slice(0, 10).map(d => d.name).join(', ')}
+                  {unassignedAlerts.drivers.length > 10 && ` and ${unassignedAlerts.drivers.length - 10} more...`}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {unassignedAlerts.routes.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-400 dark:border-red-600 p-4 rounded">
+              <div className="flex items-start gap-2">
+                <span className="text-red-600 dark:text-red-400 font-semibold text-sm">🛣️ {unassignedAlerts.routes.length} Unassigned Route{unassignedAlerts.routes.length > 1 ? 's' : ''}:</span>
+                <div className="flex-1 text-xs text-slate-700 dark:text-slate-300">
+                  {unassignedAlerts.routes.slice(0, 10).map(r => r.name).join(', ')}
+                  {unassignedAlerts.routes.length > 10 && ` and ${unassignedAlerts.routes.length - 10} more...`}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         {isAdmin && (
           <div className="card p-6 bg-red-50">
