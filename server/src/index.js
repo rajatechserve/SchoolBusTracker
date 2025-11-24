@@ -695,7 +695,7 @@ app.get('/api/buses', authenticateToken, async (req, res) => {
                 rows = await allSql('SELECT b.*, d.name as driverName FROM buses b LEFT JOIN drivers d ON b.driverId=d.id');
             }
         }
-        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, driverName: r.driverName || null, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null })));
+        res.json(rows.map(r => ({ id: r.id, number: r.number, driverId: r.driverId, driverName: r.driverName || null, routeId: r.routeId, schoolId: r.schoolId, started: !!r.started, location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null, registrationStartDate: r.registrationStartDate || null, registrationExpiredDate: r.registrationExpiredDate || null, fcRenewalDate: r.fcRenewalDate || null, busType: r.busType || null })));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

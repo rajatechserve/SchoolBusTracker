@@ -32,10 +32,10 @@ export default function DriverDashboard() {
 
       // Get all buses and routes for reference
       const busesRes = await api.get('/buses');
-      setBuses(busesRes.data?.data || []);
+      setBuses(Array.isArray(busesRes.data) ? busesRes.data : []);
       
       const routesRes = await api.get('/routes');
-      setRoutes(routesRes.data?.data || []);
+      setRoutes(Array.isArray(routesRes.data) ? routesRes.data : []);
       
       // Get students for attendance
       const studentsRes = await api.get('/students');
@@ -121,7 +121,6 @@ export default function DriverDashboard() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Driver Dashboard</h1>
         {driver && (
           <div className="card p-4 mb-4">
             <h2 className="text-xl font-semibold mb-4">{driver.name}</h2>
