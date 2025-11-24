@@ -110,7 +110,7 @@ function ensureTables() {
                         case 'drivers': db.run(`CREATE TABLE IF NOT EXISTS drivers(id TEXT PRIMARY KEY, name TEXT, phone TEXT, license TEXT, schoolId TEXT)`); break;
                         case 'students': db.run(`CREATE TABLE IF NOT EXISTS students(id TEXT PRIMARY KEY, name TEXT, cls TEXT, parentId TEXT, busId TEXT, schoolId TEXT, pickupLocation TEXT)`); break;
                         case 'parents': db.run(`CREATE TABLE IF NOT EXISTS parents(id TEXT PRIMARY KEY, name TEXT, phone TEXT, schoolId TEXT)`); break;
-                        case 'buses': db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL, schoolId TEXT)`); db.all("PRAGMA table_info(buses)", (e, rows)=>{ if(!e && rows && !rows.some(c=>c.name==='routeId')) db.run("ALTER TABLE buses ADD COLUMN routeId TEXT"); if(!e && rows && !rows.some(c=>c.name==='schoolId')) db.run("ALTER TABLE buses ADD COLUMN schoolId TEXT"); }); break;
+                        case 'buses': db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL, schoolId TEXT, registrationStartDate TEXT, registrationExpiredDate TEXT, fcRenewalDate TEXT, busType TEXT)`); db.all("PRAGMA table_info(buses)", (e, rows)=>{ if(!e && rows && !rows.some(c=>c.name==='routeId')) db.run("ALTER TABLE buses ADD COLUMN routeId TEXT"); if(!e && rows && !rows.some(c=>c.name==='schoolId')) db.run("ALTER TABLE buses ADD COLUMN schoolId TEXT"); if(!e && rows && !rows.some(c=>c.name==='registrationStartDate')) db.run("ALTER TABLE buses ADD COLUMN registrationStartDate TEXT"); if(!e && rows && !rows.some(c=>c.name==='registrationExpiredDate')) db.run("ALTER TABLE buses ADD COLUMN registrationExpiredDate TEXT"); if(!e && rows && !rows.some(c=>c.name==='fcRenewalDate')) db.run("ALTER TABLE buses ADD COLUMN fcRenewalDate TEXT"); if(!e && rows && !rows.some(c=>c.name==='busType')) db.run("ALTER TABLE buses ADD COLUMN busType TEXT"); }); break;
                         case 'routes': db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT, schoolId TEXT)`); break;
                         case 'attendance': db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT, schoolId TEXT)`); break;
                         case 'assignments': db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT, schoolId TEXT, trips TEXT)`); break;
@@ -140,6 +140,28 @@ function migrateDatabase() {
         db.run(`ALTER TABLE students ADD COLUMN pickupLocation TEXT`, (err) => {
             if (err && !err.message.includes('duplicate column')) {
                 console.error('Migration error (students.pickupLocation):', err.message);
+            }
+        });
+        
+        // Add new columns to buses table
+        db.run(`ALTER TABLE buses ADD COLUMN registrationStartDate TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (buses.registrationStartDate):', err.message);
+            }
+        });
+        db.run(`ALTER TABLE buses ADD COLUMN registrationExpiredDate TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (buses.registrationExpiredDate):', err.message);
+            }
+        });
+        db.run(`ALTER TABLE buses ADD COLUMN fcRenewalDate TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (buses.fcRenewalDate):', err.message);
+            }
+        });
+        db.run(`ALTER TABLE buses ADD COLUMN busType TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (buses.busType):', err.message);
             }
         });
         
@@ -681,13 +703,13 @@ app.get('/api/buses', authenticateToken, async (req, res) => {
 
 app.post('/api/buses', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
-        const { number, driverId, routeId, started } = req.body || {};
+        const { number, driverId, routeId, started, registrationStartDate, registrationExpiredDate, fcRenewalDate, busType } = req.body || {};
         if (!number) return res.status(400).json({ error: 'number is required' });
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
-        await runSql('INSERT INTO buses(id,number,driverId,routeId,started,schoolId) VALUES(?,?,?,?,?,?)', [id, number, driverId || null, routeId || null, started ? 1 : 0, schoolId]);
+        await runSql('INSERT INTO buses(id,number,driverId,routeId,started,schoolId,registrationStartDate,registrationExpiredDate,fcRenewalDate,busType) VALUES(?,?,?,?,?,?,?,?,?,?)', [id, number, driverId || null, routeId || null, started ? 1 : 0, schoolId, registrationStartDate || null, registrationExpiredDate || null, fcRenewalDate || null, busType || null]);
         const row = await getSql('SELECT * FROM buses WHERE id=?', [id]);
-        res.json({ id: row.id, number: row.number, driverId: row.driverId, routeId: row.routeId, schoolId: row.schoolId, started: !!row.started });
+        res.json({ id: row.id, number: row.number, driverId: row.driverId, routeId: row.routeId, schoolId: row.schoolId, started: !!row.started, registrationStartDate: row.registrationStartDate, registrationExpiredDate: row.registrationExpiredDate, fcRenewalDate: row.fcRenewalDate, busType: row.busType });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -695,10 +717,10 @@ app.post('/api/buses', authenticateToken, requirePermission('write'), async (req
 
 app.put('/api/buses/:id', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
-        const { number, driverId, routeId, started } = req.body || {};
-        await runSql('UPDATE buses SET number=?,driverId=?,routeId=?,started=? WHERE id=?', [number, driverId, routeId, started ? 1 : 0, req.params.id]);
+        const { number, driverId, routeId, started, registrationStartDate, registrationExpiredDate, fcRenewalDate, busType } = req.body || {};
+        await runSql('UPDATE buses SET number=?,driverId=?,routeId=?,started=?,registrationStartDate=?,registrationExpiredDate=?,fcRenewalDate=?,busType=? WHERE id=?', [number, driverId, routeId, started ? 1 : 0, registrationStartDate, registrationExpiredDate, fcRenewalDate, busType, req.params.id]);
         const row = await getSql('SELECT * FROM buses WHERE id=?', [req.params.id]);
-        res.json({ id: row.id, number: row.number, driverId: row.driverId, routeId: row.routeId, schoolId: row.schoolId, started: !!row.started });
+        res.json({ id: row.id, number: row.number, driverId: row.driverId, routeId: row.routeId, schoolId: row.schoolId, started: !!row.started, registrationStartDate: row.registrationStartDate, registrationExpiredDate: row.registrationExpiredDate, fcRenewalDate: row.fcRenewalDate, busType: row.busType });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

@@ -5,7 +5,9 @@ import api, { getAuthUser, SERVER_URL } from '../services/api';
 export default function SchoolDashboard(){
   const [summary, setSummary] = useState({ buses: 0, drivers: 0, students: 0, parents: 0, routes: 0 });
   const [unassignedAlerts, setUnassignedAlerts] = useState({ buses: [], drivers: [], routes: [] });
+  const [expiredBusAlerts, setExpiredBusAlerts] = useState({ registration: [], fc: [] });
   const [showAlerts, setShowAlerts] = useState(true);
+  const [showExpiredAlerts, setShowExpiredAlerts] = useState(true);
   const user = getAuthUser();
   const navigate = useNavigate();
 
@@ -30,6 +32,26 @@ export default function SchoolDashboard(){
         // Get today's date
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        
+        // Check for expired buses
+        const expiredRegistration = buses.filter(b => {
+          if(!b.registrationExpiredDate) return false;
+          const expiredDate = new Date(b.registrationExpiredDate);
+          expiredDate.setHours(0, 0, 0, 0);
+          return expiredDate < today;
+        });
+        
+        const expiredFC = buses.filter(b => {
+          if(!b.fcRenewalDate) return false;
+          const fcDate = new Date(b.fcRenewalDate);
+          fcDate.setHours(0, 0, 0, 0);
+          return fcDate < today;
+        });
+        
+        setExpiredBusAlerts({
+          registration: expiredRegistration,
+          fc: expiredFC
+        });
         
         // Filter active assignments (current or future)
         const activeAssignments = assignments.filter(a => {
@@ -69,6 +91,42 @@ export default function SchoolDashboard(){
 
   return (
     <div>
+      {/* Expired Bus Alerts */}
+      {showExpiredAlerts && (expiredBusAlerts.registration.length > 0 || expiredBusAlerts.fc.length > 0) && (
+        <div className="mb-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">🚨 Bus Expiry Alerts</h3>
+            <button onClick={() => setShowExpiredAlerts(false)} className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+              Dismiss
+            </button>
+          </div>
+          
+          {expiredBusAlerts.registration.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 dark:border-red-600 p-4 rounded">
+              <div className="flex items-start gap-2">
+                <span className="text-red-600 dark:text-red-400 font-semibold text-sm">🚫 {expiredBusAlerts.registration.length} Bus{expiredBusAlerts.registration.length > 1 ? 'es' : ''} - Registration Expired:</span>
+                <div className="flex-1 text-xs text-slate-700 dark:text-slate-300">
+                  {expiredBusAlerts.registration.slice(0, 10).map(b => `${b.number} (${new Date(b.registrationExpiredDate).toLocaleDateString()})`).join(', ')}
+                  {expiredBusAlerts.registration.length > 10 && ` and ${expiredBusAlerts.registration.length - 10} more...`}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {expiredBusAlerts.fc.length > 0 && (
+            <div className="bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 dark:border-orange-600 p-4 rounded">
+              <div className="flex items-start gap-2">
+                <span className="text-orange-600 dark:text-orange-400 font-semibold text-sm">⚠️ {expiredBusAlerts.fc.length} Bus{expiredBusAlerts.fc.length > 1 ? 'es' : ''} - FC Renewal Overdue:</span>
+                <div className="flex-1 text-xs text-slate-700 dark:text-slate-300">
+                  {expiredBusAlerts.fc.slice(0, 10).map(b => `${b.number} (${new Date(b.fcRenewalDate).toLocaleDateString()})`).join(', ')}
+                  {expiredBusAlerts.fc.length > 10 && ` and ${expiredBusAlerts.fc.length - 10} more...`}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Unassigned Resources Alerts */}
       {showAlerts && (unassignedAlerts.buses.length > 0 || unassignedAlerts.drivers.length > 0 || unassignedAlerts.routes.length > 0) && (
         <div className="mb-6 space-y-3">
