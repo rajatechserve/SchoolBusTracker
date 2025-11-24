@@ -11,7 +11,9 @@ export default function DriverDashboard() {
   const [students, setStudents] = useState([]);
   const [todayAttendance, setTodayAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('attendance'); // 'attendance' or 'assignments'
+  const [activeTab, setActiveTab] = useState('attendance'); // 'attendance', 'assignments', or 'locations'
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [locationForm, setLocationForm] = useState({ pickupLat: '', pickupLng: '', dropLat: '', dropLng: '' });
 
   useEffect(() => {
     loadData();
@@ -125,6 +127,40 @@ export default function DriverDashboard() {
     const record = todayAttendance.find(a => a.studentId === studentId);
     return record?.status || null;
   };
+
+  const editLocation = (student) => {
+    setEditingStudent(student);
+    setLocationForm({
+      pickupLat: student.pickupLat || '',
+      pickupLng: student.pickupLng || '',
+      dropLat: student.dropLat || '',
+      dropLng: student.dropLng || ''
+    });
+  };
+
+  const saveLocation = async () => {
+    if (!editingStudent) return;
+    try {
+      await api.put(`/students/${editingStudent.id}`, {
+        ...editingStudent,
+        pickupLat: locationForm.pickupLat ? parseFloat(locationForm.pickupLat) : null,
+        pickupLng: locationForm.pickupLng ? parseFloat(locationForm.pickupLng) : null,
+        dropLat: locationForm.dropLat ? parseFloat(locationForm.dropLat) : null,
+        dropLng: locationForm.dropLng ? parseFloat(locationForm.dropLng) : null
+      });
+      alert('Location saved successfully');
+      setEditingStudent(null);
+      setLocationForm({ pickupLat: '', pickupLng: '', dropLat: '', dropLng: '' });
+      loadData();
+    } catch (e) {
+      alert('Error saving location: ' + (e.response?.data?.error || e.message));
+    }
+  };
+
+  const cancelEditLocation = () => {
+    setEditingStudent(null);
+    setLocationForm({ pickupLat: '', pickupLng: '', dropLat: '', dropLng: '' });
+  };
   
   if (loading) return <div className="p-6">Loading...</div>;
 
@@ -149,10 +185,10 @@ export default function DriverDashboard() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="mb-4 flex gap-2 border-b">
+      <div className="mb-4 flex gap-2 border-b overflow-x-auto">
         <button
           onClick={() => setActiveTab('attendance')}
-          className={`px-4 py-2 font-medium transition-colors ${
+          className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'attendance'
               ? 'border-b-2 border-blue-600 text-blue-600'
               : 'text-slate-600 hover:text-slate-800'
@@ -162,13 +198,23 @@ export default function DriverDashboard() {
         </button>
         <button
           onClick={() => setActiveTab('assignments')}
-          className={`px-4 py-2 font-medium transition-colors ${
+          className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'assignments'
               ? 'border-b-2 border-blue-600 text-blue-600'
               : 'text-slate-600 hover:text-slate-800'
           }`}
         >
           📋 My Assignments
+        </button>
+        <button
+          onClick={() => setActiveTab('locations')}
+          className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'locations'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          📍 Student Pick/Drop Locations
         </button>
       </div>
 
@@ -234,9 +280,9 @@ export default function DriverDashboard() {
 
       {/* Assignments Tab */}
       {activeTab === 'assignments' && (
-        <div className="card p-4">
+        <div className="card p-4 mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-            <h2 className="text-xl font-semibold">Assignments (All)</h2>
+            <h2 className="text-xl font-semibold">My Assignments</h2>
             <input
               type="text"
               placeholder="Search bus, route or date..."
@@ -251,7 +297,7 @@ export default function DriverDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-slate-100">
+                  <tr className="border-b bg-slate-100 dark:bg-slate-700">
                     <th className="text-left p-2">Start Date</th>
                     <th className="text-left p-2">End Date</th>
                     <th className="text-left p-2">Bus</th>
@@ -260,7 +306,7 @@ export default function DriverDashboard() {
                 </thead>
                 <tbody>
                   {filteredAssignments.map(a => (
-                    <tr key={a.id} className="border-b hover:bg-slate-50">
+                    <tr key={a.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-700">
                       <td className="p-2">{formatDate(a.startDate)}</td>
                       <td className="p-2">{formatDate(a.endDate)}</td>
                       <td className="p-2">{getBusName(a.busId)}</td>
@@ -274,9 +320,119 @@ export default function DriverDashboard() {
         </div>
       )}
 
-      <div className="mt-6">
-        <Map embedded />
-      </div>
+      {/* Student Pick/Drop Locations Tab */}
+      {activeTab === 'locations' && (
+        <div className="card p-4 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Student Pick/Drop Locations</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            Set pickup and drop-off locations for each student. These locations will be visible to parents on the live map.
+          </p>
+          
+          {editingStudent && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <h3 className="font-semibold mb-3">Editing Location for: {editingStudent.name}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Pickup Location</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Latitude"
+                      value={locationForm.pickupLat}
+                      onChange={e => setLocationForm({ ...locationForm, pickupLat: e.target.value })}
+                      className="border p-2 rounded flex-1"
+                    />
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Longitude"
+                      value={locationForm.pickupLng}
+                      onChange={e => setLocationForm({ ...locationForm, pickupLng: e.target.value })}
+                      className="border p-2 rounded flex-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Drop-off Location</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Latitude"
+                      value={locationForm.dropLat}
+                      onChange={e => setLocationForm({ ...locationForm, dropLat: e.target.value })}
+                      className="border p-2 rounded flex-1"
+                    />
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Longitude"
+                      value={locationForm.dropLng}
+                      onChange={e => setLocationForm({ ...locationForm, dropLng: e.target.value })}
+                      className="border p-2 rounded flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={saveLocation}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors"
+                >
+                  💾 Save Location
+                </button>
+                <button
+                  onClick={cancelEditLocation}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {students.length === 0 ? (
+            <p className="text-slate-500">No students found.</p>
+          ) : (
+            <div className="space-y-2">
+              {students.map(student => (
+                <div key={student.id} className="flex flex-col lg:flex-row lg:items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg gap-3">
+                  <div className="flex-1">
+                    <div className="font-medium">{student.name}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Class: {student.cls || '—'} | Bus: {getBusName(student.busId)}
+                    </div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                      {student.pickupLat && student.pickupLng ? (
+                        <span className="text-green-600 dark:text-green-400">
+                          ✓ Pickup: ({student.pickupLat}, {student.pickupLng})
+                        </span>
+                      ) : (
+                        <span className="text-orange-600 dark:text-orange-400">⚠ No pickup location</span>
+                      )}
+                      {' | '}
+                      {student.dropLat && student.dropLng ? (
+                        <span className="text-green-600 dark:text-green-400">
+                          ✓ Drop: ({student.dropLat}, {student.dropLng})
+                        </span>
+                      ) : (
+                        <span className="text-orange-600 dark:text-orange-400">⚠ No drop location</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => editLocation(student)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium text-sm transition-colors whitespace-nowrap"
+                  >
+                    📍 Set Location
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

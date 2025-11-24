@@ -27,6 +27,30 @@ export default function Attendance(){
 	
 	const getStudentName=(id)=> students.find(s=>s.id===id)?.name || id || '—';
 	
+	// Calculate today's and this month's stats
+	const stats = useMemo(() => {
+		const today = new Date();
+		const todayStr = today.toISOString().split('T')[0];
+		const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+		
+		const todayRecords = list.filter(r => {
+			const recordDate = new Date(r.timestamp || 0).toISOString().split('T')[0];
+			return recordDate === todayStr;
+		});
+		
+		const thisMonthRecords = list.filter(r => {
+			const recordDate = new Date(r.timestamp || 0);
+			return recordDate >= firstDayOfMonth && recordDate <= today;
+		});
+		
+		return {
+			todayPresent: todayRecords.filter(r => r.status === 'present').length,
+			todayAbsent: todayRecords.filter(r => r.status === 'absent').length,
+			monthPresent: thisMonthRecords.filter(r => r.status === 'present').length,
+			monthAbsent: thisMonthRecords.filter(r => r.status === 'absent').length
+		};
+	}, [list]);
+	
 	// Group attendance by date
 	const groupedByDate = useMemo(() => {
 		const grouped = {};
@@ -44,6 +68,45 @@ export default function Attendance(){
 		<div>
 			<div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4'>
 				<h2 className='text-xl font-semibold'>Attendance Reports {isViewer && <span className='text-xs text-slate-500'>(read-only)</span>}</h2>
+			</div>
+			
+			{/* Attendance Highlights */}
+			<div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-4'>
+				<div className='bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800'>
+					<h3 className='text-sm font-semibold text-blue-800 dark:text-blue-300 mb-3'>📅 Today's Attendance</h3>
+					<div className='flex gap-6'>
+						<div>
+							<div className='text-3xl font-bold text-green-600 dark:text-green-400'>{stats.todayPresent}</div>
+							<div className='text-xs text-slate-600 dark:text-slate-400 mt-1'>Present</div>
+						</div>
+						<div>
+							<div className='text-3xl font-bold text-red-600 dark:text-red-400'>{stats.todayAbsent}</div>
+							<div className='text-xs text-slate-600 dark:text-slate-400 mt-1'>Absent</div>
+						</div>
+						<div className='ml-auto text-right'>
+							<div className='text-2xl font-bold text-blue-600 dark:text-blue-400'>{stats.todayPresent + stats.todayAbsent}</div>
+							<div className='text-xs text-slate-600 dark:text-slate-400 mt-1'>Total</div>
+						</div>
+					</div>
+				</div>
+				
+				<div className='bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800'>
+					<h3 className='text-sm font-semibold text-purple-800 dark:text-purple-300 mb-3'>📊 This Month's Attendance</h3>
+					<div className='flex gap-6'>
+						<div>
+							<div className='text-3xl font-bold text-green-600 dark:text-green-400'>{stats.monthPresent}</div>
+							<div className='text-xs text-slate-600 dark:text-slate-400 mt-1'>Present</div>
+						</div>
+						<div>
+							<div className='text-3xl font-bold text-red-600 dark:text-red-400'>{stats.monthAbsent}</div>
+							<div className='text-xs text-slate-600 dark:text-slate-400 mt-1'>Absent</div>
+						</div>
+						<div className='ml-auto text-right'>
+							<div className='text-2xl font-bold text-purple-600 dark:text-purple-400'>{stats.monthPresent + stats.monthAbsent}</div>
+							<div className='text-xs text-slate-600 dark:text-slate-400 mt-1'>Total</div>
+						</div>
+					</div>
+				</div>
 			</div>
 			
 			{isViewer && <div className='mb-4 p-3 bg-yellow-50 text-xs text-yellow-700 rounded'>Viewer role: modifications disabled.</div>}

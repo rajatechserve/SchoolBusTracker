@@ -146,7 +146,7 @@ function Sidebar({ authUser, onLogoUpdate }){
 );} 
 
 function Header({ onLogout, authUser }) {
-  const username = authUser?.username;
+  const username = authUser?.username || authUser?.name;
   const schoolName = authUser?.name || authUser?.schoolName;
   const schoolPhoto = authUser?.photo;
   const isSchool = ['school','schoolUser'].includes(authUser?.role);

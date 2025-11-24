@@ -179,6 +179,28 @@ function migrateDatabase() {
             }
         });
         
+        // Add pickup/drop location columns to students table
+        db.run(`ALTER TABLE students ADD COLUMN pickupLat REAL`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (students.pickupLat):', err.message);
+            }
+        });
+        db.run(`ALTER TABLE students ADD COLUMN pickupLng REAL`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (students.pickupLng):', err.message);
+            }
+        });
+        db.run(`ALTER TABLE students ADD COLUMN dropLat REAL`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (students.dropLat):', err.message);
+            }
+        });
+        db.run(`ALTER TABLE students ADD COLUMN dropLng REAL`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (students.dropLng):', err.message);
+            }
+        });
+        
         console.log('Database migrations completed');
     });
 }
@@ -503,7 +525,7 @@ app.get('/api/students', authenticateToken, async (req, res) => {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
         const { search, class: classFilter, bus: busFilter, route: routeFilter } = req.query || {};
         const params = [];
-        let sql = 'SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation FROM students';
+        let sql = 'SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students';
         const where = [];
         if (schoolId) { where.push('schoolId=?'); params.push(schoolId); }
         if (search && search.trim()) { where.push('(name LIKE ? OR cls LIKE ?)'); params.push(`%${search.trim()}%`, `%${search.trim()}%`); }
@@ -576,12 +598,12 @@ app.put('/api/classes/:id', authenticateToken, async (req, res) => {
 
 app.post('/api/students', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
-        const { name, cls, parentId, busId, routeId, pickupLocation } = req.body || {};
+        const { name, cls, parentId, busId, routeId, pickupLocation, pickupLat, pickupLng, dropLat, dropLng } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
-        await runSql('INSERT INTO students(id,name,cls,parentId,busId,routeId,schoolId,pickupLocation) VALUES(?,?,?,?,?,?,?,?)', [id, name, cls || null, parentId || null, busId || null, routeId || null, schoolId, pickupLocation || null]);
-        const row = await getSql('SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation FROM students WHERE id=?', [id]);
+        await runSql('INSERT INTO students(id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [id, name, cls || null, parentId || null, busId || null, routeId || null, schoolId, pickupLocation || null, pickupLat || null, pickupLng || null, dropLat || null, dropLng || null]);
+        const row = await getSql('SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students WHERE id=?', [id]);
         res.json(row);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -590,9 +612,9 @@ app.post('/api/students', authenticateToken, requirePermission('write'), async (
 
 app.put('/api/students/:id', authenticateToken, requirePermission('write'), async (req, res) => {
     try {
-        const { name, cls, parentId, busId, routeId, pickupLocation } = req.body || {};
-        await runSql('UPDATE students SET name=?,cls=?,parentId=?,busId=?,routeId=?,pickupLocation=? WHERE id=?', [name, cls, parentId, busId, routeId, pickupLocation, req.params.id]);
-        const row = await getSql('SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation FROM students WHERE id=?', [req.params.id]);
+        const { name, cls, parentId, busId, routeId, pickupLocation, pickupLat, pickupLng, dropLat, dropLng } = req.body || {};
+        await runSql('UPDATE students SET name=?,cls=?,parentId=?,busId=?,routeId=?,pickupLocation=?,pickupLat=?,pickupLng=?,dropLat=?,dropLng=? WHERE id=?', [name, cls, parentId, busId, routeId, pickupLocation, pickupLat, pickupLng, dropLat, dropLng, req.params.id]);
+        const row = await getSql('SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students WHERE id=?', [req.params.id]);
         res.json(row);
     } catch (e) {
         res.status(500).json({ error: e.message });
