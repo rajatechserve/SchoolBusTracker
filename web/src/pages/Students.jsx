@@ -114,19 +114,36 @@ export default function Students(){
 				)}
 				<button onClick={save} className={`btn-primary ${isViewer?'opacity-50 cursor-not-allowed':''}`} disabled={isViewer}>{form.id?'Update':'Add'}</button>
 			</div>
-			<div className='space-y-2'>
-				{list.map(s=>(
-					<div key={s.id} className='p-3 bg-white rounded shadow flex justify-between items-center'>
-						<div>
-							<div className='font-medium'>{s.name}</div>
-							<div className='text-sm text-slate-500'>Class: {className(s.cls)} | Bus: {busNumber(s.busId)} | Route: {routeName(s.routeId)} | Pickup: {s.pickupLocation || '—'} | Parent: {parentName(s.parentId)}</div>
-						</div>
-						<div className='flex gap-2'>
-							<button onClick={()=>!isViewer && edit(s)} className={`text-blue-600 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Edit</button>
-							<button onClick={()=>remove(s.id)} className={`text-red-600 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Delete</button>
-						</div>
-					</div>
-				))}
+			<div className='overflow-x-auto'>
+				<table className='w-full text-sm bg-white dark:bg-slate-800 rounded-lg shadow'>
+					<thead>
+						<tr className='border-b bg-slate-100 dark:bg-slate-700'>
+							<th className='text-left p-3'>Student Name</th>
+							<th className='text-left p-3'>Class</th>
+							<th className='text-left p-3'>Route</th>
+							<th className='text-left p-3'>Parent Name</th>
+							<th className='text-left p-3'>Pickup Location</th>
+							<th className='text-left p-3'>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{list.map(s=>(
+							<tr key={s.id} className='border-b hover:bg-slate-50 dark:hover:bg-slate-700'>
+								<td className='p-3 font-medium'>{s.name}</td>
+								<td className='p-3'>{className(s.cls)}</td>
+								<td className='p-3'>{routeName(s.routeId)}</td>
+								<td className='p-3'>{parentName(s.parentId)}</td>
+								<td className='p-3'>{s.pickupLocation || '—'}</td>
+								<td className='p-3'>
+									<div className='flex gap-2'>
+										<button onClick={()=>!isViewer && edit(s)} className={`text-blue-600 hover:text-blue-700 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Edit</button>
+										<button onClick={()=>remove(s.id)} className={`text-red-600 hover:text-red-700 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Delete</button>
+									</div>
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
 				{list.length===0 && <div className='text-center text-sm text-slate-500 py-8'>No students found.</div>}
 			</div>
 
