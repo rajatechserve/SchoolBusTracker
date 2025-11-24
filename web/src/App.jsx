@@ -146,8 +146,11 @@ function Sidebar({ authUser, onLogoUpdate }){
 );} 
 
 function Header({ onLogout, authUser }) {
-  const username = authUser?.username || authUser?.name;
-  const schoolName = authUser?.name || authUser?.schoolName;
+  // For drivers/parents, use userName (their actual name), otherwise use username or name
+  const username = (authUser?.role === 'driver' || authUser?.role === 'parent') 
+    ? authUser?.userName || authUser?.name 
+    : authUser?.username || authUser?.name;
+  const schoolName = authUser?.schoolName || authUser?.name;
   const schoolPhoto = authUser?.photo;
   const isSchool = ['school','schoolUser'].includes(authUser?.role);
   const isDriver = authUser?.role === 'driver';
@@ -271,7 +274,8 @@ export default function App(){
         try {
           const r = await api.get(`/public/schools/${u.schoolId}`);
           if(r.data){
-            const merged = { ...u, ...r.data, _schoolLoaded: true };
+            // Preserve original user's name and store school name separately
+            const merged = { ...u, ...r.data, userName: u.name, schoolName: r.data.name, _schoolLoaded: true };
             setAuthUser(merged);
             setAuthUserState(merged);
           }
@@ -283,11 +287,11 @@ export default function App(){
   return (
     <BrowserRouter>
       <div className="min-h-screen flex bg-gray-50 dark:bg-slate-900">
-        {!(authUserState?.role === 'driver' || authUserState?.role === 'parent') && (
+        {authUserState && !(authUserState?.role === 'driver' || authUserState?.role === 'parent') && (
           <Sidebar authUser={authUserState} onLogoUpdate={() => setAuthUserState(getAuthUser())} />
         )}
         <div className="flex-1">
-          <Header onLogout={logout} authUser={authUserState} />
+          {authUserState && <Header onLogout={logout} authUser={authUserState} />}
           <main className="p-6 max-w-7xl mx-auto">
             <Routes>
               <Route path="/login" element={<Login onLogin={() => { setAuthUserState(getAuthUser()); }} />} />
