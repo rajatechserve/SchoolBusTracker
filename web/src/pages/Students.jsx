@@ -120,6 +120,7 @@ export default function Students(){
 						<tr className='border-b bg-slate-100 dark:bg-slate-700'>
 							<th className='text-left p-3'>Student Name</th>
 							<th className='text-left p-3'>Class</th>
+							<th className='text-left p-3'>Bus Number</th>
 							<th className='text-left p-3'>Route</th>
 							<th className='text-left p-3'>Parent Name</th>
 							<th className='text-left p-3'>Pickup Location</th>
@@ -131,6 +132,7 @@ export default function Students(){
 							<tr key={s.id} className='border-b hover:bg-slate-50 dark:hover:bg-slate-700'>
 								<td className='p-3 font-medium'>{s.name}</td>
 								<td className='p-3'>{className(s.cls)}</td>
+								<td className='p-3'>{busNumber(s.busId)}</td>
 								<td className='p-3'>{routeName(s.routeId)}</td>
 								<td className='p-3'>{parentName(s.parentId)}</td>
 								<td className='p-3'>{s.pickupLocation || '—'}</td>
