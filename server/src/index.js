@@ -923,10 +923,22 @@ app.delete('/api/assignments/:id', authenticateToken, requirePermission('manage'
 });
 
 // ------------------ ATTENDANCE ------------------
-app.post('/api/attendance', authenticateToken, requirePermission('write'), async (req, res) =>
+app.post('/api/attendance', authenticateToken, async (req, res) =>
 {
     try
     {
+        // Allow drivers to mark attendance, otherwise require write permission
+        if (req.user?.role === 'driver') {
+            // Drivers can mark attendance - no additional permission check
+        } else if (req.user?.role === 'schoolUser') {
+            const userRole = req.user?.userRole;
+            if (userRole !== 'editor' && userRole !== 'manager') {
+                return res.status(403).json({ error: 'Write permission required (editor/manager role)' });
+            }
+        } else if (req.user?.role !== 'admin' && req.user?.role !== 'school') {
+            return res.status(403).json({ error: 'Unauthorized' });
+        }
+        
         const { studentId, busId, timestamp, status } = req.body || {};
         if (!studentId) return res.status(400).json({ error: 'studentId required' });
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
