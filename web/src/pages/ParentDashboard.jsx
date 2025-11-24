@@ -12,6 +12,7 @@ export default function ParentDashboard() {
   const [assignments, setAssignments] = useState([]);
   const [assignmentsSearch, setAssignmentsSearch] = useState('');
   const [drivers, setDrivers] = useState([]);
+  const [activeTab, setActiveTab] = useState('children');
 
   useEffect(() => {
     loadData();
@@ -33,12 +34,11 @@ export default function ParentDashboard() {
       console.log('Students response:', studentsRes.data);
       setStudents(studentsRes.data || []);
 
-      // Get attendance for the last 30 days for all students
+      // Get attendance for the present month only
       const today = new Date();
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       
-      const startDate = oneMonthAgo.toISOString().split('T')[0];
+      const startDate = firstDayOfMonth.toISOString().split('T')[0];
       const endDate = today.toISOString().split('T')[0];
       
       const attendanceRes = await api.get('/attendance', {
@@ -99,6 +99,12 @@ export default function ParentDashboard() {
     return { present, absent, total: studentAttendance.length };
   };
 
+  const formatDateRange = (start, end) => {
+    if(!start && !end) return '—';
+    if(start && end) return `${start} - ${end}`;
+    return start || end || '—';
+  };
+
   const formatDate = (timestamp) => {
     if (!timestamp) return '—';
     const d = new Date(timestamp);
@@ -132,131 +138,188 @@ export default function ParentDashboard() {
         )}
       </div>
 
-      <div className="card p-4 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Your Children</h2>
-        {students.length === 0 ? (
-          <p className="text-slate-500">No students found.</p>
-        ) : (
-          <div className="space-y-4">
-            {students.map((student) => {
-              const { present, absent, total } = getStudentAttendance(student.id);
-              return (
-                <div key={student.id} className="border rounded p-4 bg-slate-50">
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{student.name}</h3>
-                      <p className="text-sm text-slate-600">Class: {student.cls || 'Not Assigned'}</p>
-                      <p className="text-sm text-slate-600">Bus: {getBusName(student.busId)}</p>
-                    </div>
-                    <div className="border-l pl-4">
-                      <p className="text-xs text-slate-500 mb-1">Attendance (Last 30 Days)</p>
-                      <div className="flex gap-4">
-                        <div>
-                          <p className="text-2xl font-bold text-green-600">{present}</p>
-                          <p className="text-xs text-slate-500">Present</p>
-                        </div>
-                        <div>
-                          <p className="text-2xl font-bold text-red-600">{absent}</p>
-                          <p className="text-xs text-slate-500">Absent</p>
+      {/* Tab Navigation */}
+      <div className="mb-4 flex gap-2 border-b overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('children')}
+          className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'children'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          👨‍👩‍👧‍👦 Your Children
+        </button>
+        <button
+          onClick={() => setActiveTab('tracking')}
+          className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'tracking'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          🚍 Live Bus Tracking (Today)
+        </button>
+        <button
+          onClick={() => setActiveTab('assignments')}
+          className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'assignments'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          📋 Bus Assignments
+        </button>
+        <button
+          onClick={() => setActiveTab('attendance')}
+          className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'attendance'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-slate-600 hover:text-slate-800'
+          }`}
+        >
+          📊 Recent Attendance History
+        </button>
+      </div>
+
+      {/* Tab 1: Your Children */}
+      {activeTab === 'children' && (
+        <div className="card p-4 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Your Children</h2>
+          {students.length === 0 ? (
+            <p className="text-slate-500">No students found.</p>
+          ) : (
+            <div className="space-y-4">
+              {students.map((student) => {
+                const { present, absent, total } = getStudentAttendance(student.id);
+                return (
+                  <div key={student.id} className="border rounded p-4 bg-slate-50">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{student.name}</h3>
+                        <p className="text-sm text-slate-600">Class: {student.cls || 'Not Assigned'}</p>
+                        <p className="text-sm text-slate-600">Bus: {getBusName(student.busId)}</p>
+                      </div>
+                      <div className="border-l pl-4">
+                        <p className="text-xs text-slate-500 mb-1">Attendance (This Month)</p>
+                        <div className="flex gap-4">
+                          <div>
+                            <p className="text-2xl font-bold text-green-600">{present}</p>
+                            <p className="text-xs text-slate-500">Present</p>
+                          </div>
+                          <div>
+                            <p className="text-2xl font-bold text-red-600">{absent}</p>
+                            <p className="text-xs text-slate-500">Absent</p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="card p-4 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-          <h2 className="text-xl font-semibold">Bus Assignments</h2>
-          <input
-            type="text"
-            value={assignmentsSearch}
-            onChange={e=>setAssignmentsSearch(e.target.value)}
-            placeholder="Search bus, route or date..."
-            className="border rounded px-3 py-2 w-full md:w-64"
-          />
+                );
+              })}
+            </div>
+          )}
         </div>
-        {filteredAssignments.length === 0 ? (
-          <p className="text-slate-500">No assignments for your children's buses.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-slate-100">
-                  <th className="text-left p-2">Start Date</th>
-                  <th className="text-left p-2">End Date</th>
-                  <th className="text-left p-2">Bus</th>
-                  <th className="text-left p-2">Route</th>
-                  <th className="text-left p-2">Driver Name</th>
-                  <th className="text-left p-2">Driver Mobile</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAssignments.map(a => {
-                  const driverInfo = getDriverInfo(a.driverId);
-                  return (
-                    <tr key={a.id} className="border-b hover:bg-slate-50">
-                      <td className="p-2">{a.startDate || '—'}</td>
-                      <td className="p-2">{a.endDate || '—'}</td>
-                      <td className="p-2">{getBusName(a.busId)}</td>
-                      <td className="p-2">{getRouteName(a.routeId)}</td>
-                      <td className="p-2">{driverInfo.name}</td>
-                      <td className="p-2">{driverInfo.phone}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      )}
 
-      <div className="card p-4">
-        <h2 className="text-xl font-semibold mb-4">Recent Attendance History</h2>
-        {attendance.length === 0 ? (
-          <p className="text-slate-500">No attendance records found for the last month.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2">Date</th>
-                  <th className="text-left p-2">Student</th>
-                  <th className="text-left p-2">Bus</th>
-                  <th className="text-left p-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {attendance.slice(0, 20).map((a) => {
-                  const student = students.find(s => s.id === a.studentId);
-                  return (
-                    <tr key={a.id} className="border-b hover:bg-slate-50">
-                      <td className="p-2">{formatDate(a.timestamp)}</td>
-                      <td className="p-2">{student?.name || 'Unknown'}</td>
-                      <td className="p-2">{getBusName(a.busId)}</td>
-                      <td className="p-2">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          a.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {a.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Tab 2: Live Bus Tracking (Today) */}
+      {activeTab === 'tracking' && (
+        <div className="card p-4 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Live Bus Tracking (Today)</h2>
+          <Map embedded />
+        </div>
+      )}
 
-      <div className="mt-6">
-        <Map embedded />
-      </div>
+      {/* Tab 3: Bus Assignments */}
+      {activeTab === 'assignments' && (
+        <div className="card p-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+            <h2 className="text-xl font-semibold">Bus Assignments</h2>
+            <input
+              type="text"
+              value={assignmentsSearch}
+              onChange={e=>setAssignmentsSearch(e.target.value)}
+              placeholder="Search bus, route or date..."
+              className="border rounded px-3 py-2 w-full md:w-64"
+            />
+          </div>
+          {filteredAssignments.length === 0 ? (
+            <p className="text-slate-500">No assignments for your children's buses.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-100">
+                    <th className="text-left p-2">Start Date</th>
+                    <th className="text-left p-2">End Date</th>
+                    <th className="text-left p-2">Bus</th>
+                    <th className="text-left p-2">Route</th>
+                    <th className="text-left p-2">Driver Name</th>
+                    <th className="text-left p-2">Driver Mobile</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAssignments.map(a => {
+                    const driverInfo = getDriverInfo(a.driverId);
+                    return (
+                      <tr key={a.id} className="border-b hover:bg-slate-50">
+                        <td className="p-2">{a.startDate || '—'}</td>
+                        <td className="p-2">{a.endDate || '—'}</td>
+                        <td className="p-2">{getBusName(a.busId)}</td>
+                        <td className="p-2">{getRouteName(a.routeId)}</td>
+                        <td className="p-2">{driverInfo.name}</td>
+                        <td className="p-2">{driverInfo.phone}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Recent Attendance History (Present Month Only) */}
+      {activeTab === 'attendance' && (
+        <div className="card p-4">
+          <h2 className="text-xl font-semibold mb-4">Recent Attendance History (This Month)</h2>
+          {attendance.length === 0 ? (
+            <p className="text-slate-500">No attendance records found for this month.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-slate-100">
+                    <th className="text-left p-2">Date</th>
+                    <th className="text-left p-2">Student</th>
+                    <th className="text-left p-2">Bus</th>
+                    <th className="text-left p-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendance.map((a) => {
+                    const student = students.find(s => s.id === a.studentId);
+                    return (
+                      <tr key={a.id} className="border-b hover:bg-slate-50">
+                        <td className="p-2">{formatDate(a.timestamp)}</td>
+                        <td className="p-2">{student?.name || 'Unknown'}</td>
+                        <td className="p-2">{getBusName(a.busId)}</td>
+                        <td className="p-2">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            a.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {a.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
