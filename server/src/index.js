@@ -111,7 +111,7 @@ function ensureTables() {
                         case 'students': db.run(`CREATE TABLE IF NOT EXISTS students(id TEXT PRIMARY KEY, name TEXT, cls TEXT, parentId TEXT, busId TEXT, routeId TEXT, schoolId TEXT, pickupLocation TEXT)`); break;
                         case 'parents': db.run(`CREATE TABLE IF NOT EXISTS parents(id TEXT PRIMARY KEY, name TEXT, phone TEXT, schoolId TEXT)`); break;
                         case 'buses': db.run(`CREATE TABLE IF NOT EXISTS buses(id TEXT PRIMARY KEY, number TEXT, driverId TEXT, routeId TEXT, started INTEGER DEFAULT 0, lat REAL, lng REAL, schoolId TEXT, registrationStartDate TEXT, registrationExpiredDate TEXT, fcRenewalDate TEXT, busType TEXT)`); db.all("PRAGMA table_info(buses)", (e, rows)=>{ if(!e && rows && !rows.some(c=>c.name==='routeId')) db.run("ALTER TABLE buses ADD COLUMN routeId TEXT"); if(!e && rows && !rows.some(c=>c.name==='schoolId')) db.run("ALTER TABLE buses ADD COLUMN schoolId TEXT"); if(!e && rows && !rows.some(c=>c.name==='registrationStartDate')) db.run("ALTER TABLE buses ADD COLUMN registrationStartDate TEXT"); if(!e && rows && !rows.some(c=>c.name==='registrationExpiredDate')) db.run("ALTER TABLE buses ADD COLUMN registrationExpiredDate TEXT"); if(!e && rows && !rows.some(c=>c.name==='fcRenewalDate')) db.run("ALTER TABLE buses ADD COLUMN fcRenewalDate TEXT"); if(!e && rows && !rows.some(c=>c.name==='busType')) db.run("ALTER TABLE buses ADD COLUMN busType TEXT"); }); break;
-                        case 'routes': db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT, schoolId TEXT)`); break;
+                        case 'routes': db.run(`CREATE TABLE IF NOT EXISTS routes(id TEXT PRIMARY KEY, name TEXT, stops TEXT, busId TEXT, schoolId TEXT)`); break;
                         case 'attendance': db.run(`CREATE TABLE IF NOT EXISTS attendance(id TEXT PRIMARY KEY, studentId TEXT, busId TEXT, timestamp INTEGER, status TEXT, schoolId TEXT)`); break;
                         case 'assignments': db.run(`CREATE TABLE IF NOT EXISTS assignments(id TEXT PRIMARY KEY, driverId TEXT, busId TEXT, routeId TEXT, schoolId TEXT, trips TEXT)`); break;
                         case 'schools':
@@ -169,6 +169,13 @@ function migrateDatabase() {
         db.run(`ALTER TABLE students ADD COLUMN routeId TEXT`, (err) => {
             if (err && !err.message.includes('duplicate column')) {
                 console.error('Migration error (students.routeId):', err.message);
+            }
+        });
+        
+        // Add busId column to routes table
+        db.run(`ALTER TABLE routes ADD COLUMN busId TEXT`, (err) => {
+            if (err && !err.message.includes('duplicate column')) {
+                console.error('Migration error (routes.busId):', err.message);
             }
         });
         
@@ -776,18 +783,18 @@ app.get('/api/routes', authenticateToken, async (req, res) =>
         let rows;
         if (schoolId) {
             if (search && search.trim()) {
-                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=? AND name LIKE ?', [schoolId, `%${search.trim()}%`]);
+                rows = await allSql('SELECT id,name,stops,busId,schoolId FROM routes WHERE schoolId=? AND name LIKE ?', [schoolId, `%${search.trim()}%`]);
             } else {
-                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE schoolId=?', [schoolId]);
+                rows = await allSql('SELECT id,name,stops,busId,schoolId FROM routes WHERE schoolId=?', [schoolId]);
             }
         } else {
             if (search && search.trim()) {
-                rows = await allSql('SELECT id,name,stops,schoolId FROM routes WHERE name LIKE ?', [`%${search.trim()}%`]);
+                rows = await allSql('SELECT id,name,stops,busId,schoolId FROM routes WHERE name LIKE ?', [`%${search.trim()}%`]);
             } else {
-                rows = await allSql('SELECT id,name,stops,schoolId FROM routes');
+                rows = await allSql('SELECT id,name,stops,busId,schoolId FROM routes');
             }
         }
-        const parsed = rows.map(r => ({ id: r.id, name: r.name, stops: r.stops ? JSON.parse(r.stops) : [], schoolId: r.schoolId }));
+        const parsed = rows.map(r => ({ id: r.id, name: r.name, stops: r.stops ? JSON.parse(r.stops) : [], busId: r.busId || null, schoolId: r.schoolId }));
         res.json(parsed);
     } catch (e)
     {
@@ -799,13 +806,13 @@ app.post('/api/routes', authenticateToken, requirePermission('write'), async (re
 {
     try
     {
-        const { name, stops } = req.body || {};
+        const { name, stops, busId } = req.body || {};
         if (!name) return res.status(400).json({ error: 'name is required' });
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : req.body.schoolId || null);
         const id = uuidv4();
-        await runSql('INSERT INTO routes(id,name,stops,schoolId) VALUES(?,?,?,?)', [id, name, JSON.stringify(stops || []), schoolId]);
-        const row = await getSql('SELECT id,name,stops,schoolId FROM routes WHERE id=?', [id]);
-        res.json({ id: row.id, name: row.name, stops: row.stops ? JSON.parse(row.stops) : [], schoolId: row.schoolId });
+        await runSql('INSERT INTO routes(id,name,stops,busId,schoolId) VALUES(?,?,?,?,?)', [id, name, JSON.stringify(stops || []), busId || null, schoolId]);
+        const row = await getSql('SELECT id,name,stops,busId,schoolId FROM routes WHERE id=?', [id]);
+        res.json({ id: row.id, name: row.name, stops: row.stops ? JSON.parse(row.stops) : [], busId: row.busId || null, schoolId: row.schoolId });
     } catch (e)
     {
         res.status(500).json({ error: e.message });

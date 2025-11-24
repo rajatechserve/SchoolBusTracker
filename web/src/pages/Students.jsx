@@ -3,35 +3,31 @@ import React, { useEffect, useState } from 'react';
 import api, { getAuthUser } from '../services/api';
 export default function Students(){
 	const [list,setList]=useState([]);
-	const [form,setForm]=useState({id:null,name:'',cls:'',parentId:'',busId:'',routeId:'',pickupLocation:''});
+	const [form,setForm]=useState({id:null,name:'',cls:'',parentId:'',busId:'',pickupLocation:''});
 	const [buses,setBuses]=useState([]);
-	const [routes,setRoutes]=useState([]);
 	const [parents,setParents]=useState([]);
 	const [parentSearch,setParentSearch]=useState('');
 	const [classes,setClasses]=useState([]);
 	const [q,setQ]=useState('');
 	const [classFilter,setClassFilter]=useState('');
 	const [busFilter,setBusFilter]=useState('');
-	const [routeFilter,setRouteFilter]=useState('');
 	const [showClassModal,setShowClassModal]=useState(false);
 	const [classForm,setClassForm]=useState({id:null,name:'',active:true});
 	const user = getAuthUser();
 	const isViewer = user?.role==='schoolUser' && user?.userRole==='viewer';
 
-	const load=()=>api.get('/students', { params: { search: q || undefined, class: classFilter || undefined, bus: busFilter || undefined, route: routeFilter || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
+	const load=()=>api.get('/students', { params: { search: q || undefined, class: classFilter || undefined, bus: busFilter || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
 	const loadBuses=()=>api.get('/buses').then(r=>setBuses(r.data||[])).catch(()=>{});
-	const loadRoutes=()=>api.get('/routes').then(r=>setRoutes(r.data||[])).catch(()=>{});
 	const loadParents=()=>api.get('/parents').then(r=>setParents(r.data||[])).catch(()=>{});
 	const loadClasses=()=>api.get('/classes', { params: { includeInactive: 1 } }).then(r=>setClasses(r.data||[])).catch(()=>{});
 
-	useEffect(()=>{ load(); },[q,classFilter,busFilter,routeFilter]);
-	useEffect(()=>{ loadBuses(); loadRoutes(); if(user?.role!=='parent') loadParents(); loadClasses(); },[]);
+	useEffect(()=>{ load(); },[q,classFilter,busFilter]);
+	useEffect(()=>{ loadBuses(); if(user?.role!=='parent') loadParents(); loadClasses(); },[]);
 
-	const save=async()=>{ if(isViewer) return; try{ const payload={ name: form.name, cls: form.cls, parentId: form.parentId||null, busId: form.busId||null, routeId: form.routeId||null, pickupLocation: form.pickupLocation||null }; if(!payload.parentId && user?.role==='parent') payload.parentId = user.id; if(form.id) await api.put('/students/'+form.id, payload); else await api.post('/students', payload); setForm({id:null,name:'',cls:'',parentId:'',busId:'',routeId:'',pickupLocation:''}); load(); }catch(e){ alert('Error: '+(e.response?.data?.error||e.message)); } };
-	const edit=(s)=> setForm({id:s.id,name:s.name,cls:s.cls||'',parentId:s.parentId||'',busId:s.busId||'',routeId:s.routeId||'',pickupLocation:s.pickupLocation||''});
+	const save=async()=>{ if(isViewer) return; try{ const payload={ name: form.name, cls: form.cls, parentId: form.parentId||null, busId: form.busId||null, pickupLocation: form.pickupLocation||null }; if(!payload.parentId && user?.role==='parent') payload.parentId = user.id; if(form.id) await api.put('/students/'+form.id, payload); else await api.post('/students', payload); setForm({id:null,name:'',cls:'',parentId:'',busId:'',pickupLocation:''}); load(); }catch(e){ alert('Error: '+(e.response?.data?.error||e.message)); } };
+	const edit=(s)=> setForm({id:s.id,name:s.name,cls:s.cls||'',parentId:s.parentId||'',busId:s.busId||'',pickupLocation:s.pickupLocation||''});
 	const remove=async(id)=>{ if(isViewer) return; if(!confirm('Delete?')) return; await api.delete('/students/'+id); load(); };
 	const busNumber=(id)=> buses.find(b=>b.id===id)?.number || id || '—';
-	const routeName=(id)=> routes.find(r=>r.id===id)?.name || id || '—';
 	const parentName=(id)=> parents.find(p=>p.id===id)?.name || (id? id.slice(0,8)+'…':'—');
 	const className=(cls)=> cls || '—';
 
@@ -64,10 +60,6 @@ export default function Students(){
 					<option value=''>All Buses</option>
 					{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
 				</select>
-				<select value={routeFilter} onChange={e=>setRouteFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
-					<option value=''>All Routes</option>
-					{routes.map(r=>(<option key={r.id} value={r.id}>{r.name}</option>))}
-				</select>
 					{!isViewer && <button onClick={openClassModal} className='px-3 py-2 bg-blue-600 text-white rounded text-sm'>Add Class</button>}
 				</div>
 			</div>
@@ -81,10 +73,6 @@ export default function Students(){
 				<select value={form.busId} onChange={e=>setForm({...form,busId:e.target.value})} className='border p-2 rounded min-w-[140px]' disabled={isViewer}>
 					<option value=''>Select Bus</option>
 					{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
-				</select>
-				<select value={form.routeId} onChange={e=>setForm({...form,routeId:e.target.value})} className='border p-2 rounded min-w-[140px]' disabled={isViewer}>
-					<option value=''>Select Route</option>
-					{routes.map(r=>(<option key={r.id} value={r.id}>{r.name}</option>))}
 				</select>
 				<input 
 					placeholder='Pickup Location' 
@@ -117,25 +105,23 @@ export default function Students(){
 			<div className='overflow-x-auto'>
 				<table className='w-full text-sm bg-white dark:bg-slate-800 rounded-lg shadow'>
 					<thead>
-						<tr className='border-b bg-slate-100 dark:bg-slate-700'>
-							<th className='text-left p-3'>Student Name</th>
-							<th className='text-left p-3'>Class</th>
-							<th className='text-left p-3'>Bus Number</th>
-							<th className='text-left p-3'>Route</th>
-							<th className='text-left p-3'>Parent Name</th>
-							<th className='text-left p-3'>Pickup Location</th>
-							<th className='text-left p-3'>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						{list.map(s=>(
-							<tr key={s.id} className='border-b hover:bg-slate-50 dark:hover:bg-slate-700'>
-								<td className='p-3 font-medium'>{s.name}</td>
-								<td className='p-3'>{className(s.cls)}</td>
-								<td className='p-3'>{busNumber(s.busId)}</td>
-								<td className='p-3'>{routeName(s.routeId)}</td>
-								<td className='p-3'>{parentName(s.parentId)}</td>
-								<td className='p-3'>{s.pickupLocation || '—'}</td>
+					<tr className='border-b bg-slate-100 dark:bg-slate-700'>
+						<th className='text-left p-3'>Student Name</th>
+						<th className='text-left p-3'>Class</th>
+						<th className='text-left p-3'>Bus Number</th>
+						<th className='text-left p-3'>Parent Name</th>
+						<th className='text-left p-3'>Pickup Location</th>
+						<th className='text-left p-3'>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{list.map(s=>(
+						<tr key={s.id} className='border-b hover:bg-slate-50 dark:hover:bg-slate-700'>
+							<td className='p-3 font-medium'>{s.name}</td>
+							<td className='p-3'>{className(s.cls)}</td>
+							<td className='p-3'>{busNumber(s.busId)}</td>
+							<td className='p-3'>{parentName(s.parentId)}</td>
+							<td className='p-3'>{s.pickupLocation || '—'}</td>
 								<td className='p-3'>
 									<div className='flex gap-2'>
 										<button onClick={()=>!isViewer && edit(s)} className={`text-blue-600 hover:text-blue-700 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Edit</button>

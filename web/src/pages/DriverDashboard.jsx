@@ -37,19 +37,17 @@ export default function DriverDashboard() {
       const routesRes = await api.get('/routes');
       setRoutes(Array.isArray(routesRes.data) ? routesRes.data : []);
       
-      // Get the current assignments to get assigned buses and routes
+      // Get the current assignments to get assigned buses
       const currentAssignments = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : (assignmentsRes.data?.data || []);
       
-      // Extract unique bus IDs and route IDs from current assignments
+      // Extract unique bus IDs from current assignments
       const assignedBusIds = [...new Set(currentAssignments.map(a => a.busId).filter(Boolean))];
-      const assignedRouteIds = [...new Set(currentAssignments.map(a => a.routeId).filter(Boolean))];
       
-      // Get students for attendance - only those assigned to driver's buses or routes
+      // Get students for attendance - only those assigned to driver's buses
       const studentsRes = await api.get('/students');
       const allStudents = studentsRes.data || [];
       const filteredStudents = allStudents.filter(s => 
-        (s.busId && assignedBusIds.includes(s.busId)) || 
-        (s.routeId && assignedRouteIds.includes(s.routeId))
+        s.busId && assignedBusIds.includes(s.busId)
       );
       setStudents(filteredStudents);
       
