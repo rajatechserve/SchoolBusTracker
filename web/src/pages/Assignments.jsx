@@ -6,7 +6,7 @@ export default function Assignments(){
 	const [buses,setBuses]=useState([]);
 	const [routes,setRoutes]=useState([]);
 	const [list,setList]=useState([]);
-	const [form,setForm]=useState({id:'',driverId:'',busId:'',routeId:'',startDate:'',endDate:'',trips:['morning','evening']});
+	const [form,setForm]=useState({id:'',driverId:'',busId:'',startDate:'',endDate:'',trips:['morning','evening']});
 	const [editMode,setEditMode]=useState(false);
 	const [showAll,setShowAll]=useState(false);
 	const [q,setQ]=useState('');
@@ -39,9 +39,8 @@ export default function Assignments(){
 	const checkDuplicate = () => {
 		if (!form.busId || !form.startDate || !form.endDate) return false;
 		return list.some(a => {
-			if (editMode && a.id === form.id) return false; // Skip current item in edit mode
+			if (editMode && a.id === form.id) return false;
 			if (a.busId !== form.busId) return false;
-			if (form.routeId && a.routeId && a.routeId !== form.routeId) return false;
 			// Check date overlap
 			const formStart = new Date(form.startDate);
 			const formEnd = new Date(form.endDate);
@@ -58,17 +57,22 @@ export default function Assignments(){
 		if(new Date(form.startDate) > new Date(form.endDate)) { alert('Start date must be before or equal to End date'); return; }
 		
 		if(checkDuplicate()) {
-			alert('Duplicate assignment! This bus' + (form.routeId ? ' with the same route' : '') + ' is already assigned for overlapping dates.');
+			alert('Duplicate assignment! This bus is already assigned for overlapping dates.');
 			return;
 		}
 		
+		// Derive routeId from the selected bus's route
+		const selectedRoute = routes.find(r => r.busId === form.busId);
+		const routeId = selectedRoute ? selectedRoute.id : null;
+		const payload = {...form, routeId};
+		
 		try{ 
 			if(editMode) {
-				await api.put('/assignments/' + form.id, form);
+				await api.put('/assignments/' + form.id, payload);
 			} else {
-				await api.post('/assignments', form);
+				await api.post('/assignments', payload);
 			}
-			setForm({id:'',driverId:'',busId:'',routeId:'',startDate:'',endDate:'',trips:['morning','evening']}); 
+			setForm({id:'',driverId:'',busId:'',startDate:'',endDate:'',trips:['morning','evening']}); 
 			setEditMode(false);
 			load(); 
 		}catch(e){alert('Error: '+(e.response?.data?.error||e.message));} 
@@ -77,13 +81,13 @@ export default function Assignments(){
 	const edit = (a) => {
 		if(isViewer) return;
 		const trips = a.trips ? (typeof a.trips === 'string' ? JSON.parse(a.trips) : a.trips) : ['morning','evening'];
-		setForm({id:a.id, driverId:a.driverId, busId:a.busId, routeId:a.routeId||'', startDate:a.startDate, endDate:a.endDate, trips});
+		setForm({id:a.id, driverId:a.driverId, busId:a.busId, startDate:a.startDate, endDate:a.endDate, trips});
 		setEditMode(true);
 		window.scrollTo({top: 0, behavior: 'smooth'});
 	};
 	
 	const cancelEdit = () => {
-		setForm({id:'',driverId:'',busId:'',routeId:'',startDate:'',endDate:'',trips:['morning','evening']});
+		setForm({id:'',driverId:'',busId:'',startDate:'',endDate:'',trips:['morning','evening']});
 		setEditMode(false);
 	};
 	
@@ -179,15 +183,11 @@ export default function Assignments(){
 						<option value=''>Select Driver</option>
 						{drivers.map(d=>(<option key={d.id} value={d.id}>{d.name}{d.phone ? ` (${d.phone})` : ''}</option>))}
 					</select>
-					<select value={form.busId} onChange={e=>setForm({...form,busId:e.target.value})} className='border p-2 rounded min-w-[150px]' disabled={isViewer}>
+					<select value={form.busId} onChange={e=>setForm({...form,busId:e.target.value})} className='border p-2 rounded min-w-[200px]' disabled={isViewer}>
 						<option value=''>Select Bus</option>
-						{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
-					</select>
-					<select value={form.routeId} onChange={e=>setForm({...form,routeId:e.target.value})} className='border p-2 rounded min-w-[150px]' disabled={isViewer}>
-						<option value=''>Select Route (Optional)</option>
-						{routes.map(r=> {
-							const stopNames = r.stops && r.stops.length > 0 ? r.stops.map(s => s.name || s).join(', ') : '';
-							return (<option key={r.id} value={r.id}>{r.name}{stopNames ? ` (${stopNames})` : ''}</option>);
+						{buses.map(b=>{
+							const route = routes.find(r => r.busId === b.id);
+							return (<option key={b.id} value={b.id}>{b.number}{route ? ` (${route.name})` : ''}</option>);
 						})}
 					</select>
 					<div className='flex items-center gap-3 border p-2 rounded bg-white dark:bg-slate-700'>
