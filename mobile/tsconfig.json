@@ -5,6 +5,9 @@
     "jsx": "react-native",
     "paths": {
       "@/*": [
+        "./*"
+      ],
+      "@/app/*": [
         "./app/*"
       ]
     },
