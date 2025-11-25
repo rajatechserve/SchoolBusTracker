@@ -3,28 +3,29 @@ import React, { useEffect, useState } from 'react';
 import api, { getAuthUser } from '../services/api';
 export default function Students(){
 	const [list,setList]=useState([]);
-	const [form,setForm]=useState({id:null,name:'',cls:'',parentId:'',busId:''});
+	const [form,setForm]=useState({id:null,name:'',cls:'',parentId:'',busId:'',pickupLocation:''});
 	const [buses,setBuses]=useState([]);
 	const [parents,setParents]=useState([]);
 	const [parentSearch,setParentSearch]=useState('');
 	const [classes,setClasses]=useState([]);
 	const [q,setQ]=useState('');
 	const [classFilter,setClassFilter]=useState('');
+	const [busFilter,setBusFilter]=useState('');
 	const [showClassModal,setShowClassModal]=useState(false);
 	const [classForm,setClassForm]=useState({id:null,name:'',active:true});
 	const user = getAuthUser();
 	const isViewer = user?.role==='schoolUser' && user?.userRole==='viewer';
 
-	const load=()=>api.get('/students', { params: { search: q || undefined, class: classFilter || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
+	const load=()=>api.get('/students', { params: { search: q || undefined, class: classFilter || undefined, bus: busFilter || undefined } }).then(r=>setList(r.data||[])).catch(()=>{});
 	const loadBuses=()=>api.get('/buses').then(r=>setBuses(r.data||[])).catch(()=>{});
 	const loadParents=()=>api.get('/parents').then(r=>setParents(r.data||[])).catch(()=>{});
 	const loadClasses=()=>api.get('/classes', { params: { includeInactive: 1 } }).then(r=>setClasses(r.data||[])).catch(()=>{});
 
-	useEffect(()=>{ load(); },[q,classFilter]);
+	useEffect(()=>{ load(); },[q,classFilter,busFilter]);
 	useEffect(()=>{ loadBuses(); if(user?.role!=='parent') loadParents(); loadClasses(); },[]);
 
-	const save=async()=>{ if(isViewer) return; try{ const payload={ name: form.name, cls: form.cls, parentId: form.parentId||null, busId: form.busId||null }; if(!payload.parentId && user?.role==='parent') payload.parentId = user.id; if(form.id) await api.put('/students/'+form.id, payload); else await api.post('/students', payload); setForm({id:null,name:'',cls:'',parentId:'',busId:''}); load(); }catch(e){ alert('Error: '+(e.response?.data?.error||e.message)); } };
-	const edit=(s)=> setForm({id:s.id,name:s.name,cls:s.cls||'',parentId:s.parentId||'',busId:s.busId||''});
+	const save=async()=>{ if(isViewer) return; try{ const payload={ name: form.name, cls: form.cls, parentId: form.parentId||null, busId: form.busId||null, pickupLocation: form.pickupLocation||null }; if(!payload.parentId && user?.role==='parent') payload.parentId = user.id; if(form.id) await api.put('/students/'+form.id, payload); else await api.post('/students', payload); setForm({id:null,name:'',cls:'',parentId:'',busId:'',pickupLocation:''}); load(); }catch(e){ alert('Error: '+(e.response?.data?.error||e.message)); } };
+	const edit=(s)=> setForm({id:s.id,name:s.name,cls:s.cls||'',parentId:s.parentId||'',busId:s.busId||'',pickupLocation:s.pickupLocation||''});
 	const remove=async(id)=>{ if(isViewer) return; if(!confirm('Delete?')) return; await api.delete('/students/'+id); load(); };
 	const busNumber=(id)=> buses.find(b=>b.id===id)?.number || id || '—';
 	const parentName=(id)=> parents.find(p=>p.id===id)?.name || (id? id.slice(0,8)+'…':'—');
@@ -50,11 +51,15 @@ export default function Students(){
 			<div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4'>
 				<h2 className='text-xl font-semibold'>Students {isViewer && <span className="text-xs text-slate-500">(read-only)</span>}</h2>
 				<div className='flex flex-wrap gap-2 items-center'>
-					<input placeholder='Search' value={q} onChange={e=>setQ(e.target.value)} className='border p-2 rounded'/>
-					<select value={classFilter} onChange={e=>setClassFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
-						<option value=''>All Classes</option>
-						{classes.filter(c=>c.active===1).map(c=>(<option key={c.id} value={c.name}>{c.name}</option>))}
-					</select>
+				<input placeholder='Search' value={q} onChange={e=>setQ(e.target.value)} className='border p-2 rounded'/>
+				<select value={classFilter} onChange={e=>setClassFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
+					<option value=''>All Classes</option>
+					{classes.filter(c=>c.active===1).map(c=>(<option key={c.id} value={c.name}>{c.name}</option>))}
+				</select>
+				<select value={busFilter} onChange={e=>setBusFilter(e.target.value)} className='border p-2 rounded min-w-[140px]'>
+					<option value=''>All Buses</option>
+					{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
+				</select>
 					{!isViewer && <button onClick={openClassModal} className='px-3 py-2 bg-blue-600 text-white rounded text-sm'>Add Class</button>}
 				</div>
 			</div>
@@ -69,13 +74,20 @@ export default function Students(){
 					<option value=''>Select Bus</option>
 					{buses.map(b=>(<option key={b.id} value={b.id}>{b.number}</option>))}
 				</select>
+				<input 
+					placeholder='Pickup Location' 
+					value={form.pickupLocation} 
+					onChange={e=>setForm({...form,pickupLocation:e.target.value})} 
+					className='border p-2 rounded min-w-[180px]' 
+					disabled={isViewer}
+				/>
 				{user?.role!=='parent' && (
-					<div className='flex flex-col'>
+					<>
 						<input
 							placeholder='Search Parents...'
 							value={parentSearch}
 							onChange={e=>setParentSearch(e.target.value)}
-							className='border p-2 rounded mb-1 text-sm'
+							className='border p-2 rounded text-sm min-w-[160px]'
 							disabled={isViewer}
 						/>
 						<select value={form.parentId} onChange={e=>setForm({...form,parentId:e.target.value})} className='border p-2 rounded min-w-[200px]' disabled={isViewer}>
@@ -86,23 +98,40 @@ export default function Students(){
 									<option key={p.id} value={p.id}>{p.name}{p.phone? ` (${p.phone})`:''}</option>
 								))}
 						</select>
-					</div>
+					</>
 				)}
 				<button onClick={save} className={`btn-primary ${isViewer?'opacity-50 cursor-not-allowed':''}`} disabled={isViewer}>{form.id?'Update':'Add'}</button>
 			</div>
-			<div className='space-y-2'>
-				{list.map(s=>(
-					<div key={s.id} className='p-3 bg-white rounded shadow flex justify-between items-center'>
-						<div>
-							<div className='font-medium'>{s.name}</div>
-							<div className='text-sm text-slate-500'>Class: {className(s.cls)} | Bus: {busNumber(s.busId)} | Parent: {parentName(s.parentId)}</div>
-						</div>
-						<div className='flex gap-2'>
-							<button onClick={()=>!isViewer && edit(s)} className={`text-blue-600 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Edit</button>
-							<button onClick={()=>remove(s.id)} className={`text-red-600 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Delete</button>
-						</div>
-					</div>
-				))}
+			<div className='overflow-x-auto'>
+				<table className='w-full text-sm bg-white dark:bg-slate-800 rounded-lg shadow'>
+					<thead>
+					<tr className='border-b bg-slate-100 dark:bg-slate-700'>
+						<th className='text-left p-3'>Student Name</th>
+						<th className='text-left p-3'>Class</th>
+						<th className='text-left p-3'>Bus Number</th>
+						<th className='text-left p-3'>Parent Name</th>
+						<th className='text-left p-3'>Pickup Location</th>
+						<th className='text-left p-3'>Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{list.map(s=>(
+						<tr key={s.id} className='border-b hover:bg-slate-50 dark:hover:bg-slate-700'>
+							<td className='p-3 font-medium'>{s.name}</td>
+							<td className='p-3'>{className(s.cls)}</td>
+							<td className='p-3'>{busNumber(s.busId)}</td>
+							<td className='p-3'>{parentName(s.parentId)}</td>
+							<td className='p-3'>{s.pickupLocation || '—'}</td>
+								<td className='p-3'>
+									<div className='flex gap-2'>
+										<button onClick={()=>!isViewer && edit(s)} className={`text-blue-600 hover:text-blue-700 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Edit</button>
+										<button onClick={()=>remove(s.id)} className={`text-red-600 hover:text-red-700 ${isViewer?'opacity-40 cursor-not-allowed':''}`} disabled={isViewer}>Delete</button>
+									</div>
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
 				{list.length===0 && <div className='text-center text-sm text-slate-500 py-8'>No students found.</div>}
 			</div>
 

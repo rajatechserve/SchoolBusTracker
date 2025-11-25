@@ -134,6 +134,7 @@ function Sidebar({ authUser, onLogoUpdate }){
           {!isViewer && <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/assignments">Assignments</Link>}
           <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/drivers">Drivers</Link>
           {!isViewer && <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/routes">Routes</Link>}
+          {!isViewer && <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/buses">Buses</Link>}
           {!isViewer && <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/parents">Parents</Link>}
           <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/students">Students</Link>
           {isSchoolAdmin && <Link className={`block py-3 px-4 rounded-lg ${hasCustomSidebarColors() ? 'text-white hover:bg-white/20 hover:backdrop-blur-sm' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'} transition-all duration-200 font-medium`} to="/school-users">Users & Roles</Link>}
@@ -145,8 +146,11 @@ function Sidebar({ authUser, onLogoUpdate }){
 );} 
 
 function Header({ onLogout, authUser }) {
-  const username = authUser?.username;
-  const schoolName = authUser?.name || authUser?.schoolName;
+  // For drivers/parents, use userName (their actual name), otherwise use username or name
+  const username = (authUser?.role === 'driver' || authUser?.role === 'parent') 
+    ? authUser?.userName || authUser?.name 
+    : authUser?.username || authUser?.name;
+  const schoolName = authUser?.schoolName || authUser?.name;
   const schoolPhoto = authUser?.photo;
   const isSchool = ['school','schoolUser'].includes(authUser?.role);
   const isDriver = authUser?.role === 'driver';
@@ -193,11 +197,25 @@ function Header({ onLogout, authUser }) {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         {isDriver || isParent ? (
           <>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1">
               {authUser?.logo && (
                 <img src={authUser.logo.startsWith('/uploads') ? `${SERVER_URL}${authUser.logo}` : authUser.logo} alt="School Logo" className="h-12 w-auto object-contain" />
               )}
-              <div className={`text-base font-medium ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}>{authUser?.role === 'driver' ? 'Driver Dashboard' : 'Parent Dashboard'}</div>
+              <div className="flex flex-col">
+                <div className={`text-xl font-semibold ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>{authUser?.name || 'School'}</div>
+                <div className={`text-xs ${hasCustomHeaderColors() ? 'text-white/80' : 'text-slate-600 dark:text-slate-400'}`}>
+                  {authUser?.address && (
+                    <span>{authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
+                  )}
+                  {(authUser?.phone || authUser?.mobile) && (
+                    <span className="block mt-1">
+                      {authUser.phone && <span>📞 {authUser.phone}</span>}
+                      {authUser.phone && authUser.mobile && <span className="mx-2">•</span>}
+                      {authUser.mobile && <span>📱 {authUser.mobile}</span>}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <div className={`flex items-center gap-2 ${hasCustomHeaderColors() ? 'bg-white/20 backdrop-blur-sm border-white/30' : 'bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600'} border rounded-lg p-1`}>
@@ -256,7 +274,8 @@ export default function App(){
         try {
           const r = await api.get(`/public/schools/${u.schoolId}`);
           if(r.data){
-            const merged = { ...u, ...r.data, _schoolLoaded: true };
+            // Preserve original user's name and store school name separately
+            const merged = { ...u, ...r.data, userName: u.name, schoolName: r.data.name, _schoolLoaded: true };
             setAuthUser(merged);
             setAuthUserState(merged);
           }
@@ -268,11 +287,11 @@ export default function App(){
   return (
     <BrowserRouter>
       <div className="min-h-screen flex bg-gray-50 dark:bg-slate-900">
-        {!(authUserState?.role === 'driver' || authUserState?.role === 'parent') && (
+        {authUserState && !(authUserState?.role === 'driver' || authUserState?.role === 'parent') && (
           <Sidebar authUser={authUserState} onLogoUpdate={() => setAuthUserState(getAuthUser())} />
         )}
         <div className="flex-1">
-          <Header onLogout={logout} authUser={authUserState} />
+          {authUserState && <Header onLogout={logout} authUser={authUserState} />}
           <main className="p-6 max-w-7xl mx-auto">
             <Routes>
               <Route path="/login" element={<Login onLogin={() => { setAuthUserState(getAuthUser()); }} />} />
