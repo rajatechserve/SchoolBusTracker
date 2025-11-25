@@ -92,15 +92,18 @@ export default function AppHeader() {
 
   const navigateTo = (screen: string) => {
     closeDrawer();
-    if (screen === 'dashboard') {
-      router.replace('/(tabs)');
-    } else if (screen === 'profile') {
-      router.replace('/(tabs)/profile');
-    } else if (screen === 'notifications') {
-      router.replace('/(tabs)/notifications');
-    } else if (screen === 'assignments') {
-      router.replace('/(tabs)/assignments');
-    }
+    // Wait for drawer animation to complete before navigating
+    setTimeout(() => {
+      if (screen === 'dashboard') {
+        router.push('/(tabs)');
+      } else if (screen === 'profile') {
+        router.push('/(tabs)/profile');
+      } else if (screen === 'notifications') {
+        router.push('/(tabs)/notifications');
+      } else if (screen === 'assignments') {
+        router.push('/(tabs)/assignments');
+      }
+    }, 350);
   };
 
   return (

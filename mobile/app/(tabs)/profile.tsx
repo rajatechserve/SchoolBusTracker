@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,14 +7,16 @@ import {
   TextInput, 
   TouchableOpacity,
   Alert,
-  useColorScheme as useSystemColorScheme,
-  Appearance
+  useColorScheme as useSystemColorScheme
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import theme from '../constants/theme';
 
 type ThemeMode = 'light' | 'dark' | 'system';
+
+const THEME_STORAGE_KEY = '@app_theme';
 
 export default function ProfileScreen() {
   const { user, loginLocal } = useAuth();
@@ -23,6 +25,21 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<ThemeMode>('system');
   const systemColorScheme = useSystemColorScheme();
+
+  useEffect(() => {
+    loadThemePreference();
+  }, []);
+
+  const loadThemePreference = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+      if (savedTheme) {
+        setSelectedTheme(savedTheme as ThemeMode);
+      }
+    } catch (error) {
+      console.error('Failed to load theme preference:', error);
+    }
+  };
 
   const handleUpdatePhone = async () => {
     if (!phone || phone.length !== 10) {
@@ -49,16 +66,20 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleThemeChange = (newTheme: ThemeMode) => {
-    setSelectedTheme(newTheme);
-    
-    if (newTheme === 'system') {
-      Appearance.setColorScheme(null);
-    } else {
-      Appearance.setColorScheme(newTheme);
+  const handleThemeChange = async (newTheme: ThemeMode) => {
+    try {
+      setSelectedTheme(newTheme);
+      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
+      
+      Alert.alert(
+        'Theme Changed', 
+        `Theme preference set to ${newTheme}. Note: Theme changes will be fully supported in a future update.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Failed to save theme preference:', error);
+      Alert.alert('Error', 'Failed to save theme preference');
     }
-    
-    Alert.alert('Theme Changed', `Theme set to ${newTheme}`);
   };
 
   return (
