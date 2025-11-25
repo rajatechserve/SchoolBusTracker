@@ -93,11 +93,13 @@ export default function AppHeader() {
   const navigateTo = (screen: string) => {
     closeDrawer();
     if (screen === 'dashboard') {
-      router.push('/(tabs)');
+      router.replace('/(tabs)');
     } else if (screen === 'profile') {
-      router.push('/(tabs)/profile');
+      router.replace('/(tabs)/profile');
     } else if (screen === 'notifications') {
-      router.push('/(tabs)/notifications');
+      router.replace('/(tabs)/notifications');
+    } else if (screen === 'assignments') {
+      router.replace('/(tabs)/assignments');
     }
   };
 
@@ -124,6 +126,11 @@ export default function AppHeader() {
             <Text style={styles.schoolAddress} numberOfLines={1}>
               📍 {school?.address || 'Loading...'}
             </Text>
+            {school?.phone && (
+              <Text style={styles.schoolPhone} numberOfLines={1}>
+                📞 {school.phone}
+              </Text>
+            )}
           </View>
         </View>
       </View>
@@ -179,15 +186,15 @@ export default function AppHeader() {
                 <Text style={styles.menuItemIcon}>🔔</Text>
                 <Text style={styles.menuItemText}>Notifications</Text>
               </TouchableOpacity>
-            </View>
 
-            {/* School Info in Drawer */}
-            {school && (
-              <View style={styles.drawerFooter}>
-                <Text style={styles.footerSchoolName}>{school.name}</Text>
-                <Text style={styles.footerContact}>📞 {school.phone || school.mobile}</Text>
-              </View>
-            )}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => navigateTo('assignments')}
+              >
+                <Text style={styles.menuItemIcon}>📋</Text>
+                <Text style={styles.menuItemText}>Assignments</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
           <TouchableOpacity
             style={styles.overlay}
@@ -258,6 +265,11 @@ const styles = StyleSheet.create({
   schoolAddress: {
     fontSize: 12,
     color: '#666',
+  },
+  schoolPhone: {
+    fontSize: 11,
+    color: '#007BFF',
+    marginTop: 2,
   },
   modalOverlay: {
     flex: 1,

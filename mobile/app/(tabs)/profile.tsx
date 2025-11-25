@@ -6,17 +6,23 @@ import {
   ScrollView, 
   TextInput, 
   TouchableOpacity,
-  Alert 
+  Alert,
+  useColorScheme as useSystemColorScheme,
+  Appearance
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import theme from '../constants/theme';
+
+type ThemeMode = 'light' | 'dark' | 'system';
 
 export default function ProfileScreen() {
   const { user, loginLocal } = useAuth();
   const [phone, setPhone] = useState(user?.phone || '');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState<ThemeMode>('system');
+  const systemColorScheme = useSystemColorScheme();
 
   const handleUpdatePhone = async () => {
     if (!phone || phone.length !== 10) {
@@ -43,6 +49,18 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setSelectedTheme(newTheme);
+    
+    if (newTheme === 'system') {
+      Appearance.setColorScheme(null);
+    } else {
+      Appearance.setColorScheme(newTheme);
+    }
+    
+    Alert.alert('Theme Changed', `Theme set to ${newTheme}`);
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -55,6 +73,62 @@ export default function ProfileScreen() {
         <Text style={styles.role}>
           {user?.role === 'driver' ? 'Driver' : 'Parent'}
         </Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Theme</Text>
+        <View style={styles.infoCard}>
+          <TouchableOpacity
+            style={[
+              styles.themeOption,
+              selectedTheme === 'light' && styles.themeOptionActive
+            ]}
+            onPress={() => handleThemeChange('light')}
+          >
+            <Text style={styles.themeIcon}>☀️</Text>
+            <Text style={[
+              styles.themeText,
+              selectedTheme === 'light' && styles.themeTextActive
+            ]}>Light</Text>
+            {selectedTheme === 'light' && (
+              <Text style={styles.checkmark}>✓</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.themeOption,
+              selectedTheme === 'dark' && styles.themeOptionActive
+            ]}
+            onPress={() => handleThemeChange('dark')}
+          >
+            <Text style={styles.themeIcon}>🌙</Text>
+            <Text style={[
+              styles.themeText,
+              selectedTheme === 'dark' && styles.themeTextActive
+            ]}>Dark</Text>
+            {selectedTheme === 'dark' && (
+              <Text style={styles.checkmark}>✓</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.themeOption,
+              selectedTheme === 'system' && styles.themeOptionActive
+            ]}
+            onPress={() => handleThemeChange('system')}
+          >
+            <Text style={styles.themeIcon}>⚙️</Text>
+            <Text style={[
+              styles.themeText,
+              selectedTheme === 'system' && styles.themeTextActive
+            ]}>System Default</Text>
+            {selectedTheme === 'system' && (
+              <Text style={styles.checkmark}>✓</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -120,20 +194,6 @@ export default function ProfileScreen() {
               <Text style={styles.editButtonText}>✏️ Edit Phone Number</Text>
             </TouchableOpacity>
           )}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account Information</Text>
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>User ID</Text>
-            <Text style={styles.value}>{user?.id || '—'}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>School ID</Text>
-            <Text style={styles.value}>{user?.schoolId || '—'}</Text>
-          </View>
         </View>
       </View>
     </ScrollView>
@@ -260,5 +320,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  themeOptionActive: {
+    backgroundColor: '#e3f2fd',
+    borderWidth: 2,
+    borderColor: '#007BFF',
+  },
+  themeIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  themeText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  themeTextActive: {
+    fontWeight: 'bold',
+    color: '#007BFF',
+  },
+  checkmark: {
+    fontSize: 20,
+    color: '#007BFF',
+    fontWeight: 'bold',
   },
 });
