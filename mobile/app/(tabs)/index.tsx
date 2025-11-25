@@ -1,19 +1,32 @@
-import { Button, View, Image, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import React from 'react';
+import { useAuth } from '@/context/AuthContext';
+import DriverDashboard from '@/screens/Driver/DriverDashboard';
+import ParentDashboard from '@/screens/Parent/ParentDashboard';
+import { View, Text, StyleSheet } from 'react-native';
 
 export default function HomeScreen() {
-  const router = useRouter();
+  const { user } = useAuth();
+
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Not logged in</Text>
+      </View>
+    );
+  }
+
+  // Show appropriate dashboard based on user role
+  if (user.role === 'driver') {
+    return <DriverDashboard />;
+  }
+
+  if (user.role === 'parent') {
+    return <ParentDashboard />;
+  }
 
   return (
     <View style={styles.container}>
-      <View style={styles.buttonContainer}>
-        <Image source={require('@/assets/images/driver-icon.png')} style={styles.icon} />
-        <Button title="Driver Login" onPress={() => router.push('/driver-login')} />
-      </View>
-      <View style={styles.buttonContainer}>
-        <Image source={require('@/assets/images/parent-icon.png')} style={styles.icon} />
-        <Button title="Parent Login" onPress={() => router.push('/parent-login')} />
-      </View>
+      <Text style={styles.errorText}>Unknown user role</Text>
     </View>
   );
 }
@@ -25,14 +38,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  icon: {
-    width: 40,
-    height: 40,
-    marginRight: 10,
+  errorText: {
+    fontSize: 16,
+    color: '#999',
   },
 });

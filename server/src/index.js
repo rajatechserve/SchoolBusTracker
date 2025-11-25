@@ -294,6 +294,41 @@ app.post('/api/auth/login', async (req, res) =>
     }
 });
 
+// Unified mobile login - auto-detects driver or parent by phone
+app.post('/api/auth/mobile-login', async (req, res) => {
+    try {
+        const { phone } = req.body || {};
+        if (!phone) return res.status(400).json({ error: 'phone required' });
+        
+        // Check if user is a driver first
+        const driver = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
+        if (driver) {
+            const token = jwt.sign({ id: driver.id, name: driver.name, role: 'driver', schoolId: driver.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
+            return res.json({ 
+                token, 
+                role: 'driver',
+                user: { id: driver.id, name: driver.name, phone: driver.phone, schoolId: driver.schoolId } 
+            });
+        }
+        
+        // If not a driver, check if user is a parent
+        const parent = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
+        if (parent) {
+            const token = jwt.sign({ id: parent.id, name: parent.name, role: 'parent', schoolId: parent.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
+            return res.json({ 
+                token, 
+                role: 'parent',
+                user: { id: parent.id, name: parent.name, phone: parent.phone, schoolId: parent.schoolId } 
+            });
+        }
+        
+        // User not found in either table
+        return res.status(404).json({ error: 'No account found with this phone number' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Driver login / auto-registration by phone
 app.post('/api/auth/driver-login', async (req, res) => {
     try {
