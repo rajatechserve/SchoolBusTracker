@@ -91,19 +91,29 @@ export default function AppHeader() {
   };
 
   const navigateTo = (screen: string) => {
-    closeDrawer();
-    // Wait for drawer animation to complete before navigating
-    setTimeout(() => {
-      if (screen === 'dashboard') {
-        router.push('/(tabs)');
-      } else if (screen === 'profile') {
-        router.push('/(tabs)/profile');
-      } else if (screen === 'notifications') {
-        router.push('/(tabs)/notifications');
-      } else if (screen === 'assignments') {
-        router.push('/(tabs)/assignments');
+    // Close drawer first
+    Animated.timing(slideAnim, {
+      toValue: -width * 0.8,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setDrawerVisible(false);
+      
+      // Navigate after drawer is closed
+      try {
+        if (screen === 'dashboard') {
+          router.navigate('/(tabs)');
+        } else if (screen === 'profile') {
+          router.navigate('/(tabs)/profile');
+        } else if (screen === 'notifications') {
+          router.navigate('/(tabs)/notifications');
+        } else if (screen === 'assignments') {
+          router.navigate('/(tabs)/assignments');
+        }
+      } catch (error) {
+        console.error('Navigation error:', error);
       }
-    }, 350);
+    });
   };
 
   return (
