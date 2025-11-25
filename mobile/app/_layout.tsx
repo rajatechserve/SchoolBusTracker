@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native-paper';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from './hooks/use-color-scheme';
 
 // Extend the React Navigation theme while also providing a Paper theme.
 function useThemes(colorScheme: string | null) {

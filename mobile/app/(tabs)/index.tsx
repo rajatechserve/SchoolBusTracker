@@ -1,7 +1,7 @@
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
-import DriverDashboard from '@/screens/Driver/DriverDashboard';
-import ParentDashboard from '@/screens/Parent/ParentDashboard';
+import { useAuth } from '../context/AuthContext';
+import DriverDashboard from '../screens/Driver/DriverDashboard';
+import ParentDashboard from '../screens/Parent/ParentDashboard';
 import { View, Text, StyleSheet } from 'react-native';
 
 export default function HomeScreen() {
