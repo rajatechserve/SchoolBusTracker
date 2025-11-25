@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import AppHeader from '../../components/AppHeader';
 
 interface Student {
   id: string;
@@ -187,11 +188,8 @@ export default function ParentDashboard() {
 
   return (
     <View style={styles.container}>
-      {/* Parent Info Card */}
-      <View style={styles.headerCard}>
-        <Text style={styles.headerTitle}>{user?.name}</Text>
-        <Text style={styles.headerSubtitle}>Phone: {user?.phone || '—'}</Text>
-      </View>
+      {/* School Header with Menu */}
+      <AppHeader />
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
