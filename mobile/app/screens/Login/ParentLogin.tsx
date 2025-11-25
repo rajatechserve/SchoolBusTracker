@@ -1,41 +1,50 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api, { attachToken } from '../../services/api';
 import { router } from 'expo-router';
 
 export default function ParentLogin() {
-  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginLocal } = useAuth();
-  const valid = name.trim().length>=2 && /^\+?\d{7,15}$/.test(phone.trim());
+  const valid = /^\d{10}$/.test(phone.trim());
 
   const submit = async () => {
     if (!valid || loading) return;
     setLoading(true);
     try {
-      const resp = await api.post('/auth/parent-login', { phone: phone.trim(), name: name.trim() });
+      const resp = await api.post('/auth/parent-login', { phone: phone.trim() });
       const token = resp.data?.token;
+      const parent = resp.data?.parent;
       if (token) attachToken(token);
-      let busId = null;
-      try {
-        if (resp.data?.parent?.id) {
-          const studentsResp = await api.get(`/parents/${resp.data.parent.id}/students`);
-            const first = (studentsResp.data || []).find((s:any)=> s.busId);
-            if (first) busId = first.busId;
-        }
-      } catch(e){ /* ignore */ }
-      loginLocal('parent', { id: phone.trim(), name: name.trim(), phone: phone.trim(), bus: busId }, token);
+      loginLocal('parent', { 
+        id: parent.id, 
+        name: parent.name, 
+        phone: parent.phone, 
+        schoolId: parent.schoolId 
+      }, token);
       router.replace('/(tabs)');
-    } catch(e:any){ console.warn('Parent login failed', e?.message); } finally { setLoading(false); }
+    } catch(e:any){ 
+      Alert.alert('Login Failed', e?.response?.data?.error || e?.message || 'Parent not found with this phone number');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Parent Login</Text>
-      <TextInput placeholder="Name" value={name} onChangeText={setName} style={styles.input} />
-      <TextInput placeholder="Mobile (+123...)" value={phone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" />
+      <Text style={styles.subtitle}>Enter your registered mobile number</Text>
+      <TextInput 
+        placeholder="Mobile Number (10 digits)" 
+        value={phone} 
+        onChangeText={setPhone} 
+        style={styles.input} 
+        keyboardType="phone-pad"
+        maxLength={10}
+      />
+      <Text style={styles.hint}>{valid ? 'Ready to login' : 'Enter valid 10-digit mobile number'}</Text>
       <TouchableOpacity disabled={!valid || loading} onPress={submit} style={[styles.button, (!valid||loading)&&styles.buttonDisabled]}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
@@ -48,27 +57,45 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#f5f5f5',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 8,
+    color: '#333',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
   },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 12,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    fontSize: 16,
+  },
+  hint: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 20,
   },
   button: {
     backgroundColor: '#007BFF',
-    paddingVertical: 10,
-    borderRadius: 5,
+    paddingVertical: 14,
+    borderRadius: 8,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
+    fontWeight: '600',
   },
 });

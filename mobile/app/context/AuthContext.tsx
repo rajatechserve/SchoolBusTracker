@@ -6,6 +6,7 @@ export type User = {
   id: string;
   name: string;
   phone?: string;
+  schoolId?: string;
   bus?: string | null;
 };
 
@@ -45,7 +46,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginLocal = useCallback((role: 'driver' | 'parent', payload: Partial<User>, t?: string | null) => {
     const id = payload.id || `${role}-${Date.now()}`;
     const name = payload.name || (role === 'driver' ? 'Driver' : 'Parent');
-    const next: User = { role, id, name, bus: payload.bus ?? null, phone: payload.phone };
+    const next: User = { 
+      role, 
+      id, 
+      name, 
+      bus: payload.bus ?? null, 
+      phone: payload.phone,
+      schoolId: payload.schoolId
+    };
     setUser(next);
     if (t) setToken(t);
     // persist
