@@ -40,7 +40,13 @@ export default function AppHeader() {
     if (!user?.schoolId) return;
     try {
       const response = await api.get(`/public/schools/${user.schoolId}`);
-      setSchool(response.data);
+      console.log('School data:', response.data);
+      // Prepend API base URL to logo if it's a relative path
+      const schoolData = response.data;
+      if (schoolData.logo && !schoolData.logo.startsWith('http')) {
+        schoolData.logo = `${api.defaults.baseURL}${schoolData.logo}`;
+      }
+      setSchool(schoolData);
     } catch (e) {
       console.error('Failed to load school info:', e);
     }
@@ -86,9 +92,12 @@ export default function AppHeader() {
 
   const navigateTo = (screen: string) => {
     closeDrawer();
-    // Navigation logic here
     if (screen === 'dashboard') {
       router.push('/(tabs)');
+    } else if (screen === 'profile') {
+      router.push('/(tabs)/profile');
+    } else if (screen === 'notifications') {
+      router.push('/(tabs)/notifications');
     }
   };
 
@@ -127,11 +136,6 @@ export default function AppHeader() {
         onRequestClose={closeDrawer}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.overlay}
-            activeOpacity={1}
-            onPress={closeDrawer}
-          />
           <Animated.View
             style={[
               styles.drawer,
@@ -148,10 +152,6 @@ export default function AppHeader() {
                 </Text>
               </View>
               <Text style={styles.userName}>{user?.name || 'User'}</Text>
-              <Text style={styles.userRole}>
-                {user?.role === 'driver' ? 'Driver' : 'Parent'}
-              </Text>
-              <Text style={styles.userPhone}>📱 {user?.phone || '—'}</Text>
             </View>
 
             {/* Menu Items */}
@@ -181,12 +181,6 @@ export default function AppHeader() {
               </TouchableOpacity>
             </View>
 
-            {/* Logout Button */}
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutIcon}>🚪</Text>
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-
             {/* School Info in Drawer */}
             {school && (
               <View style={styles.drawerFooter}>
@@ -195,6 +189,11 @@ export default function AppHeader() {
               </View>
             )}
           </Animated.View>
+          <TouchableOpacity
+            style={styles.overlay}
+            activeOpacity={1}
+            onPress={closeDrawer}
+          />
         </View>
       </Modal>
     </>
@@ -269,6 +268,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   drawer: {
+    position: 'absolute',
+    left: 0,
     width: width * 0.8,
     backgroundColor: '#fff',
     height: '100%',
@@ -277,6 +278,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+    padding: 8,
+  },
+  closeIcon: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   profileSection: {
     backgroundColor: '#007BFF',
@@ -306,10 +319,6 @@ const styles = StyleSheet.create({
     color: '#e3f2fd',
     marginBottom: 4,
   },
-  userPhone: {
-    fontSize: 12,
-    color: '#e3f2fd',
-  },
   menuSection: {
     flex: 1,
     paddingTop: 16,
@@ -331,25 +340,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '500',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f44336',
-    marginHorizontal: 16,
-    marginVertical: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  logoutIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  logoutText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
   },
   drawerFooter: {
     padding: 16,
