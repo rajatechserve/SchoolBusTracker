@@ -249,12 +249,23 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         )}
         
         <View style={styles.schoolInfo}>
-          {school?.logo ? (
+          {showBanner && bannerImage ? (
+            <Image 
+              source={{ uri: bannerImage }} 
+              style={styles.bannerInHeader}
+              resizeMode="cover"
+              onError={(error: any) => {
+                console.log('Banner image load error:', error.nativeEvent?.error);
+                setBannerImage(null);
+              }}
+              onLoad={() => console.log('Banner image loaded successfully in header')}
+            />
+          ) : school?.logo ? (
             <Image 
               source={{ uri: school.logo }} 
               style={styles.logo}
               onError={(error: any) => {
-                console.log('Image load error:', error.nativeEvent?.error);
+                console.log('Logo load error:', error.nativeEvent?.error);
                 setSchool({ ...school, logo: undefined });
               }}
               onLoad={() => console.log('Logo loaded successfully')}
@@ -283,22 +294,6 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           </View>
         </View>
       </View>
-
-      {/* School Banner - Only on Home Page */}
-      {showBanner && bannerImage && (
-        <View style={styles.bannerContainer}>
-          <Image
-            source={{ uri: bannerImage }}
-            style={styles.bannerImageDisplay}
-            resizeMode="cover"
-            onError={(error: any) => {
-              console.log('Banner image load error:', error.nativeEvent?.error);
-              setBannerImage(null);
-            }}
-            onLoad={() => console.log('Banner image loaded successfully')}
-          />
-        </View>
-      )}
 
       {/* Drawer Menu */}
       <Modal
@@ -405,7 +400,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -414,16 +409,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+    minHeight: 70,
   },
-  bannerContainer: {
-    width: '100%',
-    height: 150,
-    backgroundColor: '#f5f5f5',
-    overflow: 'hidden',
-  },
-  bannerImageDisplay: {
-    width: '100%',
-    height: '100%',
+  bannerInHeader: {
+    width: 120,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 12,
   },
   menuButton: {
     padding: 8,
