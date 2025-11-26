@@ -1,41 +1,58 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import ParentDashboard from '../screens/Parent/ParentDashboard';
 import TrackBus from '../screens/Parent/TrackBus';
 import Profile from '../screens/Common/Profile';
 import Assignments from '../screens/Parent/Assignments';
 import AttendanceScreen from '../screens/Parent/Attendance';
+import { MaterialIcons } from '@expo/vector-icons';
 
-const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
 
 export default function ParentTabs() {
   return (
-    <Stack.Navigator 
+    <Tab.Navigator 
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
       }}
     >
-      <Stack.Screen
+      <Tab.Screen
         name="Home"
         component={ParentDashboard}
+        options={{
+          tabBarIcon: ({ color, size }) => <MaterialIcons name="home" size={size} color={color} />,
+        }}
       />
-      <Stack.Screen
+      <Tab.Screen
         name="Track"
         component={TrackBus}
+        options={{
+          title: 'Track Bus',
+          tabBarIcon: ({ color, size }) => <MaterialIcons name="directions-bus" size={size} color={color} />,
+        }}
       />
-      <Stack.Screen
-        name="Profile"
-        component={Profile}
-      />
-      <Stack.Screen
+      <Tab.Screen
         name="Assignments"
         component={Assignments}
+        options={{
+          tabBarIcon: ({ color, size }) => <MaterialIcons name="assignment" size={size} color={color} />,
+        }}
       />
-      <Stack.Screen
+      <Tab.Screen
         name="Attendance"
         component={AttendanceScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <MaterialIcons name="fact-check" size={size} color={color} />,
+        }}
       />
-    </Stack.Navigator>
+      <Tab.Screen
+        name="Profile"
+        component={Profile}
+        options={{
+          tabBarIcon: ({ color, size }) => <MaterialIcons name="person" size={size} color={color} />,
+        }}
+      />
+    </Tab.Navigator>
   );
 }
