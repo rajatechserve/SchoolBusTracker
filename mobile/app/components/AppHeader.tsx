@@ -32,15 +32,17 @@ interface School {
 interface AppHeaderProps {
   showFullInfo?: boolean;
   showBackButton?: boolean;
+  showBanner?: boolean;
   onSchoolLoaded?: (school: School) => void;
 }
 
-export default function AppHeader({ showFullInfo = false, showBackButton = false, onSchoolLoaded }: AppHeaderProps) {
+export default function AppHeader({ showFullInfo = false, showBackButton = false, showBanner = false, onSchoolLoaded }: AppHeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [school, setSchool] = useState<School | null>(null);
   const [userImage, setUserImage] = useState<string | null>(null);
+  const [bannerImage, setBannerImage] = useState<string | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.3))[0];
 
   useEffect(() => {
@@ -81,13 +83,42 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         }
         
         console.log('Logo URL:', schoolData.logo);
+        
+        // Load and cache banner image locally if showBanner is true
+        if (showBanner) {
+          loadBannerImage(schoolData.logo);
+        }
       } else {
         console.log('No logo field in school data');
       }
       
       setSchool(schoolData);
+      if (onSchoolLoaded) {
+        onSchoolLoaded(schoolData);
+      }
     } catch (e) {
       console.error('Failed to load school info:', e);
+    }
+  };
+
+  const loadBannerImage = async (logoUrl: string) => {
+    try {
+      // Check if banner is already cached
+      const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${user?.schoolId}`);
+      if (cachedBanner) {
+        console.log('Using cached banner image');
+        setBannerImage(cachedBanner);
+        return;
+      }
+      
+      // Use the logo URL directly as banner (will be displayed larger)
+      console.log('Setting banner image from URL:', logoUrl);
+      setBannerImage(logoUrl);
+      
+      // Cache the URL for future use
+      await AsyncStorage.setItem(`schoolBanner_${user?.schoolId}`, logoUrl);
+    } catch (error) {
+      console.error('Failed to load banner image:', error);
     }
   };
 
@@ -205,60 +236,69 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
   return (
     <>
-      {/* Header with School Banner */}
-      <ImageBackground
-        source={school?.logo ? { uri: school.logo } : undefined}
-        style={styles.header}
-        imageStyle={styles.bannerImage}
-        blurRadius={8}
-      >
-        <View style={styles.headerOverlay}>
-          {showBackButton ? (
-            <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
-              <Text style={styles.menuIcon}>←</Text>
-            </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        {showBackButton ? (
+          <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
+            <Text style={styles.menuIcon}>←</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+            <Text style={styles.menuIcon}>☰</Text>
+          </TouchableOpacity>
+        )}
+        
+        <View style={styles.schoolInfo}>
+          {school?.logo ? (
+            <Image 
+              source={{ uri: school.logo }} 
+              style={styles.logo}
+              onError={(error: any) => {
+                console.log('Image load error:', error.nativeEvent?.error);
+                setSchool({ ...school, logo: undefined });
+              }}
+              onLoad={() => console.log('Logo loaded successfully')}
+            />
           ) : (
-            <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-              <Text style={styles.menuIcon}>☰</Text>
-            </TouchableOpacity>
-          )}
-          
-          <View style={styles.schoolInfo}>
-            {school?.logo ? (
-              <Image 
-                source={{ uri: school.logo }} 
-                style={styles.logo}
-                onError={(error: any) => {
-                  console.log('Image load error:', error.nativeEvent?.error);
-                  setSchool({ ...school, logo: undefined });
-                }}
-                onLoad={() => console.log('Logo loaded successfully')}
-              />
-            ) : (
-              <View style={styles.logoPlaceholder}>
-                <Text style={styles.logoText}>🏫</Text>
-              </View>
-            )}
-            <View style={styles.schoolDetails}>
-              <Text style={styles.schoolName} numberOfLines={1}>
-                {school?.name || 'School Name'}
-              </Text>
-              {showFullInfo && (
-                <>
-                  <Text style={styles.schoolAddress} numberOfLines={1}>
-                    📍 {school?.address || 'Loading...'}
-                  </Text>
-                  {school?.phone && (
-                    <Text style={styles.schoolPhone} numberOfLines={1}>
-                      📞 {school.phone}
-                    </Text>
-                  )}
-                </>
-              )}
+            <View style={styles.logoPlaceholder}>
+              <Text style={styles.logoText}>🏫</Text>
             </View>
+          )}
+          <View style={styles.schoolDetails}>
+            <Text style={styles.schoolName} numberOfLines={1}>
+              {school?.name || 'School Name'}
+            </Text>
+            {showFullInfo && (
+              <>
+                <Text style={styles.schoolAddress} numberOfLines={1}>
+                  📍 {school?.address || 'Loading...'}
+                </Text>
+                {school?.phone && (
+                  <Text style={styles.schoolPhone} numberOfLines={1}>
+                    📞 {school.phone}
+                  </Text>
+                )}
+              </>
+            )}
           </View>
         </View>
-      </ImageBackground>
+      </View>
+
+      {/* School Banner - Only on Home Page */}
+      {showBanner && bannerImage && (
+        <View style={styles.bannerContainer}>
+          <Image
+            source={{ uri: bannerImage }}
+            style={styles.bannerImageDisplay}
+            resizeMode="cover"
+            onError={(error: any) => {
+              console.log('Banner image load error:', error.nativeEvent?.error);
+              setBannerImage(null);
+            }}
+            onLoad={() => console.log('Banner image loaded successfully')}
+          />
+        </View>
+      )}
 
       {/* Drawer Menu */}
       <Modal
@@ -362,19 +402,28 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
 const styles = StyleSheet.create({
   header: {
-    overflow: 'hidden',
-  },
-  bannerImage: {
-    opacity: 0.3,
-  },
-  headerOverlay: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#fff',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  bannerContainer: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
+  },
+  bannerImageDisplay: {
+    width: '100%',
+    height: '100%',
   },
   menuButton: {
     padding: 8,

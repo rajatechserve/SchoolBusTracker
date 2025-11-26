@@ -210,7 +210,7 @@ export default function DriverDashboard() {
   return (
     <View style={styles.container}>
       {/* School Header with Menu */}
-      <AppHeader onSchoolLoaded={setSchool} />
+      <AppHeader onSchoolLoaded={setSchool} showBanner={true} />
 
       {/* School Info Box */}
       {school && (
