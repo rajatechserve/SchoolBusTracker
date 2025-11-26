@@ -87,65 +87,28 @@ export default function AppHeader() {
     });
   };
 
-  const handleLogout = () => {
-    console.log('=== LOGOUT CLICKED ===');
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { 
-          text: 'Cancel', 
-          style: 'cancel',
-          onPress: () => console.log('Logout cancelled by user')
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            console.log('Logout confirmed by user');
-            
-            // Close drawer
-            console.log('Closing drawer...');
-            Animated.timing(slideAnim, {
-              toValue: -width * 0.8,
-              duration: 200,
-              useNativeDriver: true,
-            }).start(() => {
-              console.log('Drawer closed');
-              setDrawerVisible(false);
-            });
-            
-            // Logout and navigate
-            try {
-              console.log('Calling logout function...');
-              logout();
-              console.log('Logout function completed');
-              console.log('Current user after logout:', user);
-              
-              // Use a longer delay to ensure state updates
-              setTimeout(() => {
-                console.log('Attempting to navigate to /login');
-                try {
-                  // Try push first, then replace as fallback
-                  router.push('/login');
-                  console.log('Navigation to /login successful (push)');
-                } catch (navError) {
-                  console.error('Navigation error with push, trying replace:', navError);
-                  try {
-                    router.replace('/login');
-                    console.log('Navigation to /login successful (replace)');
-                  } catch (replaceError) {
-                    console.error('Navigation error with replace:', replaceError);
-                  }
-                }
-              }, 500);
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          },
-        },
-      ]
-    );
+  const handleLogout = async () => {
+    console.log('=== LOGOUT BUTTON PRESSED ===');
+    
+    try {
+      // Close drawer immediately
+      setDrawerVisible(false);
+      console.log('Drawer visibility set to false');
+      
+      // Clear auth state
+      console.log('Clearing auth state...');
+      logout();
+      console.log('Auth cleared');
+      
+      // Navigate to login
+      console.log('Navigating to login page...');
+      router.replace('/login');
+      console.log('Navigation complete');
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
   };
 
   const navigateTo = (screen: string) => {
