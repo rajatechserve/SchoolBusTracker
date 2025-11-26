@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useRouter, useSegments } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import * as FileSystem from 'expo-file-system';
 
@@ -30,6 +31,7 @@ interface School {
 export default function AppHeader() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const navigation = useNavigation<any>();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [school, setSchool] = useState<School | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.8))[0];
@@ -147,19 +149,22 @@ export default function AppHeader() {
       useNativeDriver: true,
     }).start();
     
-    // Navigate immediately - Expo Router will handle the transition
+    // Navigate using React Navigation
     setTimeout(() => {
       try {
-        if (screen === 'dashboard') {
-          router.push('/(tabs)/');
-        } else if (screen === 'profile') {
-          router.push('/(tabs)/profile');
-        } else if (screen === 'notifications') {
-          router.push('/(tabs)/notifications');
-        } else if (screen === 'assignments') {
-          router.push('/(tabs)/assignments');
+        const screenMap: Record<string, string> = {
+          'dashboard': 'Home',
+          'profile': 'Profile',
+          'notifications': 'Notifications',
+          'assignments': 'Assignments',
+          'attendance': 'Attendance',
+        };
+        
+        const targetScreen = screenMap[screen];
+        if (targetScreen) {
+          navigation.navigate(targetScreen);
+          console.log('Navigating to:', targetScreen);
         }
-        console.log('Navigating to:', screen);
       } catch (error) {
         console.error('Navigation error:', error);
       }
@@ -269,6 +274,16 @@ export default function AppHeader() {
               <Text style={styles.menuItemIcon}>📋</Text>
               <Text style={styles.menuItemText}>Assignments</Text>
             </TouchableOpacity>
+
+            {user?.role === 'parent' && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => navigateTo('attendance')}
+              >
+                <Text style={styles.menuItemIcon}>📊</Text>
+                <Text style={styles.menuItemText}>Attendance</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
       </Modal>

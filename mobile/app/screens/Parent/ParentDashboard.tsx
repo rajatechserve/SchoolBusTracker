@@ -36,21 +36,6 @@ interface Route {
   name: string;
 }
 
-interface Assignment {
-  id: string;
-  driverId: string;
-  busId: string;
-  routeId: string;
-  startDate: string;
-  endDate: string;
-}
-
-interface Driver {
-  id: string;
-  name: string;
-  phone: string;
-}
-
 interface Attendance {
   id: string;
   studentId: string;
@@ -60,12 +45,10 @@ interface Attendance {
 
 export default function ParentDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'children' | 'tracking' | 'assignments' | 'attendance'>('children');
+  const [activeTab, setActiveTab] = useState<'children' | 'tracking'>('children');
   const [children, setChildren] = useState<Student[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,27 +68,22 @@ export default function ParentDashboard() {
     try {
       setLoading(true);
 
-      // Load children
+      // Load children for this parent only
       const studentsRes = await api.get('/students', { params: { parentId: user?.id } });
       const childrenData = Array.isArray(studentsRes.data) ? studentsRes.data : [];
       setChildren(childrenData);
 
-      // Load buses
-      await loadBuses();
+      // Get unique bus IDs from children
+      const childBusIds = [...new Set(childrenData.map((c: Student) => c.busId).filter(Boolean))];
+
+      // Load buses - filter for only buses assigned to this parent's children
+      await loadBuses(childBusIds);
 
       // Load routes
       const routesRes = await api.get('/routes');
       setRoutes(Array.isArray(routesRes.data) ? routesRes.data : []);
 
-      // Load assignments
-      const assignmentsRes = await api.get('/assignments');
-      setAssignments(Array.isArray(assignmentsRes.data) ? assignmentsRes.data : []);
-
-      // Load drivers
-      const driversRes = await api.get('/drivers');
-      setDrivers(Array.isArray(driversRes.data) ? driversRes.data : []);
-
-      // Load attendance for present month
+      // Load attendance for present month - only for this parent's children
       const today = new Date();
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const startDate = firstDayOfMonth.toISOString().split('T')[0];
@@ -125,10 +103,21 @@ export default function ParentDashboard() {
     }
   };
 
-  const loadBuses = async () => {
+  const loadBuses = async (childBusIds?: string[]) => {
     try {
       const busesRes = await api.get('/buses');
-      setBuses(Array.isArray(busesRes.data) ? busesRes.data : []);
+      const allBuses = Array.isArray(busesRes.data) ? busesRes.data : [];
+      
+      // Filter to only show buses assigned to this parent's children
+      if (childBusIds && childBusIds.length > 0) {
+        const filteredBuses = allBuses.filter((bus: Bus) => childBusIds.includes(bus.id));
+        setBuses(filteredBuses);
+      } else {
+        // If no children yet, get child bus IDs from current children state
+        const busIds = [...new Set(children.map((c: Student) => c.busId).filter(Boolean))];
+        const filteredBuses = allBuses.filter((bus: Bus) => busIds.includes(bus.id));
+        setBuses(filteredBuses);
+      }
     } catch (e: any) {
       console.error('Failed to load buses:', e);
     }
@@ -150,31 +139,11 @@ export default function ParentDashboard() {
     return route?.name || 'Unknown Route';
   };
 
-  const getDriverName = (driverId: string) => {
-    const driver = drivers.find((d: Driver) => d.id === driverId);
-    return driver?.name || 'Unknown Driver';
-  };
-
-  const getDriverPhone = (driverId: string) => {
-    const driver = drivers.find((d: Driver) => d.id === driverId);
-    return driver?.phone || '—';
-  };
-
   const getAttendanceStats = (studentId: string) => {
     const studentAttendance = attendance.filter((a: Attendance) => a.studentId === studentId);
     const present = studentAttendance.filter((a: Attendance) => a.status === 'present').length;
     const absent = studentAttendance.filter((a: Attendance) => a.status === 'absent').length;
     return { present, absent, total: present + absent };
-  };
-
-  const formatDate = (timestamp: number) => {
-    const d = new Date(timestamp);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const formatTime = (timestamp: number) => {
-    const d = new Date(timestamp);
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
   if (loading) {
@@ -207,22 +176,6 @@ export default function ParentDashboard() {
         >
           <Text style={[styles.tabText, activeTab === 'tracking' && styles.activeTabText]}>
             🚍 Tracking
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'assignments' && styles.activeTab]}
-          onPress={() => setActiveTab('assignments')}
-        >
-          <Text style={[styles.tabText, activeTab === 'assignments' && styles.activeTabText]}>
-            📋 Assignments
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'attendance' && styles.activeTab]}
-          onPress={() => setActiveTab('attendance')}
-        >
-          <Text style={[styles.tabText, activeTab === 'attendance' && styles.activeTabText]}>
-            📊 Attendance
           </Text>
         </TouchableOpacity>
       </View>
@@ -275,9 +228,11 @@ export default function ParentDashboard() {
         {activeTab === 'tracking' && (
           <View style={styles.tabContent}>
             <Text style={styles.sectionTitle}>Live Bus Tracking</Text>
-            <Text style={styles.sectionSubtitle}>Real-time location of buses (updates every 5 seconds)</Text>
+            <Text style={styles.sectionSubtitle}>
+              Real-time location of your children's buses (updates every 5 seconds)
+            </Text>
             {buses.length === 0 ? (
-              <Text style={styles.emptyText}>No buses found.</Text>
+              <Text style={styles.emptyText}>No buses found for your children.</Text>
             ) : (
               <View>
                 {buses.map((bus) => (
@@ -296,85 +251,6 @@ export default function ParentDashboard() {
                     </View>
                   </View>
                 ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Bus Assignments Tab */}
-        {activeTab === 'assignments' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Bus Assignments</Text>
-            <Text style={styles.sectionSubtitle}>View driver assignments for all buses</Text>
-            {assignments.length === 0 ? (
-              <Text style={styles.emptyText}>No assignments found.</Text>
-            ) : (
-              <View>
-                {assignments.map((assignment) => (
-                  <View key={assignment.id} style={styles.assignmentCard}>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Driver:</Text>
-                      <Text style={styles.assignmentValue}>{getDriverName(assignment.driverId)}</Text>
-                    </View>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Phone:</Text>
-                      <Text style={styles.assignmentValue}>{getDriverPhone(assignment.driverId)}</Text>
-                    </View>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Bus:</Text>
-                      <Text style={styles.assignmentValue}>{getBusName(assignment.busId)}</Text>
-                    </View>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Route:</Text>
-                      <Text style={styles.assignmentValue}>{getRouteName(assignment.routeId)}</Text>
-                    </View>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Period:</Text>
-                      <Text style={styles.assignmentValue}>
-                        {assignment.startDate ? new Date(assignment.startDate).toLocaleDateString() : '—'} - 
-                        {assignment.endDate ? new Date(assignment.endDate).toLocaleDateString() : '—'}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Recent Attendance History Tab */}
-        {activeTab === 'attendance' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Attendance History</Text>
-            <Text style={styles.sectionSubtitle}>Present month attendance records</Text>
-            {attendance.length === 0 ? (
-              <Text style={styles.emptyText}>No attendance records found.</Text>
-            ) : (
-              <View>
-                {attendance
-                  .sort((a, b) => b.timestamp - a.timestamp)
-                  .map((record) => {
-                    const child = children.find((c) => c.id === record.studentId);
-                    return (
-                      <View key={record.id} style={styles.attendanceCard}>
-                        <View style={styles.attendanceInfo}>
-                          <Text style={styles.attendanceName}>{child?.name || 'Unknown'}</Text>
-                          <Text style={styles.attendanceDate}>
-                            {formatDate(record.timestamp)} at {formatTime(record.timestamp)}
-                          </Text>
-                        </View>
-                        <View style={
-                          record.status === 'present' 
-                            ? styles.statusBadgePresent 
-                            : styles.statusBadgeAbsent
-                        }>
-                          <Text style={styles.statusText}>
-                            {record.status === 'present' ? '✓ Present' : '✗ Absent'}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
               </View>
             )}
           </View>
@@ -554,77 +430,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     flex: 1,
-  },
-  assignmentCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  assignmentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  assignmentLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  assignmentValue: {
-    fontSize: 14,
-    color: '#333',
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 8,
-  },
-  attendanceCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  attendanceInfo: {
-    flex: 1,
-  },
-  attendanceName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  attendanceDate: {
-    fontSize: 12,
-    color: '#666',
-  },
-  statusBadgePresent: {
-    backgroundColor: '#C8E6C9',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  statusBadgeAbsent: {
-    backgroundColor: '#FFCDD2',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
   },
 });
