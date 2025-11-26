@@ -268,18 +268,6 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             <Text style={styles.schoolName} numberOfLines={1}>
               {school?.name || 'School Name'}
             </Text>
-            {showFullInfo && (
-              <>
-                <Text style={styles.schoolAddress} numberOfLines={1}>
-                  📍 {school?.address || 'Loading...'}
-                </Text>
-                {school?.phone && (
-                  <Text style={styles.schoolPhone} numberOfLines={1}>
-                    📞 {school.phone}
-                  </Text>
-                )}
-              </>
-            )}
           </View>
         </View>
       </View>
@@ -417,11 +405,11 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     width: '100%',
-    height: 80,
+    height: 50,
     backgroundColor: '#f5f5f5',
     overflow: 'hidden',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   bannerImageDisplay: {
     width: '100%',
