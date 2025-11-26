@@ -29,9 +29,10 @@ interface School {
 interface AppHeaderProps {
   showFullInfo?: boolean;
   showBackButton?: boolean;
+  onSchoolLoaded?: (school: School) => void;
 }
 
-export default function AppHeader({ showFullInfo = false, showBackButton = false }: AppHeaderProps) {
+export default function AppHeader({ showFullInfo = false, showBackButton = false, onSchoolLoaded }: AppHeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [drawerVisible, setDrawerVisible] = useState(false);

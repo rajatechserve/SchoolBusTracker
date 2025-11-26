@@ -43,10 +43,18 @@ interface Attendance {
   timestamp: number;
 }
 
+interface School {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+}
+
 export default function ParentDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'children' | 'tracking'>('children');
   const [children, setChildren] = useState<Student[]>([]);
+  const [school, setSchool] = useState<School | null>(null);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [attendance, setAttendance] = useState<Attendance[]>([]);
@@ -161,7 +169,17 @@ export default function ParentDashboard() {
   return (
     <View style={styles.container}>
       {/* School Header with Menu */}
-      <AppHeader showFullInfo={true} />
+      <AppHeader onSchoolLoaded={setSchool} />
+
+      {/* School Info Box */}
+      {school && (
+        <View style={styles.schoolInfoBox}>
+          <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
+          {school.phone && (
+            <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
+          )}
+        </View>
+      )}
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
@@ -267,6 +285,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  schoolInfoBox: {
+    backgroundColor: '#fff',
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  infoBoxText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
   },
   loadingContainer: {
     flex: 1,
