@@ -249,18 +249,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         )}
         
         <View style={styles.schoolInfo}>
-          {showBanner && bannerImage ? (
-            <Image 
-              source={{ uri: bannerImage }} 
-              style={styles.bannerInHeader}
-              resizeMode="cover"
-              onError={(error: any) => {
-                console.log('Banner image load error:', error.nativeEvent?.error);
-                setBannerImage(null);
-              }}
-              onLoad={() => console.log('Banner image loaded successfully in header')}
-            />
-          ) : school?.logo ? (
+          {school?.logo ? (
             <Image 
               source={{ uri: school.logo }} 
               style={styles.logo}
@@ -294,6 +283,22 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           </View>
         </View>
       </View>
+
+      {/* School Banner - Only on Home Page */}
+      {showBanner && bannerImage && (
+        <View style={styles.bannerContainer}>
+          <Image
+            source={{ uri: bannerImage }}
+            style={styles.bannerImageDisplay}
+            resizeMode="cover"
+            onError={(error: any) => {
+              console.log('Banner image load error:', error.nativeEvent?.error);
+              setBannerImage(null);
+            }}
+            onLoad={() => console.log('Banner image loaded successfully')}
+          />
+        </View>
+      )}
 
       {/* Drawer Menu */}
       <Modal
@@ -400,7 +405,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -409,13 +414,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    minHeight: 70,
   },
-  bannerInHeader: {
-    width: 120,
-    height: 50,
+  bannerContainer: {
+    width: '100%',
+    height: 80,
+    backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  bannerImageDisplay: {
+    width: '100%',
+    height: '100%',
     borderRadius: 8,
-    marginRight: 12,
   },
   menuButton: {
     padding: 8,
