@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { useRouter, useSegments } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import * as FileSystem from 'expo-file-system';

@@ -52,7 +52,7 @@ interface Attendance {
 
 export default function DriverDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'attendance' | 'assignments' | 'locations'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'locations'>('attendance');
   const [students, setStudents] = useState<Student[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
@@ -215,14 +215,6 @@ export default function DriverDashboard() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'assignments' && styles.activeTab]}
-          onPress={() => setActiveTab('assignments')}
-        >
-          <Text style={[styles.tabText, activeTab === 'assignments' && styles.activeTabText]}>
-            📋 Assignments
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
           style={[styles.tab, activeTab === 'locations' && styles.activeTab]}
           onPress={() => setActiveTab('locations')}
         >
@@ -297,39 +289,6 @@ export default function DriverDashboard() {
                     {students.length - todayAttendance.length} Pending
                   </Text>
                 </View>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Assignments Tab */}
-        {activeTab === 'assignments' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>My Assignments</Text>
-            {assignments.length === 0 ? (
-              <Text style={styles.emptyText}>No assignments found.</Text>
-            ) : (
-              <View>
-                {assignments.map((assignment) => (
-                  <View key={assignment.id} style={styles.assignmentCard}>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Start Date:</Text>
-                      <Text style={styles.assignmentValue}>{formatDate(assignment.startDate)}</Text>
-                    </View>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>End Date:</Text>
-                      <Text style={styles.assignmentValue}>{formatDate(assignment.endDate)}</Text>
-                    </View>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Bus:</Text>
-                      <Text style={styles.assignmentValue}>{getBusName(assignment.busId)}</Text>
-                    </View>
-                    <View style={styles.assignmentRow}>
-                      <Text style={styles.assignmentLabel}>Route:</Text>
-                      <Text style={styles.assignmentValue}>{getRouteName(assignment.routeId)}</Text>
-                    </View>
-                  </View>
-                ))}
               </View>
             )}
           </View>

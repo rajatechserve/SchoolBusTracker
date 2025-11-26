@@ -69,8 +69,11 @@ export default function ParentDashboard() {
       setLoading(true);
 
       // Load children for this parent only
+      console.log('Loading students for parent:', user?.id);
       const studentsRes = await api.get('/students', { params: { parentId: user?.id } });
+      console.log('Students response:', studentsRes.data);
       const childrenData = Array.isArray(studentsRes.data) ? studentsRes.data : [];
+      console.log('Filtered children count:', childrenData.length);
       setChildren(childrenData);
 
       // Get unique bus IDs from children
