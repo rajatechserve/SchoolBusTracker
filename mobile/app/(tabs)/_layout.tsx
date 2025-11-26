@@ -56,7 +56,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="notifications"
         options={{
-          title: 'Notifications',
+          title: 'Alert',
           tabBarIcon: ({ color }) => (
             <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 5 }}>
               <Text style={{ fontSize: 28, color }}>🔔</Text>

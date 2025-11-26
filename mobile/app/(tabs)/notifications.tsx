@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl 
 } from 'react-native';
+import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 
 interface Notification {
@@ -92,6 +93,12 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => router.push('/(tabs)/')}
+      >
+        <Text style={styles.backButtonText}>← Back to Dashboard</Text>
+      </TouchableOpacity>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
         <Text style={styles.headerSubtitle}>
@@ -126,6 +133,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#007BFF',
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#fff',

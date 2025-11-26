@@ -88,22 +88,33 @@ export default function AppHeader() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            closeDrawer();
-            logout();
-            router.replace('/login');
+    // Close drawer first
+    Animated.timing(slideAnim, {
+      toValue: -width * 0.8,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setDrawerVisible(false);
+    });
+
+    // Show alert after a brief delay
+    setTimeout(() => {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: () => {
+              logout();
+              router.replace('/login');
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }, 100);
   };
 
   const navigateTo = (screen: string) => {
@@ -235,7 +246,7 @@ export default function AppHeader() {
               onPress={() => navigateTo('notifications')}
             >
               <Text style={styles.menuItemIcon}>🔔</Text>
-              <Text style={styles.menuItemText}>Notifications</Text>
+              <Text style={styles.menuItemText}>Alert</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

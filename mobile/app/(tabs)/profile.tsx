@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
+import { router } from 'expo-router';
 import api from '../services/api';
 import theme from '../constants/theme';
 
@@ -84,6 +85,12 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => router.push('/(tabs)/')}
+      >
+        <Text style={styles.backButtonText}>← Back to Dashboard</Text>
+      </TouchableOpacity>
       <View style={styles.header}>
         <View style={styles.avatarLarge}>
           <Text style={styles.avatarText}>
@@ -225,6 +232,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#007BFF',
+    fontWeight: '600',
   },
   header: {
     backgroundColor: '#007BFF',
