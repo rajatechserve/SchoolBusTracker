@@ -88,29 +88,51 @@ export default function AppHeader() {
   };
 
   const handleLogout = () => {
+    console.log('=== LOGOUT CLICKED ===');
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => console.log('Logout cancelled by user')
+        },
         {
           text: 'Logout',
           style: 'destructive',
           onPress: () => {
+            console.log('Logout confirmed by user');
+            
             // Close drawer
+            console.log('Closing drawer...');
             Animated.timing(slideAnim, {
               toValue: -width * 0.8,
               duration: 200,
               useNativeDriver: true,
             }).start(() => {
+              console.log('Drawer closed');
               setDrawerVisible(false);
             });
             
             // Logout and navigate
-            logout();
-            setTimeout(() => {
-              router.replace('/login');
-            }, 250);
+            try {
+              console.log('Calling logout function...');
+              logout();
+              console.log('Logout function completed');
+              
+              setTimeout(() => {
+                console.log('Attempting to navigate to /login');
+                try {
+                  router.replace('/login');
+                  console.log('Navigation to /login successful');
+                } catch (navError) {
+                  console.error('Navigation error:', navError);
+                }
+              }, 250);
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
           },
         },
       ]
