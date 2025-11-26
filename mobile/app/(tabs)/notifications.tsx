@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
+import AppHeader from '../components/AppHeader';
 
 interface Notification {
   id: string;
@@ -93,6 +94,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
+      <AppHeader />
       <TouchableOpacity 
         style={styles.backButton}
         onPress={() => router.push('/(tabs)/')}

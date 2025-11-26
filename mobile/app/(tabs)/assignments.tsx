@@ -11,6 +11,7 @@ import {
 import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import AppHeader from '../components/AppHeader';
 
 interface Assignment {
   id: string;
@@ -155,6 +156,7 @@ export default function AssignmentsScreen() {
 
   return (
     <View style={styles.container}>
+      <AppHeader />
       <TouchableOpacity 
         style={styles.backButton}
         onPress={() => router.push('/(tabs)/')}

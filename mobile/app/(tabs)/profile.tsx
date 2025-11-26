@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { router } from 'expo-router';
 import api from '../services/api';
 import theme from '../constants/theme';
+import AppHeader from '../components/AppHeader';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -84,14 +85,16 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => router.push('/(tabs)/')}
-      >
-        <Text style={styles.backButtonIcon}>←</Text>
-      </TouchableOpacity>
-      <View style={styles.header}>
+    <View style={styles.container}>
+      <AppHeader />
+      <ScrollView>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.push('/(tabs)/')}
+        >
+          <Text style={styles.backButtonIcon}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.header}>
         <View style={styles.avatarLarge}>
           <Text style={styles.avatarText}>
             {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
@@ -224,7 +227,8 @@ export default function ProfileScreen() {
           )}
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
