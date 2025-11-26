@@ -558,11 +558,12 @@ app.get('/api/drivers/check-phone/:phone', authenticateToken, async (req, res) =
 app.get('/api/students', authenticateToken, async (req, res) => {
     try {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const { search, class: classFilter, bus: busFilter, route: routeFilter } = req.query || {};
+        const { search, class: classFilter, bus: busFilter, route: routeFilter, parentId } = req.query || {};
         const params = [];
         let sql = 'SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students';
         const where = [];
         if (schoolId) { where.push('schoolId=?'); params.push(schoolId); }
+        if (parentId && parentId.trim()) { where.push('parentId=?'); params.push(parentId.trim()); }
         if (search && search.trim()) { where.push('(name LIKE ? OR cls LIKE ?)'); params.push(`%${search.trim()}%`, `%${search.trim()}%`); }
         if (classFilter && classFilter.trim()) { where.push('cls=?'); params.push(classFilter.trim()); }
         if (busFilter && busFilter.trim()) { where.push('busId=?'); params.push(busFilter.trim()); }

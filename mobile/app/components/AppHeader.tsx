@@ -140,35 +140,39 @@ export default function AppHeader() {
   };
 
   const navigateTo = (screen: string) => {
-    setDrawerVisible(false);
-    
-    // Close drawer animation
+    // Close drawer animation first
     Animated.timing(slideAnim, {
       toValue: -width * 0.8,
       duration: 300,
       useNativeDriver: true,
-    }).start();
+    }).start(() => {
+      setDrawerVisible(false);
+    });
     
-    // Navigate using React Navigation
+    // Navigate after animation starts
     setTimeout(() => {
       try {
         const screenMap: Record<string, string> = {
           'dashboard': 'Home',
           'profile': 'Profile',
-          'notifications': 'Notifications',
           'assignments': 'Assignments',
           'attendance': 'Attendance',
         };
         
         const targetScreen = screenMap[screen];
         if (targetScreen) {
-          navigation.navigate(targetScreen);
-          console.log('Navigating to:', targetScreen);
+          console.log('Attempting to navigate to:', targetScreen);
+          navigation.navigate(targetScreen as never);
+          console.log('Navigation successful');
+        } else if (screen === 'notifications') {
+          console.log('Notifications screen not yet implemented');
+          Alert.alert('Coming Soon', 'Notifications feature will be available soon.');
         }
       } catch (error) {
         console.error('Navigation error:', error);
+        Alert.alert('Navigation Error', 'Failed to navigate to the screen.');
       }
-    }, 100);
+    }, 50);
   };
 
   return (
