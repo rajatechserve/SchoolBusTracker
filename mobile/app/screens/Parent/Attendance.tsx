@@ -93,7 +93,7 @@ export default function AttendanceScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
+      <AppHeader showBackButton={true} />
 
       <ScrollView 
         style={styles.content}

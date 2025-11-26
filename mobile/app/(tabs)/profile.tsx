@@ -86,14 +86,8 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
+      <AppHeader showBackButton={true} />
       <ScrollView>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.push('/(tabs)/')}
-        >
-          <Text style={styles.backButtonIcon}>←</Text>
-        </TouchableOpacity>
         <View style={styles.header}>
         <View style={styles.avatarLarge}>
           <Text style={styles.avatarText}>

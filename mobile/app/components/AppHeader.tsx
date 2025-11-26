@@ -28,9 +28,10 @@ interface School {
 
 interface AppHeaderProps {
   showFullInfo?: boolean;
+  showBackButton?: boolean;
 }
 
-export default function AppHeader({ showFullInfo = false }: AppHeaderProps) {
+export default function AppHeader({ showFullInfo = false, showBackButton = false }: AppHeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -155,9 +156,15 @@ export default function AppHeader({ showFullInfo = false }: AppHeaderProps) {
     <>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
+        {showBackButton ? (
+          <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
+            <Text style={styles.menuIcon}>←</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+            <Text style={styles.menuIcon}>☰</Text>
+          </TouchableOpacity>
+        )}
         
         <View style={styles.schoolInfo}>
           {school?.logo ? (

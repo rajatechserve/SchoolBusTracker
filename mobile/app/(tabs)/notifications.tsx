@@ -94,13 +94,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => router.push('/(tabs)/')}
-      >
-        <Text style={styles.backButtonIcon}>←</Text>
-      </TouchableOpacity>
+      <AppHeader showBackButton={true} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Notifications</Text>
         <Text style={styles.headerSubtitle}>

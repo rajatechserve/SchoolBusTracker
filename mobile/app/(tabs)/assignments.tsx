@@ -156,13 +156,7 @@ export default function AssignmentsScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => router.push('/(tabs)/')}
-      >
-        <Text style={styles.backButtonIcon}>←</Text>
-      </TouchableOpacity>
+      <AppHeader showBackButton={true} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
           {user?.role === 'driver' ? 'My Assignments' : 'All Assignments'}
