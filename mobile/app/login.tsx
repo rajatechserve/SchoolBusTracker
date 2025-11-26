@@ -44,19 +44,32 @@ export default function LoginScreen() {
     try {
       // Call backend mobile login API with just phone number
       // Backend will determine if user is driver or parent
+      console.log('=== LOGIN ATTEMPT ===');
+      console.log('Phone:', trimmedPhone);
+      
       const response = await api.post('/auth/mobile-login', {
         phone: trimmedPhone,
       });
 
+      console.log('=== LOGIN RESPONSE ===');
+      console.log('Response data:', response.data);
+      
       const { user, token, role } = response.data;
+      
+      console.log('User:', user);
+      console.log('Role:', role);
+      console.log('Token:', token ? 'Token received' : 'No token');
       
       // Store auth data with role from backend
       loginLocal(role, user, token);
+      
+      console.log('Auth data stored, navigating to tabs...');
       
       // Navigate to home
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Login error:', error);
+      console.error('Error response:', error?.response?.data);
       Alert.alert(
         'Login Failed',
         error?.response?.data?.error || 'Invalid mobile number. Please try again.'
