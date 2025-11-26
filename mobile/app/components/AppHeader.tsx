@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import api from '../services/api';
 
 const { width } = Dimensions.get('window');
@@ -91,29 +91,32 @@ export default function AppHeader() {
   };
 
   const navigateTo = (screen: string) => {
-    // Close drawer first
+    setDrawerVisible(false);
+    
+    // Close drawer animation
     Animated.timing(slideAnim, {
       toValue: -width * 0.8,
       duration: 300,
       useNativeDriver: true,
-    }).start(() => {
-      setDrawerVisible(false);
-      
-      // Navigate after drawer is closed
+    }).start();
+    
+    // Navigate immediately - Expo Router will handle the transition
+    setTimeout(() => {
       try {
         if (screen === 'dashboard') {
-          router.navigate('/(tabs)');
+          router.push('/(tabs)/');
         } else if (screen === 'profile') {
-          router.navigate('/(tabs)/profile');
+          router.push('/(tabs)/profile');
         } else if (screen === 'notifications') {
-          router.navigate('/(tabs)/notifications');
+          router.push('/(tabs)/notifications');
         } else if (screen === 'assignments') {
-          router.navigate('/(tabs)/assignments');
+          router.push('/(tabs)/assignments');
         }
+        console.log('Navigating to:', screen);
       } catch (error) {
         console.error('Navigation error:', error);
       }
-    });
+    }, 100);
   };
 
   return (
@@ -155,66 +158,64 @@ export default function AppHeader() {
         animationType="none"
         onRequestClose={closeDrawer}
       >
-        <View style={styles.modalOverlay}>
-          <Animated.View
-            style={[
-              styles.drawer,
-              {
-                transform: [{ translateX: slideAnim }],
-              },
-            ]}
-          >
-            {/* User Profile Section */}
-            <View style={styles.profileSection}>
-              <View style={styles.avatarContainer}>
-                <Text style={styles.avatar}>
-                  {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
-                </Text>
-              </View>
-              <Text style={styles.userName}>{user?.name || 'User'}</Text>
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={closeDrawer}
+        />
+        <Animated.View
+          style={[
+            styles.drawer,
+            {
+              transform: [{ translateX: slideAnim }],
+            },
+          ]}
+        >
+          {/* User Profile Section */}
+          <View style={styles.profileSection}>
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatar}>
+                {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
+              </Text>
             </View>
+            <Text style={styles.userName}>{user?.name || 'User'}</Text>
+          </View>
 
-            {/* Menu Items */}
-            <View style={styles.menuSection}>
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => navigateTo('dashboard')}
-              >
-                <Text style={styles.menuItemIcon}>🏠</Text>
-                <Text style={styles.menuItemText}>Dashboard</Text>
-              </TouchableOpacity>
+          {/* Menu Items */}
+          <View style={styles.menuSection}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo('dashboard')}
+            >
+              <Text style={styles.menuItemIcon}>🏠</Text>
+              <Text style={styles.menuItemText}>Dashboard</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => navigateTo('profile')}
-              >
-                <Text style={styles.menuItemIcon}>👤</Text>
-                <Text style={styles.menuItemText}>Profile</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo('profile')}
+            >
+              <Text style={styles.menuItemIcon}>👤</Text>
+              <Text style={styles.menuItemText}>Profile</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => navigateTo('notifications')}
-              >
-                <Text style={styles.menuItemIcon}>🔔</Text>
-                <Text style={styles.menuItemText}>Notifications</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo('notifications')}
+            >
+              <Text style={styles.menuItemIcon}>🔔</Text>
+              <Text style={styles.menuItemText}>Notifications</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => navigateTo('assignments')}
-              >
-                <Text style={styles.menuItemIcon}>📋</Text>
-                <Text style={styles.menuItemText}>Assignments</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-          <TouchableOpacity
-            style={styles.overlay}
-            activeOpacity={1}
-            onPress={closeDrawer}
-          />
-        </View>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => navigateTo('assignments')}
+            >
+              <Text style={styles.menuItemIcon}>📋</Text>
+              <Text style={styles.menuItemText}>Assignments</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </Modal>
     </>
   );
@@ -284,25 +285,27 @@ const styles = StyleSheet.create({
     color: '#007BFF',
     marginTop: 2,
   },
-  modalOverlay: {
-    flex: 1,
-    flexDirection: 'row',
-  },
   overlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   drawer: {
     position: 'absolute',
     left: 0,
+    top: 0,
+    bottom: 0,
     width: width * 0.8,
     backgroundColor: '#fff',
-    height: '100%',
     elevation: 16,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    zIndex: 1000,
   },
   closeButton: {
     position: 'absolute',
