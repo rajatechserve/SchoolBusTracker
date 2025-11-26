@@ -120,16 +120,25 @@ export default function AppHeader() {
               console.log('Calling logout function...');
               logout();
               console.log('Logout function completed');
+              console.log('Current user after logout:', user);
               
+              // Use a longer delay to ensure state updates
               setTimeout(() => {
                 console.log('Attempting to navigate to /login');
                 try {
-                  router.replace('/login');
-                  console.log('Navigation to /login successful');
+                  // Try push first, then replace as fallback
+                  router.push('/login');
+                  console.log('Navigation to /login successful (push)');
                 } catch (navError) {
-                  console.error('Navigation error:', navError);
+                  console.error('Navigation error with push, trying replace:', navError);
+                  try {
+                    router.replace('/login');
+                    console.log('Navigation to /login successful (replace)');
+                  } catch (replaceError) {
+                    console.error('Navigation error with replace:', replaceError);
+                  }
                 }
-              }, 250);
+              }, 500);
             } catch (error) {
               console.error('Logout error:', error);
             }
