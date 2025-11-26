@@ -89,7 +89,7 @@ export default function ProfileScreen() {
         style={styles.backButton}
         onPress={() => router.push('/(tabs)/')}
       >
-        <Text style={styles.backButtonText}>← Back to Dashboard</Text>
+        <Text style={styles.backButtonIcon}>←</Text>
       </TouchableOpacity>
       <View style={styles.header}>
         <View style={styles.avatarLarge}>
@@ -234,17 +234,23 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    zIndex: 10,
+    padding: 8,
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  backButtonText: {
-    fontSize: 16,
+  backButtonIcon: {
+    fontSize: 24,
     color: '#007BFF',
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   header: {
     backgroundColor: '#007BFF',

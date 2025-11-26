@@ -161,7 +161,7 @@ export default function ParentDashboard() {
   return (
     <View style={styles.container}>
       {/* School Header with Menu */}
-      <AppHeader />
+      <AppHeader showFullInfo={true} />
 
       {/* Tabs */}
       <View style={styles.tabContainer}>

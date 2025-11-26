@@ -26,7 +26,11 @@ interface School {
   logo?: string;
 }
 
-export default function AppHeader() {
+interface AppHeaderProps {
+  showFullInfo?: boolean;
+}
+
+export default function AppHeader({ showFullInfo = false }: AppHeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -175,13 +179,17 @@ export default function AppHeader() {
             <Text style={styles.schoolName} numberOfLines={1}>
               {school?.name || 'School Name'}
             </Text>
-            <Text style={styles.schoolAddress} numberOfLines={1}>
-              📍 {school?.address || 'Loading...'}
-            </Text>
-            {school?.phone && (
-              <Text style={styles.schoolPhone} numberOfLines={1}>
-                📞 {school.phone}
-              </Text>
+            {showFullInfo && (
+              <>
+                <Text style={styles.schoolAddress} numberOfLines={1}>
+                  📍 {school?.address || 'Loading...'}
+                </Text>
+                {school?.phone && (
+                  <Text style={styles.schoolPhone} numberOfLines={1}>
+                    📞 {school.phone}
+                  </Text>
+                )}
+              </>
             )}
           </View>
         </View>
