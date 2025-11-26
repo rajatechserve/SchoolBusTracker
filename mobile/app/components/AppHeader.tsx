@@ -9,10 +9,12 @@ import {
   Dimensions,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useRouter, useSegments } from 'expo-router';
 import api from '../services/api';
+import * as FileSystem from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
 
@@ -40,12 +42,57 @@ export default function AppHeader() {
     if (!user?.schoolId) return;
     try {
       const response = await api.get(`/public/schools/${user.schoolId}`);
-      console.log('School data:', response.data);
-      // Prepend API base URL to logo if it's a relative path
+      console.log('School API Response:', response.data);
+      
       const schoolData = response.data;
-      if (schoolData.logo && !schoolData.logo.startsWith('http')) {
-        schoolData.logo = `${api.defaults.baseURL}${schoolData.logo}`;
+      
+      // Handle logo - download and cache locally
+      if (schoolData.logo) {
+        const logoPath = schoolData.logo.startsWith('/') ? schoolData.logo.substring(1) : schoolData.logo;
+        
+        // Construct full URL
+        let logoUrl = logoPath;
+        if (!logoPath.startsWith('http')) {
+          const baseURL = api.defaults.baseURL?.replace(/\/api$/, '') || 'http://localhost:4000';
+          logoUrl = `${baseURL}/${logoPath}`;
+        }
+        
+        console.log('Original Logo URL:', logoUrl);
+        
+        // Download and cache the logo locally
+        try {
+          const fileExtension = logoPath.split('.').pop() || 'png';
+          const localFileName = `school_logo_${user.schoolId}.${fileExtension}`;
+          const localUri = `${FileSystem.documentDirectory}${localFileName}`;
+          
+          // Check if already cached
+          const fileInfo = await FileSystem.getInfoAsync(localUri);
+          
+          if (fileInfo.exists) {
+            console.log('Using cached logo:', localUri);
+            schoolData.logo = localUri;
+          } else {
+            // Download the logo
+            console.log('Downloading logo from:', logoUrl);
+            const downloadResult = await FileSystem.downloadAsync(logoUrl, localUri);
+            
+            if (downloadResult.status === 200) {
+              console.log('Logo downloaded successfully to:', downloadResult.uri);
+              schoolData.logo = downloadResult.uri;
+            } else {
+              console.log('Failed to download logo, status:', downloadResult.status);
+              schoolData.logo = undefined;
+            }
+          }
+        } catch (downloadError) {
+          console.error('Error downloading/caching logo:', downloadError);
+          // Fallback to direct URL if download fails
+          schoolData.logo = logoUrl;
+        }
+      } else {
+        console.log('No logo field in school data');
       }
+      
       setSchool(schoolData);
     } catch (e) {
       console.error('Failed to load school info:', e);
@@ -129,7 +176,15 @@ export default function AppHeader() {
         
         <View style={styles.schoolInfo}>
           {school?.logo ? (
-            <Image source={{ uri: school.logo }} style={styles.logo} />
+            <Image 
+              source={{ uri: school.logo }} 
+              style={styles.logo}
+              onError={(error: any) => {
+                console.log('Image load error:', error.nativeEvent?.error);
+                setSchool({ ...school, logo: undefined });
+              }}
+              onLoad={() => console.log('Logo loaded successfully')}
+            />
           ) : (
             <View style={styles.logoPlaceholder}>
               <Text style={styles.logoText}>🏫</Text>
