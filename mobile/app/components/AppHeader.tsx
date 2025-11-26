@@ -88,33 +88,33 @@ export default function AppHeader() {
   };
 
   const handleLogout = () => {
-    // Close drawer first
-    Animated.timing(slideAnim, {
-      toValue: -width * 0.8,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setDrawerVisible(false);
-    });
-
-    // Show alert after a brief delay
-    setTimeout(() => {
-      Alert.alert(
-        'Logout',
-        'Are you sure you want to logout?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Logout',
-            style: 'destructive',
-            onPress: () => {
-              logout();
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: () => {
+            // Close drawer
+            Animated.timing(slideAnim, {
+              toValue: -width * 0.8,
+              duration: 200,
+              useNativeDriver: true,
+            }).start(() => {
+              setDrawerVisible(false);
+            });
+            
+            // Logout and navigate
+            logout();
+            setTimeout(() => {
               router.replace('/login');
-            },
+            }, 250);
           },
-        ]
-      );
-    }, 100);
+        },
+      ]
+    );
   };
 
   const navigateTo = (screen: string) => {
