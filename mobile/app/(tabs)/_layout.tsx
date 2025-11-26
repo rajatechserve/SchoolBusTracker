@@ -26,8 +26,8 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarLabelPosition: 'below-icon',
         tabBarStyle: {
-          height: 65,
-          paddingBottom: 8,
+          height: 75,
+          paddingBottom: 12,
           paddingTop: 8,
         },
       }}>
@@ -36,7 +36,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 5 }}>
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
               <Text style={{ fontSize: 28, color }}>🏠</Text>
             </View>
           ),
@@ -47,8 +47,19 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 5 }}>
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
               <Text style={{ fontSize: 28, color }}>👤</Text>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="assignments"
+        options={{
+          title: 'Assign',
+          tabBarIcon: ({ color }) => (
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={{ fontSize: 28, color }}>📋</Text>
             </View>
           ),
         }}
@@ -58,16 +69,10 @@ export default function TabLayout() {
         options={{
           title: 'Alert',
           tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 5 }}>
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
               <Text style={{ fontSize: 28, color }}>🔔</Text>
             </View>
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="assignments"
-        options={{
-          href: null,
         }}
       />
       <Tabs.Screen

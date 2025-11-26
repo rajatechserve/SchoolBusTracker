@@ -55,14 +55,19 @@ function InnerLayout() {
 
   // Route guard: ensure unauthenticated users land on /login, authenticated go to tabs.
   useEffect(() => {
-    if (!navReady) return; // defer until navigation is ready
-    const first = segments[0];
+    if (!hydrated || !navReady) return; // defer until auth is hydrated and navigation is ready
+    
     if (!user) {
-      if (first !== 'login') router.replace('/login');
+      // Not logged in - always go to login
+      router.replace('/login');
     } else {
-      if (first === 'login') router.replace('/(tabs)');
+      // Logged in - go to tabs if on login page
+      const first = segments[0];
+      if (first === 'login') {
+        router.replace('/(tabs)');
+      }
     }
-  }, [user, segments, router, navReady]);
+  }, [user, segments, router, navReady, hydrated]);
 
   // Optional: simple loading state until navigation segments resolve
   if (!navReady || !hydrated) {

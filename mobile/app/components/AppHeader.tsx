@@ -8,9 +8,12 @@ import {
   Animated,
   Dimensions,
   Image,
+  ImageBackground,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import api from '../services/api';
@@ -37,11 +40,25 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const router = useRouter();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [school, setSchool] = useState<School | null>(null);
+  const [userImage, setUserImage] = useState<string | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.3))[0];
 
   useEffect(() => {
     loadSchoolInfo();
-  }, [user?.schoolId]);
+    loadUserImage();
+  }, [user?.schoolId, user?.id]);
+
+  const loadUserImage = async () => {
+    if (!user?.id) return;
+    try {
+      const savedImage = await AsyncStorage.getItem(`userImage_${user.id}`);
+      if (savedImage) {
+        setUserImage(savedImage);
+      }
+    } catch (error) {
+      console.error('Failed to load user image:', error);
+    }
+  };
 
   const loadSchoolInfo = async () => {
     if (!user?.schoolId) return;
@@ -91,6 +108,39 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     }).start(() => {
       setDrawerVisible(false);
     });
+  };
+
+  const changeUserImage = async () => {
+    try {
+      // Request permission
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Please grant permission to access your photos.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+        setUserImage(imageUri);
+        
+        // Save to storage
+        if (user?.id) {
+          await AsyncStorage.setItem(`userImage_${user.id}`, imageUri);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image');
+    }
   };
 
   const handleLogout = async () => {
@@ -155,53 +205,60 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
   return (
     <>
-      {/* Header */}
-      <View style={styles.header}>
-        {showBackButton ? (
-          <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
-            <Text style={styles.menuIcon}>←</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-            <Text style={styles.menuIcon}>☰</Text>
-          </TouchableOpacity>
-        )}
-        
-        <View style={styles.schoolInfo}>
-          {school?.logo ? (
-            <Image 
-              source={{ uri: school.logo }} 
-              style={styles.logo}
-              onError={(error: any) => {
-                console.log('Image load error:', error.nativeEvent?.error);
-                setSchool({ ...school, logo: undefined });
-              }}
-              onLoad={() => console.log('Logo loaded successfully')}
-            />
+      {/* Header with School Banner */}
+      <ImageBackground
+        source={school?.logo ? { uri: school.logo } : undefined}
+        style={styles.header}
+        imageStyle={styles.bannerImage}
+        blurRadius={8}
+      >
+        <View style={styles.headerOverlay}>
+          {showBackButton ? (
+            <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
+              <Text style={styles.menuIcon}>←</Text>
+            </TouchableOpacity>
           ) : (
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>🏫</Text>
-            </View>
+            <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+              <Text style={styles.menuIcon}>☰</Text>
+            </TouchableOpacity>
           )}
-          <View style={styles.schoolDetails}>
-            <Text style={styles.schoolName} numberOfLines={1}>
-              {school?.name || 'School Name'}
-            </Text>
-            {showFullInfo && (
-              <>
-                <Text style={styles.schoolAddress} numberOfLines={1}>
-                  📍 {school?.address || 'Loading...'}
-                </Text>
-                {school?.phone && (
-                  <Text style={styles.schoolPhone} numberOfLines={1}>
-                    📞 {school.phone}
-                  </Text>
-                )}
-              </>
+          
+          <View style={styles.schoolInfo}>
+            {school?.logo ? (
+              <Image 
+                source={{ uri: school.logo }} 
+                style={styles.logo}
+                onError={(error: any) => {
+                  console.log('Image load error:', error.nativeEvent?.error);
+                  setSchool({ ...school, logo: undefined });
+                }}
+                onLoad={() => console.log('Logo loaded successfully')}
+              />
+            ) : (
+              <View style={styles.logoPlaceholder}>
+                <Text style={styles.logoText}>🏫</Text>
+              </View>
             )}
+            <View style={styles.schoolDetails}>
+              <Text style={styles.schoolName} numberOfLines={1}>
+                {school?.name || 'School Name'}
+              </Text>
+              {showFullInfo && (
+                <>
+                  <Text style={styles.schoolAddress} numberOfLines={1}>
+                    📍 {school?.address || 'Loading...'}
+                  </Text>
+                  {school?.phone && (
+                    <Text style={styles.schoolPhone} numberOfLines={1}>
+                      📞 {school.phone}
+                    </Text>
+                  )}
+                </>
+              )}
+            </View>
           </View>
         </View>
-      </View>
+      </ImageBackground>
 
       {/* Drawer Menu */}
       <Modal
@@ -225,11 +282,20 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         >
           {/* User Profile Section */}
           <View style={styles.profileSection}>
-            <View style={styles.avatarContainer}>
-              <Text style={styles.avatar}>
-                {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
-              </Text>
-            </View>
+            <TouchableOpacity onPress={changeUserImage} style={styles.avatarContainer}>
+              {userImage ? (
+                <Image source={{ uri: userImage }} style={styles.userImage} />
+              ) : (
+                <View style={styles.defaultAvatar}>
+                  <Text style={styles.avatar}>
+                    {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.editBadge}>
+                <Text style={styles.editIcon}>✏️</Text>
+              </View>
+            </TouchableOpacity>
             <Text style={styles.userName}>{user?.name || 'User'}</Text>
           </View>
 
@@ -296,18 +362,19 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
 const styles = StyleSheet.create({
   header: {
+    overflow: 'hidden',
+  },
+  bannerImage: {
+    opacity: 0.3,
+  },
+  headerOverlay: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
   },
   menuButton: {
     padding: 8,
@@ -398,16 +465,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 12,
+    position: 'relative',
+  },
+  userImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  defaultAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
   avatar: {
-    fontSize: 40,
+    fontSize: 50,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#007BFF',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  editIcon: {
+    fontSize: 14,
   },
   userName: {
     fontSize: 20,
