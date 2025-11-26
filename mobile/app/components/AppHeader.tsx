@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
 import * as FileSystem from 'expo-file-system';
 
@@ -31,7 +30,6 @@ interface School {
 export default function AppHeader() {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const navigation = useNavigation<any>();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [school, setSchool] = useState<School | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.8))[0];
@@ -149,25 +147,25 @@ export default function AppHeader() {
       setDrawerVisible(false);
     });
     
-    // Navigate after animation starts
+    // Navigate after animation starts  
     setTimeout(() => {
       try {
-        const screenMap: Record<string, string> = {
-          'dashboard': 'Home',
-          'profile': 'Profile',
-          'assignments': 'Assignments',
-          'attendance': 'Attendance',
-        };
+        console.log('Navigating to:', screen, 'Role:', user?.role);
         
-        const targetScreen = screenMap[screen];
-        if (targetScreen) {
-          console.log('Attempting to navigate to:', targetScreen);
-          navigation.navigate(targetScreen as never);
-          console.log('Navigation successful');
+        // Use Expo Router paths for tab navigation
+        if (screen === 'dashboard') {
+          router.push('/(tabs)/');
+        } else if (screen === 'profile') {
+          router.push('/(tabs)/profile');
+        } else if (screen === 'assignments') {
+          router.push('/(tabs)/assignments');
+        } else if (screen === 'attendance') {
+          // For parent role, attendance might be in assignments or separate
+          router.push('/(tabs)/assignments');
         } else if (screen === 'notifications') {
-          console.log('Notifications screen not yet implemented');
-          Alert.alert('Coming Soon', 'Notifications feature will be available soon.');
+          router.push('/(tabs)/notifications');
         }
+        console.log('Navigation completed');
       } catch (error) {
         console.error('Navigation error:', error);
         Alert.alert('Navigation Error', 'Failed to navigate to the screen.');
