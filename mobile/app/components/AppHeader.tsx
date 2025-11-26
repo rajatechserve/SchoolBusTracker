@@ -31,7 +31,7 @@ export default function AppHeader() {
   const router = useRouter();
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [school, setSchool] = useState<School | null>(null);
-  const slideAnim = useState(new Animated.Value(-width * 0.8))[0];
+  const slideAnim = useState(new Animated.Value(-width * 0.3))[0];
 
   useEffect(() => {
     loadSchoolInfo();
@@ -79,7 +79,7 @@ export default function AppHeader() {
 
   const closeDrawer = () => {
     Animated.timing(slideAnim, {
-      toValue: -width * 0.8,
+      toValue: -width * 0.3,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -114,7 +114,7 @@ export default function AppHeader() {
   const navigateTo = (screen: string) => {
     // Close drawer animation first
     Animated.timing(slideAnim, {
-      toValue: -width * 0.8,
+      toValue: -width * 0.3,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: width * 0.8,
+    width: width * 0.3,
     backgroundColor: '#fff',
     elevation: 16,
     shadowColor: '#000',
