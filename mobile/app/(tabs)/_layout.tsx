@@ -24,14 +24,20 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarLabelPosition: 'below-icon',
+        tabBarStyle: {
+          height: 65,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color }}>🏠</Text>
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 5 }}>
+              <Text style={{ fontSize: 28, color }}>🏠</Text>
             </View>
           ),
         }}
@@ -41,8 +47,8 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color }}>👤</Text>
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 5 }}>
+              <Text style={{ fontSize: 28, color }}>👤</Text>
             </View>
           ),
         }}
@@ -52,8 +58,8 @@ export default function TabLayout() {
         options={{
           title: 'Notifications',
           tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color }}>🔔</Text>
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginTop: 5 }}>
+              <Text style={{ fontSize: 28, color }}>🔔</Text>
             </View>
           ),
         }}
@@ -61,23 +67,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="assignments"
         options={{
-          title: 'Assignments',
-          tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color }}>📋</Text>
-            </View>
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="logout"
         options={{
-          title: 'Logout',
-          tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color }}>🚪</Text>
-            </View>
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
