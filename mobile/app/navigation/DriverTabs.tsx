@@ -4,6 +4,7 @@ import { useTheme } from 'react-native-paper';
 import DriverDashboard from '../screens/Driver/DriverDashboard';
 import LocationShare from '../screens/Driver/LocationShare';
 import Profile from '../screens/Common/Profile';
+import DriverAssignments from '../screens/Driver/Assignments';
 import { MaterialIcons } from '@expo/vector-icons';
 
 const Tab = createBottomTabNavigator();
@@ -41,6 +42,15 @@ export default function DriverTabs() {
           title: 'Share Location',
           tabBarIcon: ({ color, size }: TabBarIconProps) => (
             <MaterialIcons name="my-location" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Assignments"
+        component={DriverAssignments}
+        options={{
+          tabBarIcon: ({ color, size }: TabBarIconProps) => (
+            <MaterialIcons name="assignment" size={size} color={color} />
           ),
         }}
       />
