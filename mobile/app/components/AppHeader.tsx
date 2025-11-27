@@ -459,8 +459,6 @@ const styles = StyleSheet.create({
     height: 80,
     backgroundColor: '#f5f5f5',
     overflow: 'hidden',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
   },
   bannerImageDisplay: {
     width: '100%',

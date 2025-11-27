@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import api from '../services/api';
 import theme from '../constants/theme';
 import AppHeader from '../components/AppHeader';
@@ -32,13 +32,14 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     loadThemePreference();
-    loadUserImage();
   }, []);
   
-  useEffect(() => {
-    // Reload user image when component gets focus
-    loadUserImage();
-  }, [user?.id]);
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reload user image every time screen is focused
+      loadUserImage();
+    }, [user?.id])
+  );
 
   const loadThemePreference = async () => {
     try {
@@ -122,46 +123,6 @@ export default function ProfileScreen() {
           )}
         </View>
         <Text style={styles.name}>{user?.name || 'User'}</Text>
-        <Text style={styles.role}>
-          {user?.role === 'driver' ? 'Driver' : 'Parent'}
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Theme</Text>
-        <View style={styles.infoCard}>
-          <View style={styles.themeRow}>
-            <TouchableOpacity
-              style={[
-                styles.themeIconButton,
-                selectedTheme === 'light' && styles.themeIconButtonActive
-              ]}
-              onPress={() => handleThemeChange('light')}
-            >
-              <Text style={styles.themeIconOnly}>☀️</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.themeIconButton,
-                selectedTheme === 'dark' && styles.themeIconButtonActive
-              ]}
-              onPress={() => handleThemeChange('dark')}
-            >
-              <Text style={styles.themeIconOnly}>🌙</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.themeIconButton,
-                selectedTheme === 'system' && styles.themeIconButtonActive
-              ]}
-              onPress={() => handleThemeChange('system')}
-            >
-              <Text style={styles.themeIconOnly}>⚙️</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </View>
 
       <View style={styles.section}>
@@ -227,6 +188,43 @@ export default function ProfileScreen() {
               <Text style={styles.editButtonText}>✏️ Edit Phone Number</Text>
             </TouchableOpacity>
           )}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Theme</Text>
+        <View style={styles.infoCard}>
+          <View style={styles.themeRow}>
+            <TouchableOpacity
+              style={[
+                styles.themeIconButton,
+                selectedTheme === 'light' && styles.themeIconButtonActive
+              ]}
+              onPress={() => handleThemeChange('light')}
+            >
+              <Text style={styles.themeIconOnly}>☀️</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeIconButton,
+                selectedTheme === 'dark' && styles.themeIconButtonActive
+              ]}
+              onPress={() => handleThemeChange('dark')}
+            >
+              <Text style={styles.themeIconOnly}>🌙</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.themeIconButton,
+                selectedTheme === 'system' && styles.themeIconButtonActive
+              ]}
+              onPress={() => handleThemeChange('system')}
+            >
+              <Text style={styles.themeIconOnly}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       </ScrollView>
