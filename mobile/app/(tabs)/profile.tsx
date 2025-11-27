@@ -11,7 +11,7 @@ import {
   useColorScheme as useSystemColorScheme
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '../_context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
 import api from '../services/api';
 import theme from '../constants/theme';

@@ -8,7 +8,7 @@ import {
   RefreshControl 
 } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '../_context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import AppHeader from '../components/AppHeader';
 
 interface Notification {
