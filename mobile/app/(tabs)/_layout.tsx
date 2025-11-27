@@ -6,7 +6,7 @@ import { HapticTab } from '../../components/haptic-tab';
 import { IconSymbol } from '../../components/ui/icon-symbol';
 import { Colors } from '../../constants/theme';
 import { useColorScheme } from '../../hooks/use-color-scheme';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../_context/AuthContext';
 import { Redirect } from 'expo-router';
 
 export default function TabLayout() {

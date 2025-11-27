@@ -5,7 +5,7 @@ import 'react-native-reanimated';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 'react-native-paper';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native-paper';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './_context/AuthContext';
 
 import { useColorScheme } from '../hooks/use-color-scheme';
 

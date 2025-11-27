@@ -9,7 +9,7 @@ import {
   ActivityIndicator 
 } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../_context/AuthContext';
 import api from '../services/api';
 import AppHeader from '../components/AppHeader';
 

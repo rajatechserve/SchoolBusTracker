@@ -10,7 +10,7 @@ import {
   Alert,
   RefreshControl
 } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../_context/AuthContext';
 import api from '../../services/api';
 import AppHeader from '../../components/AppHeader';
 

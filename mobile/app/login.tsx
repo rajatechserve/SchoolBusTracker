@@ -11,7 +11,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from './_context/AuthContext';
 import { useRouter } from 'expo-router';
 import api from './services/api';
 
