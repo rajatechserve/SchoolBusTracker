@@ -7,6 +7,7 @@ import {
   TextInput, 
   TouchableOpacity,
   Alert,
+  Image,
   useColorScheme as useSystemColorScheme
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,11 +27,18 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<ThemeMode>('system');
+  const [userImage, setUserImage] = useState<string | null>(null);
   const systemColorScheme = useSystemColorScheme();
 
   useEffect(() => {
     loadThemePreference();
+    loadUserImage();
   }, []);
+  
+  useEffect(() => {
+    // Reload user image when component gets focus
+    loadUserImage();
+  }, [user?.id]);
 
   const loadThemePreference = async () => {
     try {
@@ -40,6 +48,21 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Failed to load theme preference:', error);
+    }
+  };
+
+  const loadUserImage = async () => {
+    if (!user?.id) return;
+    try {
+      const savedImage = await AsyncStorage.getItem(`userImage_${user.id}`);
+      if (savedImage) {
+        setUserImage(savedImage);
+      } else {
+        setUserImage(null);
+      }
+    } catch (error) {
+      console.error('Failed to load user image:', error);
+      setUserImage(null);
     }
   };
 
@@ -90,9 +113,13 @@ export default function ProfileScreen() {
       <ScrollView>
         <View style={styles.header}>
         <View style={styles.avatarLarge}>
-          <Text style={styles.avatarText}>
-            {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
-          </Text>
+          {userImage ? (
+            <Image source={{ uri: userImage }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>
+              {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
+            </Text>
+          )}
         </View>
         <Text style={styles.name}>{user?.name || 'User'}</Text>
         <Text style={styles.role}>
@@ -103,56 +130,37 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Theme</Text>
         <View style={styles.infoCard}>
-          <TouchableOpacity
-            style={[
-              styles.themeOption,
-              selectedTheme === 'light' && styles.themeOptionActive
-            ]}
-            onPress={() => handleThemeChange('light')}
-          >
-            <Text style={styles.themeIcon}>☀️</Text>
-            <Text style={[
-              styles.themeText,
-              selectedTheme === 'light' && styles.themeTextActive
-            ]}>Light</Text>
-            {selectedTheme === 'light' && (
-              <Text style={styles.checkmark}>✓</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.themeRow}>
+            <TouchableOpacity
+              style={[
+                styles.themeIconButton,
+                selectedTheme === 'light' && styles.themeIconButtonActive
+              ]}
+              onPress={() => handleThemeChange('light')}
+            >
+              <Text style={styles.themeIconOnly}>☀️</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.themeOption,
-              selectedTheme === 'dark' && styles.themeOptionActive
-            ]}
-            onPress={() => handleThemeChange('dark')}
-          >
-            <Text style={styles.themeIcon}>🌙</Text>
-            <Text style={[
-              styles.themeText,
-              selectedTheme === 'dark' && styles.themeTextActive
-            ]}>Dark</Text>
-            {selectedTheme === 'dark' && (
-              <Text style={styles.checkmark}>✓</Text>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.themeIconButton,
+                selectedTheme === 'dark' && styles.themeIconButtonActive
+              ]}
+              onPress={() => handleThemeChange('dark')}
+            >
+              <Text style={styles.themeIconOnly}>🌙</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.themeOption,
-              selectedTheme === 'system' && styles.themeOptionActive
-            ]}
-            onPress={() => handleThemeChange('system')}
-          >
-            <Text style={styles.themeIcon}>⚙️</Text>
-            <Text style={[
-              styles.themeText,
-              selectedTheme === 'system' && styles.themeTextActive
-            ]}>System Default</Text>
-            {selectedTheme === 'system' && (
-              <Text style={styles.checkmark}>✓</Text>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.themeIconButton,
+                selectedTheme === 'system' && styles.themeIconButtonActive
+              ]}
+              onPress={() => handleThemeChange('system')}
+            >
+              <Text style={styles.themeIconOnly}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -245,20 +253,26 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#007BFF',
-    padding: 30,
+    padding: 20,
     alignItems: 'center',
   },
   avatarLarge: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
   },
   avatarText: {
-    fontSize: 50,
+    fontSize: 35,
   },
   name: {
     fontSize: 24,
@@ -359,36 +373,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  themeOption: {
+  themeRow: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingVertical: 8,
+  },
+  themeIconButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#f8f9fa',
-  },
-  themeOptionActive: {
-    backgroundColor: '#e3f2fd',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 2,
+    borderColor: '#f8f9fa',
+  },
+  themeIconButtonActive: {
+    backgroundColor: '#e3f2fd',
     borderColor: '#007BFF',
+    borderWidth: 2,
   },
-  themeIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  themeText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
-  themeTextActive: {
-    fontWeight: 'bold',
-    color: '#007BFF',
-  },
-  checkmark: {
-    fontSize: 20,
-    color: '#007BFF',
-    fontWeight: 'bold',
+  themeIconOnly: {
+    fontSize: 28,
   },
 });

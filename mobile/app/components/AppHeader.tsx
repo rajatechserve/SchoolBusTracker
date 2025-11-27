@@ -113,15 +113,25 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         }
         
         console.log('Logo URL:', schoolData.logo);
-        
-        // Load and cache banner image locally if showBanner is true
-        if (showBanner) {
-          loadBannerImage(schoolData.logo, shouldClearCache);
-        }
-      } else {
-        console.log('No logo field in school data');
-        // Clear banner if logo was removed
-        if (showBanner) {
+      }
+      
+      // Handle banner/photo URL for banner display
+      if (showBanner) {
+        if (schoolData.photo) {
+          const photoPath = schoolData.photo.startsWith('/') ? schoolData.photo.substring(1) : schoolData.photo;
+          
+          // Construct full URL if needed
+          let photoUrl = photoPath;
+          if (!photoPath.startsWith('http')) {
+            const baseURL = api.defaults.baseURL?.replace(/\/api$/, '') || 'http://localhost:4000';
+            photoUrl = `${baseURL}/${photoPath}`;
+          }
+          
+          console.log('Banner/Photo URL:', photoUrl);
+          loadBannerImage(photoUrl, shouldClearCache);
+        } else {
+          console.log('No photo field in school data');
+          // Clear banner if photo was removed
           setBannerImage(null);
           await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
         }
