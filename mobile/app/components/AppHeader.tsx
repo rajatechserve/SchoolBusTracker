@@ -44,10 +44,18 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [userImage, setUserImage] = useState<string | null>(null);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.3))[0];
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
 
   useEffect(() => {
     loadSchoolInfo();
     loadUserImage();
+    
+    // Set up polling to check for school data changes every 30 seconds
+    const pollInterval = setInterval(() => {
+      loadSchoolInfo();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(pollInterval);
   }, [user?.schoolId, user?.id]);
 
   const loadUserImage = async () => {
@@ -70,6 +78,28 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       
       const schoolData = response.data;
       
+      // Check if school data has changed by comparing with cached data
+      const cachedSchoolData = await AsyncStorage.getItem(`schoolData_${user.schoolId}`);
+      let shouldClearCache = false;
+      
+      if (cachedSchoolData) {
+        const parsedCachedData = JSON.parse(cachedSchoolData);
+        // Compare logo/photo URLs to detect changes
+        if (parsedCachedData.logo !== schoolData.logo || parsedCachedData.photo !== schoolData.photo) {
+          console.log('School data changed, clearing cache...');
+          shouldClearCache = true;
+          // Clear cached banner
+          await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
+        }
+      }
+      
+      // Update cached school data
+      await AsyncStorage.setItem(`schoolData_${user.schoolId}`, JSON.stringify({
+        logo: schoolData.logo,
+        photo: schoolData.photo,
+        updatedAt: Date.now()
+      }));
+      
       // Handle logo URL
       if (schoolData.logo) {
         const logoPath = schoolData.logo.startsWith('/') ? schoolData.logo.substring(1) : schoolData.logo;
@@ -86,13 +116,19 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         
         // Load and cache banner image locally if showBanner is true
         if (showBanner) {
-          loadBannerImage(schoolData.logo);
+          loadBannerImage(schoolData.logo, shouldClearCache);
         }
       } else {
         console.log('No logo field in school data');
+        // Clear banner if logo was removed
+        if (showBanner) {
+          setBannerImage(null);
+          await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
+        }
       }
       
       setSchool(schoolData);
+      setLastRefreshTime(Date.now()); // Trigger re-render
       if (onSchoolLoaded) {
         onSchoolLoaded(schoolData);
       }
@@ -101,14 +137,19 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     }
   };
 
-  const loadBannerImage = async (logoUrl: string) => {
+  const loadBannerImage = async (logoUrl: string, forceClear: boolean = false) => {
     try {
-      // Check if banner is already cached
-      const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${user?.schoolId}`);
-      if (cachedBanner) {
-        console.log('Using cached banner image');
-        setBannerImage(cachedBanner);
-        return;
+      // If forceClear is true, skip cache check
+      if (!forceClear) {
+        // Check if banner is already cached
+        const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${user?.schoolId}`);
+        if (cachedBanner) {
+          console.log('Using cached banner image');
+          setBannerImage(cachedBanner);
+          return;
+        }
+      } else {
+        console.log('Force clearing banner cache and reloading');
       }
       
       // Use the logo URL directly as banner (will be displayed larger)

@@ -80,12 +80,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem('auth', JSON.stringify({ user: next, token: t || null })).catch(() => {});
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Clear school-related cache to ensure fresh data on next login
+    if (user?.schoolId) {
+      try {
+        await AsyncStorage.removeItem(`schoolData_${user.schoolId}`);
+        await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
+        console.log('School cache cleared for schoolId:', user.schoolId);
+      } catch (e) {
+        console.error('Failed to clear school cache:', e);
+      }
+    }
+    
     setUser(null);
     setToken(null);
     attachToken(null); // Clear token from API headers
     AsyncStorage.removeItem('auth').catch(() => {});
-  }, []);
+  }, [user?.schoolId]);
 
   return (
     <AuthContext.Provider value={{ user, token, hydrated, loginLocal, logout }}>
