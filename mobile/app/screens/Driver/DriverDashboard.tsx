@@ -212,16 +212,6 @@ export default function DriverDashboard() {
       {/* School Header with Menu */}
       <AppHeader onSchoolLoaded={setSchool} showBanner={true} />
 
-      {/* School Info Box */}
-      {school && (
-        <View style={styles.schoolInfoBox}>
-          <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
-          {school.phone && (
-            <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
-          )}
-        </View>
-      )}
-
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
@@ -411,6 +401,16 @@ export default function DriverDashboard() {
                   </View>
                 ))}
               </View>
+            )}
+          </View>
+        )}
+
+        {/* School Info Box - Moved to bottom */}
+        {school && (
+          <View style={styles.schoolInfoBox}>
+            <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
+            {school.phone && (
+              <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
             )}
           </View>
         )}

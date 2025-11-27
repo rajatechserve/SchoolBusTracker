@@ -43,7 +43,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [school, setSchool] = useState<School | null>(null);
   const [userImage, setUserImage] = useState<string | null>(null);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
-  const slideAnim = useState(new Animated.Value(-width * 0.3))[0];
+  const slideAnim = useState(new Animated.Value(-width * 0.5))[0];
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
 
   useEffect(() => {
@@ -174,7 +174,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
   const closeDrawer = () => {
     Animated.timing(slideAnim, {
-      toValue: -width * 0.3,
+      toValue: -width * 0.5,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -242,7 +242,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const navigateTo = (screen: string) => {
     // Close drawer animation first
     Animated.timing(slideAnim, {
-      toValue: -width * 0.3,
+      toValue: -width * 0.5,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -319,7 +319,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           <Image
             source={{ uri: bannerImage }}
             style={styles.bannerImageDisplay}
-            resizeMode="cover"
+            resizeMode="contain"
             onError={(error: any) => {
               console.log('Banner image load error:', error.nativeEvent?.error);
               setBannerImage(null);
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     width: '100%',
-    height: 50,
+    height: 80,
     backgroundColor: '#f5f5f5',
     overflow: 'hidden',
     paddingHorizontal: 12,
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    width: width * 0.3,
+    width: width * 0.5,
     backgroundColor: '#fff',
     elevation: 16,
     shadowColor: '#000',
