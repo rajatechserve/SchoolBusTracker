@@ -135,13 +135,6 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.infoRow}>
-            <Text style={styles.label}>Role</Text>
-            <Text style={styles.value}>
-              {user?.role === 'driver' ? 'Driver' : 'Parent'}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
             <Text style={styles.label}>Phone Number</Text>
             {isEditing ? (
               <View style={styles.editContainer}>
@@ -251,7 +244,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#007BFF',
-    padding: 12,
+    padding: 8,
     alignItems: 'center',
   },
   avatarLarge: {
