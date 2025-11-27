@@ -69,26 +69,18 @@ function InnerLayout() {
     }
   }, [user, segments, router, navReady, hydrated]);
 
-  // Optional: simple loading state until navigation segments resolve
-  if (!navReady || !hydrated) {
-    return (
-      <ThemeProvider value={navTheme}>
-        <PaperProvider theme={paperTheme}>
-          <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
-          <StatusBar style="auto" />
-        </PaperProvider>
-      </ThemeProvider>
-    );
-  }
-
   return (
     <ThemeProvider value={navTheme}>
       <PaperProvider theme={paperTheme}>
-        <Stack>
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        </Stack>
+        {!navReady || !hydrated ? (
+          <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
+        ) : (
+          <Stack>
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+          </Stack>
+        )}
         <StatusBar style="auto" />
       </PaperProvider>
     </ThemeProvider>

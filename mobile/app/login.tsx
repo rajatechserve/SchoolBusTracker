@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,23 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import api from './services/api';
+import NetInfo from '@react-native-community/netinfo';
 
 export default function LoginScreen() {
   const { loginLocal } = useAuth();
   const router = useRouter();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(true);
+
+  useEffect(() => {
+    // Subscribe to network state changes
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const validatePhone = (phoneNumber: string) => {
     // Remove any non-digit characters
@@ -29,6 +40,15 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     const trimmedPhone = phone.trim();
+    
+    // Check internet connection first
+    if (isConnected === false) {
+      Alert.alert(
+        'No Internet Connection', 
+        'Please check your internet connection and try again.'
+      );
+      return;
+    }
     
     if (!trimmedPhone) {
       Alert.alert('Error', 'Please enter your mobile number');
@@ -70,10 +90,32 @@ export default function LoginScreen() {
     } catch (error: any) {
       console.error('Login error:', error);
       console.error('Error response:', error?.response?.data);
-      Alert.alert(
-        'Login Failed',
-        error?.response?.data?.error || 'Invalid mobile number. Please try again.'
-      );
+      
+      let errorTitle = 'Login Failed';
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      
+      if (error?.message === 'Network Error' || !error?.response) {
+        // Network/Internet connection error
+        errorTitle = 'Connection Error';
+        errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+      } else if (error?.response?.status === 401 || error?.response?.status === 403) {
+        // Authentication error
+        errorTitle = 'Authentication Failed';
+        errorMessage = error?.response?.data?.error || 'Invalid mobile number or you do not have access. Please contact your administrator.';
+      } else if (error?.response?.status === 404) {
+        // User not found
+        errorTitle = 'User Not Found';
+        errorMessage = 'No account found with this mobile number. Please check your number or contact your administrator.';
+      } else if (error?.response?.status >= 500) {
+        // Server error
+        errorTitle = 'Server Error';
+        errorMessage = 'The server is currently unavailable. Please try again later.';
+      } else if (error?.response?.data?.error) {
+        // Custom error from server
+        errorMessage = error.response.data.error;
+      }
+      
+      Alert.alert(errorTitle, errorMessage);
     } finally {
       setLoading(false);
     }
@@ -84,6 +126,11 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      {isConnected === false && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineText}>⚠️ No Internet Connection</Text>
+        </View>
+      )}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.logo}>🚌</Text>
@@ -124,6 +171,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  offlineBanner: {
+    backgroundColor: '#ff9800',
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlineText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   scrollContent: {
     flexGrow: 1,
