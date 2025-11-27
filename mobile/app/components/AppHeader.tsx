@@ -43,7 +43,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [school, setSchool] = useState<School | null>(null);
   const [userImage, setUserImage] = useState<string | null>(null);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
-  const slideAnim = useState(new Animated.Value(-width * 0.5))[0];
+  const slideAnim = useState(new Animated.Value(-width * 0.6))[0];
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
 
   useEffect(() => {
@@ -184,7 +184,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
   const closeDrawer = () => {
     Animated.timing(slideAnim, {
-      toValue: -width * 0.5,
+      toValue: -width * 0.6,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -252,7 +252,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const navigateTo = (screen: string) => {
     // Close drawer animation first
     Animated.timing(slideAnim, {
-      toValue: -width * 0.5,
+      toValue: -width * 0.6,
       duration: 300,
       useNativeDriver: true,
     }).start(() => {
@@ -483,12 +483,14 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 12,
+    backgroundColor: '#fff',
+    padding: 2,
   },
   logoPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -520,14 +522,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   drawer: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    width: width * 0.5,
+    width: width * 0.6,
     backgroundColor: '#fff',
     elevation: 16,
     shadowColor: '#000',
@@ -633,9 +635,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#007BFF',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -644,11 +644,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#fff',
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ff5252',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -658,7 +656,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 16,
-    color: '#ff5252',
+    color: '#d32f2f',
     fontWeight: '600',
     flex: 1,
   },

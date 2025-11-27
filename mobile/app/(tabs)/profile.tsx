@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#007BFF',
-    padding: 20,
+    padding: 12,
     alignItems: 'center',
   },
   avatarLarge: {
