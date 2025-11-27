@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { attachToken } from '../services/api';
+import { attachToken } from '../app/services/api';
 
 export type User = {
   role: 'driver' | 'parent';
