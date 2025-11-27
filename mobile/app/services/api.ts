@@ -11,10 +11,26 @@ function resolveBaseUrl(): string {
   const fromEnv = process?.env?.EXPO_PUBLIC_API_URL as string | undefined;
   // expoConfig.extra is available in managed workflow if set in app.json or app.config.*
   const fromConfig = (Constants?.expoConfig?.extra as any)?.apiBaseUrl as string | undefined;
-  return fromEnv || fromConfig || 'http://localhost:4000/api';
+  
+  // For Android emulator, use 10.0.2.2 which maps to host machine's localhost
+  // For physical device, use your computer's local IP address
+  let defaultUrl = 'http://10.0.2.2:4000/api'; // Android emulator default
+  
+  // Try to detect if running on physical device (will need manual IP configuration)
+  const deviceName = Constants?.deviceName?.toLowerCase() || '';
+  if (!deviceName.includes('emulator') && !deviceName.includes('sdk')) {
+    // Running on physical device - you'll need to set EXPO_PUBLIC_API_URL in .env
+    // Example: EXPO_PUBLIC_API_URL=http://192.168.1.100:4000/api
+    console.warn('⚠️ Running on physical device. Please set EXPO_PUBLIC_API_URL in .env to your computer\'s IP address');
+  }
+  
+  return fromEnv || fromConfig || defaultUrl;
 }
 
-const api = axios.create({ baseURL: resolveBaseUrl() });
+const baseURL = resolveBaseUrl();
+console.log('🌐 API Base URL:', baseURL);
+
+const api = axios.create({ baseURL });
 
 export function attachToken(token: string | null) {
   if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
