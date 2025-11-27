@@ -294,41 +294,6 @@ app.post('/api/auth/login', async (req, res) =>
     }
 });
 
-// Unified mobile login - auto-detects driver or parent by phone
-app.post('/api/auth/mobile-login', async (req, res) => {
-    try {
-        const { phone } = req.body || {};
-        if (!phone) return res.status(400).json({ error: 'phone required' });
-        
-        // Check if user is a driver first
-        const driver = await getSql('SELECT * FROM drivers WHERE phone=?', [phone]);
-        if (driver) {
-            const token = jwt.sign({ id: driver.id, name: driver.name, role: 'driver', schoolId: driver.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
-            return res.json({ 
-                token, 
-                role: 'driver',
-                user: { id: driver.id, name: driver.name, phone: driver.phone, schoolId: driver.schoolId } 
-            });
-        }
-        
-        // If not a driver, check if user is a parent
-        const parent = await getSql('SELECT * FROM parents WHERE phone=?', [phone]);
-        if (parent) {
-            const token = jwt.sign({ id: parent.id, name: parent.name, role: 'parent', schoolId: parent.schoolId || null }, JWT_SECRET, { expiresIn: '24h' });
-            return res.json({ 
-                token, 
-                role: 'parent',
-                user: { id: parent.id, name: parent.name, phone: parent.phone, schoolId: parent.schoolId } 
-            });
-        }
-        
-        // User not found in either table
-        return res.status(404).json({ error: 'No account found with this phone number' });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
 // Driver login / auto-registration by phone
 app.post('/api/auth/driver-login', async (req, res) => {
     try {
@@ -558,12 +523,11 @@ app.get('/api/drivers/check-phone/:phone', authenticateToken, async (req, res) =
 app.get('/api/students', authenticateToken, async (req, res) => {
     try {
         const schoolId = req.user?.role === 'school' ? req.user.id : (['schoolUser','driver','parent'].includes(req.user?.role) ? req.user.schoolId : null);
-        const { search, class: classFilter, bus: busFilter, route: routeFilter, parentId } = req.query || {};
+        const { search, class: classFilter, bus: busFilter, route: routeFilter } = req.query || {};
         const params = [];
         let sql = 'SELECT id,name,cls,parentId,busId,routeId,schoolId,pickupLocation,pickupLat,pickupLng,dropLat,dropLng FROM students';
         const where = [];
         if (schoolId) { where.push('schoolId=?'); params.push(schoolId); }
-        if (parentId && parentId.trim()) { where.push('parentId=?'); params.push(parentId.trim()); }
         if (search && search.trim()) { where.push('(name LIKE ? OR cls LIKE ?)'); params.push(`%${search.trim()}%`, `%${search.trim()}%`); }
         if (classFilter && classFilter.trim()) { where.push('cls=?'); params.push(classFilter.trim()); }
         if (busFilter && busFilter.trim()) { where.push('busId=?'); params.push(busFilter.trim()); }

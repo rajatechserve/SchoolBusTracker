@@ -10,9 +10,8 @@ import {
   Alert,
   RefreshControl
 } from 'react-native';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import AppHeader from '../../components/AppHeader';
 
 interface Student {
   id: string;
@@ -50,18 +49,10 @@ interface Attendance {
   status: string;
 }
 
-interface School {
-  id: string;
-  name: string;
-  address?: string;
-  phone?: string;
-}
-
 export default function DriverDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'attendance' | 'locations'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'assignments' | 'locations'>('attendance');
   const [students, setStudents] = useState<Student[]>([]);
-  const [school, setSchool] = useState<School | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -209,8 +200,11 @@ export default function DriverDashboard() {
 
   return (
     <View style={styles.container}>
-      {/* School Header with Menu */}
-      <AppHeader onSchoolLoaded={setSchool} showBanner={true} />
+      {/* Driver Info Card */}
+      <View style={styles.headerCard}>
+        <Text style={styles.headerTitle}>{user?.name}</Text>
+        <Text style={styles.headerSubtitle}>Phone: {user?.phone || '—'}</Text>
+      </View>
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
@@ -220,6 +214,14 @@ export default function DriverDashboard() {
         >
           <Text style={[styles.tabText, activeTab === 'attendance' && styles.activeTabText]}>
             📝 Attendance
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'assignments' && styles.activeTab]}
+          onPress={() => setActiveTab('assignments')}
+        >
+          <Text style={[styles.tabText, activeTab === 'assignments' && styles.activeTabText]}>
+            📋 Assignments
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -297,6 +299,39 @@ export default function DriverDashboard() {
                     {students.length - todayAttendance.length} Pending
                   </Text>
                 </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Assignments Tab */}
+        {activeTab === 'assignments' && (
+          <View style={styles.tabContent}>
+            <Text style={styles.sectionTitle}>My Assignments</Text>
+            {assignments.length === 0 ? (
+              <Text style={styles.emptyText}>No assignments found.</Text>
+            ) : (
+              <View>
+                {assignments.map((assignment) => (
+                  <View key={assignment.id} style={styles.assignmentCard}>
+                    <View style={styles.assignmentRow}>
+                      <Text style={styles.assignmentLabel}>Start Date:</Text>
+                      <Text style={styles.assignmentValue}>{formatDate(assignment.startDate)}</Text>
+                    </View>
+                    <View style={styles.assignmentRow}>
+                      <Text style={styles.assignmentLabel}>End Date:</Text>
+                      <Text style={styles.assignmentValue}>{formatDate(assignment.endDate)}</Text>
+                    </View>
+                    <View style={styles.assignmentRow}>
+                      <Text style={styles.assignmentLabel}>Bus:</Text>
+                      <Text style={styles.assignmentValue}>{getBusName(assignment.busId)}</Text>
+                    </View>
+                    <View style={styles.assignmentRow}>
+                      <Text style={styles.assignmentLabel}>Route:</Text>
+                      <Text style={styles.assignmentValue}>{getRouteName(assignment.routeId)}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             )}
           </View>
@@ -404,16 +439,6 @@ export default function DriverDashboard() {
             )}
           </View>
         )}
-
-        {/* School Info Box - Moved to bottom */}
-        {school && (
-          <View style={styles.schoolInfoBox}>
-            <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
-            {school.phone && (
-              <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
-            )}
-          </View>
-        )}
       </ScrollView>
     </View>
   );
@@ -423,24 +448,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  schoolInfoBox: {
-    backgroundColor: '#fff',
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  infoBoxText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
   },
   loadingContainer: {
     flex: 1,

@@ -5,9 +5,9 @@ import 'react-native-reanimated';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 'react-native-paper';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native-paper';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-import { useColorScheme } from '../hooks/use-color-scheme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 // Extend the React Navigation theme while also providing a Paper theme.
 function useThemes(colorScheme: string | null) {
@@ -55,32 +55,35 @@ function InnerLayout() {
 
   // Route guard: ensure unauthenticated users land on /login, authenticated go to tabs.
   useEffect(() => {
-    if (!hydrated || !navReady) return; // defer until auth is hydrated and navigation is ready
-    
+    if (!navReady) return; // defer until navigation is ready
+    const first = segments[0];
     if (!user) {
-      // Not logged in - always go to login
-      router.replace('/login');
+      if (first !== 'login') router.replace('/login');
     } else {
-      // Logged in - go to tabs if on login page
-      const first = segments[0];
-      if (first === 'login') {
-        router.replace('/(tabs)');
-      }
+      if (first === 'login') router.replace('/(tabs)');
     }
-  }, [user, segments, router, navReady, hydrated]);
+  }, [user, segments, router, navReady]);
+
+  // Optional: simple loading state until navigation segments resolve
+  if (!navReady || !hydrated) {
+    return (
+      <ThemeProvider value={navTheme}>
+        <PaperProvider theme={paperTheme}>
+          <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
+          <StatusBar style="auto" />
+        </PaperProvider>
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider value={navTheme}>
       <PaperProvider theme={paperTheme}>
-        {!navReady || !hydrated ? (
-          <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
-        ) : (
-          <Stack>
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-        )}
+        <Stack>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
         <StatusBar style="auto" />
       </PaperProvider>
     </ThemeProvider>

@@ -1,63 +1,16 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { useRouter } from 'expo-router';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import theme from '../constants/theme';
 
 export default function ExploreScreen() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: () => {
-            logout();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <View style={styles.container}>
-      <View style={styles.profileCard}>
-        <Text style={styles.greeting}>Hello, {user?.name || 'User'}!</Text>
-        <Text style={styles.role}>
-          {user?.role === 'driver' ? '🚌 Driver' : '👨‍👩‍👧‍👦 Parent'}
-        </Text>
-        <Text style={styles.phone}>📱 {user?.phone || '—'}</Text>
-      </View>
-
-      <View style={styles.menuSection}>
-        <Text style={styles.sectionTitle}>Settings</Text>
-        
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuText}>📋 Profile</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuText}>🔔 Notifications</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuText}>❓ Help & Support</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.menuItem}>
-          <Text style={styles.menuText}>ℹ️ About</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutButtonText}>🚪 Logout</Text>
+      <Text style={styles.title}>Explore</Text>
+      <Text style={styles.paragraph}>
+        Discover new features and navigate through the app with ease.
+      </Text>
+      <TouchableOpacity onPress={() => alert('Explore More!')} style={styles.button}>
+        <Text style={styles.buttonText}>Explore More</Text>
       </TouchableOpacity>
     </View>
   );
@@ -66,71 +19,31 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: theme.colors.background,
     padding: 20,
   },
-  profileCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    marginTop: 20,
-    marginBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    alignItems: 'center',
-  },
-  greeting: {
+  title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  role: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 4,
-  },
-  phone: {
-    fontSize: 16,
-    color: '#999',
-  },
-  menuSection: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  menuItem: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
+    color: theme.colors.primary,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  menuText: {
+  paragraph: {
     fontSize: 16,
-    color: '#333',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  logoutButton: {
-    backgroundColor: '#f44336',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 'auto',
+  button: {
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
   },
-  logoutButtonText: {
+  buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    textAlign: 'center',
   },
 });

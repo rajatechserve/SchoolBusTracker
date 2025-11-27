@@ -1,38 +1,43 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Text, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api, { attachToken } from '../../services/api';
 import { router } from 'expo-router';
 
+type Role = 'driver' | 'parent';
+
 export default function UnifiedLogin() {
   const { loginLocal } = useAuth();
+  const [role, setRole] = useState<Role>('driver');
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [busNumber, setBusNumber] = useState('');
   const [loading, setLoading] = useState(false);
-  const phoneValid = /^\d{10}$/.test(phone.trim());
+  const phoneValid = /^\+?\d{7,15}$/.test(phone.trim());
+  const nameValid = name.trim().length >= 2;
+  const driverValid = nameValid && phoneValid && busNumber.trim().length >= 2;
+  const parentValid = nameValid && phoneValid;
+  const canSubmit = useMemo(() => (role === 'driver' ? driverValid : parentValid), [role, driverValid, parentValid]);
 
   const submit = async () => {
-    if (!phoneValid || loading) return;
+    if (!canSubmit || loading) return;
     setLoading(true);
     try {
-      const resp = await api.post('/auth/mobile-login', { phone: phone.trim() });
-      const token = resp.data?.token;
-      const role = resp.data?.role; // 'driver' or 'parent'
-      const user = resp.data?.user;
-      
-      if (token && role && user) {
-        attachToken(token);
-        loginLocal(role, { 
-          id: user.id, 
-          name: user.name, 
-          phone: user.phone, 
-          schoolId: user.schoolId 
-        }, token);
-        router.replace('/(tabs)');
+      if (role === 'driver') {
+        const resp = await api.post('/auth/driver-login', { phone: phone.trim(), name: name.trim(), bus: busNumber.trim() });
+        const token = resp.data?.token;
+        if (token) attachToken(token);
+        loginLocal('driver', { id: phone.trim(), name: name.trim(), bus: busNumber.trim(), phone: phone.trim() }, token);
       } else {
-        Alert.alert('Login Failed', 'Invalid response from server');
+        const resp = await api.post('/auth/parent-login', { phone: phone.trim(), name: name.trim() });
+        const token = resp.data?.token;
+        if (token) attachToken(token);
+        loginLocal('parent', { id: phone.trim(), name: name.trim(), phone: phone.trim() }, token);
       }
+      // Navigate to tabs after successful login
+      router.replace('/(tabs)');
     } catch (e: any) {
-      Alert.alert('Login Failed', e?.response?.data?.error || e?.message || 'Unable to login. Please check your phone number.');
+      console.warn('Login failed', e?.message);
     } finally {
       setLoading(false);
     }
@@ -40,44 +45,56 @@ export default function UnifiedLogin() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', default: undefined })} style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Text style={styles.logoText}>🚌</Text>
-        <Text style={styles.appName}>School Bus Tracker</Text>
+      <Text style={styles.title}>Login</Text>
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          onPress={() => setRole('driver')}
+          style={[styles.toggleButton, role === 'driver' && styles.toggleActive]}
+        >
+          <Text style={[styles.toggleText, role === 'driver' && styles.toggleTextActive]}>Driver</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setRole('parent')}
+          style={[styles.toggleButton, role === 'parent' && styles.toggleActive]}
+        >
+          <Text style={[styles.toggleText, role === 'parent' && styles.toggleTextActive]}>Parent</Text>
+        </TouchableOpacity>
       </View>
-      
-      <View style={styles.card}>
-        <Text style={styles.title}>Mobile Login</Text>
-        <Text style={styles.subtitle}>Enter your registered mobile number</Text>
-        
+
+      <View style={styles.formBlock}>
         <TextInput
-          placeholder="Mobile Number (10 digits)"
+          placeholder="Name"
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          autoCapitalize="words"
+        />
+        <TextInput
+          placeholder="Mobile (e.g. +1234567890)"
           value={phone}
           onChangeText={setPhone}
           style={styles.input}
           keyboardType="phone-pad"
-          maxLength={10}
-          autoFocus
         />
-        <Text style={styles.hint}>
-          {phoneValid ? '✓ Ready to login' : 'Enter valid 10-digit mobile number'}
-        </Text>
-
-        <TouchableOpacity
-          onPress={submit}
-          disabled={!phoneValid || loading}
-          style={[styles.submitButton, (!phoneValid || loading) && styles.submitDisabled]}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitText}>Login</Text>
-          )}
-        </TouchableOpacity>
-        
-        <Text style={styles.note}>
-          Your role (Driver/Parent) will be automatically detected based on your phone number.
-        </Text>
+        {role === 'driver' && (
+          <TextInput
+            placeholder="Bus Number"
+            value={busNumber}
+            onChangeText={setBusNumber}
+            style={styles.input}
+            autoCapitalize="characters"
+          />
+        )}
+        <Text style={styles.helper}>{canSubmit ? 'Ready' : role === 'driver' ? 'Need name, phone, bus (2+ chars)' : 'Need name (2+) & valid phone'}</Text>
       </View>
+
+      <TouchableOpacity
+        onPress={submit}
+        disabled={!canSubmit || loading}
+        style={[styles.submitButton, (!canSubmit || loading) && styles.submitDisabled]}
+      >
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>{role === 'driver' ? 'Login as Driver' : 'Login as Parent'}</Text>}
+      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -87,75 +104,67 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoText: {
-    fontSize: 64,
-    marginBottom: 12,
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 26,
+    fontWeight: '700',
     marginBottom: 24,
+    textAlign: 'center',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#007BFF',
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  toggleActive: {
+    backgroundColor: '#007BFF',
+  },
+  toggleText: {
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007BFF',
+  },
+  toggleTextActive: {
+    color: '#FFFFFF',
+  },
+  formBlock: {
+    marginBottom: 12,
   },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 6,
+    padding: 12,
     marginBottom: 10,
     backgroundColor: '#fff',
-    fontSize: 16,
   },
-  hint: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 20,
+  helper: {
+    fontSize: 12,
+    color: '#555',
+    marginBottom: 4,
   },
   submitButton: {
     backgroundColor: '#007BFF',
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 6,
     alignItems: 'center',
+    marginTop: 10,
   },
   submitDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#7daee9',
   },
   submitText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  note: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 20,
-    fontStyle: 'italic',
   },
 });
