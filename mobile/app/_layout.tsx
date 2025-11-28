@@ -44,33 +44,24 @@ function InnerLayout() {
   const segments = useSegments();
   const router = useRouter();
   const { user, hydrated } = useAuth();
-  const [navReady, setNavReady] = useState(false);
-
-  // Mark navigation ready once segments resolve (empty array -> resolving, non-empty -> ready)
-  useEffect(() => {
-    if (!navReady && segments.length > 0) {
-      setNavReady(true);
-    }
-  }, [segments, navReady]);
 
   // Route guard: ensure unauthenticated users land on /login, authenticated go to tabs.
   useEffect(() => {
-    if (!hydrated || !navReady) return; // defer until auth is hydrated and navigation is ready
+    if (!hydrated) return; // defer until auth is hydrated
     
-    if (!user) {
-      // Not logged in - always go to login
+    const inAuthGroup = segments[0] === '(tabs)';
+    
+    if (!user && inAuthGroup) {
+      // Not logged in but trying to access protected route - redirect to login
       router.replace('/login');
-    } else {
-      // Logged in - go to tabs if on login page
-      const first = segments[0];
-      if (first === 'login') {
-        router.replace('/(tabs)');
-      }
+    } else if (user && segments[0] === 'login') {
+      // Logged in but on login page - redirect to tabs
+      router.replace('/(tabs)');
     }
-  }, [user, segments, router, navReady, hydrated]);
+  }, [user, segments, router, hydrated]);
 
-  // Optional: simple loading state until navigation segments resolve
-  if (!navReady || !hydrated) {
+  // Show loading only until auth is hydrated
+  if (!hydrated) {
     return (
       <ThemeProvider value={navTheme}>
         <PaperProvider theme={paperTheme}>
@@ -84,10 +75,13 @@ function InnerLayout() {
   return (
     <ThemeProvider value={navTheme}>
       <PaperProvider theme={paperTheme}>
-        <Stack>
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack 
+          screenOptions={{ headerShown: false }}
+          initialRouteName={user ? '(tabs)' : 'login'}
+        >
+          <Stack.Screen name="login" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
         </Stack>
         <StatusBar style="auto" />
       </PaperProvider>

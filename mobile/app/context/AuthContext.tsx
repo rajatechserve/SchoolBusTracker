@@ -110,3 +110,9 @@ export function useAuth() {
   if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
+
+// Dummy default export to satisfy Expo Router requirements
+// This file is not a route, but Expo Router scans all files in the app directory
+export default function AuthContextPlaceholder() {
+  return null;
+}
