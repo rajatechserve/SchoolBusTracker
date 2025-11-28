@@ -17,8 +17,22 @@ api.interceptors.request.use((config)=>{
   return config;
 });
 
+let unauthorizedHandled = false;
 api.interceptors.response.use(r=>r, err=>{
-  if(err?.response?.status === 401){ setAuthToken(null); }
+  const status = err?.response?.status;
+  if(status === 401){
+    // Avoid repeated clearing/navigation storms on multiple concurrent 401s
+    if(!unauthorizedHandled){
+      unauthorizedHandled = true;
+      setAuthToken(null);
+      setAuthUser(null);
+      // Redirect to login only if not already there
+      const currentPath = window.location.pathname;
+      if(currentPath !== '/login'){ window.location.replace('/login'); }
+      // Reset the guard after a short delay to allow next legitimate 401
+      setTimeout(()=>{ unauthorizedHandled = false; }, 2000);
+    }
+  }
   return Promise.reject(err);
 });
 

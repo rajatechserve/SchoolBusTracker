@@ -295,7 +295,8 @@ export default function App(){
           <main className="p-6 max-w-7xl mx-auto">
             <Routes>
               <Route path="/login" element={<Login onLogin={() => { setAuthUserState(getAuthUser()); }} />} />
-              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/dashboard" element={authUserState?.role === 'admin' ? <Dashboard/> : <Navigate to="/login" replace />} />
+              <Route path="/" element={<Navigate to={authUserState ? (authUserState.role === 'admin' ? '/dashboard' : (authUserState.role === 'school' || authUserState.role === 'schoolUser' ? '/school-dashboard' : authUserState.role === 'driver' ? '/driver-dashboard' : authUserState.role === 'parent' ? '/parent-dashboard' : '/login')) : '/login'} replace />} />
               <Route path="/map" element={<MapPage/>} />
               <Route path="/buses" element={<Buses/>} />
               <Route path="/drivers" element={<Drivers/>} />
