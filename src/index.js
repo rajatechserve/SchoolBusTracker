@@ -17,8 +17,8 @@ app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'please_change_this_secret';
-const DB_FILE = path.join(__dirname, '..', 'app.db');
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const DB_FILE = path.join(__dirname, './', 'app.db');
+const UPLOADS_DIR = path.join(__dirname, './', 'uploads');
 const db = new sqlite3.Database(DB_FILE);
 const initDb = require('./dbInit');
 
