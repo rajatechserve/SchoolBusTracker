@@ -7,14 +7,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const process: any;
 
-function resolveBaseUrl(): string {
+export function resolveBaseUrl(): string {
   const fromEnv = process?.env?.EXPO_PUBLIC_API_URL as string | undefined;
   // expoConfig.extra is available in managed workflow if set in app.json or app.config.*
   const fromConfig = (Constants?.expoConfig?.extra as any)?.apiBaseUrl as string | undefined;
   
-  // For Android emulator, use 10.0.2.2 which maps to host machine's localhost
-  // For physical device, use your computer's local IP address
-  let defaultUrl = 'http://10.0.2.2:4000/api'; // Android emulator default
+  // Default to production Heroku API when no env is set
+  let defaultUrl = 'https://itech-bustracker-app-b9609b94f375.herokuapp.com/api';
   
   // Try to detect if running on physical device (will need manual IP configuration)
   const deviceName = Constants?.deviceName?.toLowerCase() || '';
@@ -27,7 +26,7 @@ function resolveBaseUrl(): string {
   return fromEnv || fromConfig || defaultUrl;
 }
 
-const baseURL = resolveBaseUrl();
+export const baseURL = resolveBaseUrl();
 console.log('🌐 API Base URL:', baseURL);
 
 const api = axios.create({ baseURL });
@@ -37,6 +36,7 @@ export function attachToken(token: string | null) {
   else delete api.defaults.headers.common.Authorization;
 }
 
+let unauthorizedGuard = false;
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
@@ -59,11 +59,16 @@ api.interceptors.response.use(
       }
       
       // Redirect to login
-      try {
-        router.replace('/login');
-        console.log('Redirected to login page');
-      } catch (navError) {
-        console.error('Navigation error on 401:', navError);
+      if (!unauthorizedGuard) {
+        unauthorizedGuard = true;
+        try {
+          router.replace('/login');
+          console.log('Redirected to login page');
+        } catch (navError) {
+          console.error('Navigation error on 401:', navError);
+        } finally {
+          setTimeout(() => { unauthorizedGuard = false; }, 1500);
+        }
       }
     }
     
