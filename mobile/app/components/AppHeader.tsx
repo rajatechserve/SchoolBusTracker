@@ -11,7 +11,10 @@ import {
   ImageBackground,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
+import { Platform, StatusBar } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
@@ -162,12 +165,25 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         console.log('Force clearing banner cache and reloading');
       }
       
-      // Use the logo URL directly as banner (will be displayed larger)
-      console.log('Setting banner image from URL:', logoUrl);
-      setBannerImage(logoUrl);
-      
-      // Cache the URL for future use
-      await AsyncStorage.setItem(`schoolBanner_${user?.schoolId}`, logoUrl);
+      // Attempt to download & cache locally for reliability (falls back to remote URL)
+      let finalUri = logoUrl;
+      if (logoUrl.startsWith('http')) {
+        try {
+          const fileName = `schoolBanner_${user?.schoolId}.jpg`;
+          const filePath = FileSystem.cacheDirectory + fileName;
+          const info = await FileSystem.getInfoAsync(filePath);
+          if (!info.exists || forceClear) {
+            console.log('Downloading banner image to cache:', filePath);
+            await FileSystem.downloadAsync(logoUrl, filePath);
+          }
+          finalUri = filePath;
+        } catch (downloadErr) {
+          console.warn('Banner download failed, using remote URL:', downloadErr);
+        }
+      }
+      console.log('Setting banner image URI:', finalUri);
+      setBannerImage(finalUri);
+      await AsyncStorage.setItem(`schoolBanner_${user?.schoolId}`, finalUri);
     } catch (error) {
       console.error('Failed to load banner image:', error);
     }
@@ -287,7 +303,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
   return (
     <>
-      {/* Header */}
+      {/* Header with Safe Area */}
+      <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         {showBackButton ? (
           <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
@@ -322,6 +339,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           </View>
         </View>
       </View>
+      </SafeAreaView>
 
       {/* School Banner - Only on Home Page */}
       {showBanner && bannerImage && (
@@ -346,8 +364,9 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         animationType="none"
         onRequestClose={closeDrawer}
       >
+        {/* Overlay only covers area outside drawer to keep drawer clickable */}
         <TouchableOpacity
-          style={styles.overlay}
+          style={[styles.overlay, { left: width * 0.6 }]}
           activeOpacity={1}
           onPress={closeDrawer}
         />
@@ -440,6 +459,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
