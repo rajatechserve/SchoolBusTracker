@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
-import api from '../services/api';
+import api, { baseURL } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -45,6 +45,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [school, setSchool] = useState<School | null>(null);
   const [userImage, setUserImage] = useState<string | null>(null);
+  const [logoImage, setLogoImage] = useState<string | null>(null);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.6))[0];
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
@@ -93,6 +94,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           shouldClearCache = true;
           // Clear cached banner
           await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
+          // Clear cached logo
+          await AsyncStorage.removeItem(`schoolLogo_${user.schoolId}`);
         }
       }
       
@@ -103,41 +106,22 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         updatedAt: Date.now()
       }));
       
-      // Handle logo URL
-      if (schoolData.logo) {
-        const logoPath = schoolData.logo.startsWith('/') ? schoolData.logo.substring(1) : schoolData.logo;
-        
-        // Construct full URL if needed
-        if (!logoPath.startsWith('http')) {
-          const baseURL = api.defaults.baseURL?.replace(/\/api$/, '') || 'http://localhost:4000';
-          schoolData.logo = `${baseURL}/${logoPath}`;
-        } else {
-          schoolData.logo = logoPath;
-        }
-        
-        console.log('Logo URL:', schoolData.logo);
+      // Prefer DB-served logo endpoint
+      if (user?.schoolId) {
+        const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
+        const logoUrl = `${host}/api/schools/${user.schoolId}/logo`;
+        schoolData.logo = logoUrl;
+        console.log('Logo URL:', logoUrl);
+        // Load and cache the logo locally similar to banner
+        await loadLogoImage(logoUrl, shouldClearCache);
       }
       
       // Handle banner/photo URL for banner display
       if (showBanner) {
-        if (schoolData.photo) {
-          const photoPath = schoolData.photo.startsWith('/') ? schoolData.photo.substring(1) : schoolData.photo;
-          
-          // Construct full URL if needed
-          let photoUrl = photoPath;
-          if (!photoPath.startsWith('http')) {
-            const baseURL = api.defaults.baseURL?.replace(/\/api$/, '') || 'http://localhost:4000';
-            photoUrl = `${baseURL}/${photoPath}`;
-          }
-          
-          console.log('Banner/Photo URL:', photoUrl);
-          loadBannerImage(photoUrl, shouldClearCache);
-        } else {
-          console.log('No photo field in school data');
-          // Clear banner if photo was removed
-          setBannerImage(null);
-          await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
-        }
+        const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
+        const bannerUrl = `${host}/api/schools/${user.schoolId}/banner`;
+        console.log('Banner URL:', bannerUrl);
+        loadBannerImage(bannerUrl, shouldClearCache);
       }
       
       setSchool(schoolData);
@@ -150,8 +134,47 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     }
   };
 
+  const loadLogoImage = async (logoUrl: string, forceClear: boolean = false) => {
+    try {
+      const urlWithBuster = logoUrl + (logoUrl.includes('?') ? `&v=${Date.now()}` : `?v=${Date.now()}`);
+      if (!forceClear) {
+        const cachedLogo = await AsyncStorage.getItem(`schoolLogo_${user?.schoolId}`);
+        if (cachedLogo) {
+          console.log('Using cached logo image');
+          setLogoImage(cachedLogo);
+          return;
+        }
+      } else {
+        console.log('Force clearing logo cache and reloading');
+      }
+
+      let finalUri = urlWithBuster;
+      if (urlWithBuster.startsWith('http')) {
+        try {
+          const fileName = `schoolLogo_${user?.schoolId}.jpg`;
+          const filePath = FileSystem.cacheDirectory + fileName;
+          const info = await FileSystem.getInfoAsync(filePath);
+          if (!info.exists || forceClear) {
+            console.log('Downloading logo image to cache:', filePath);
+            await FileSystem.downloadAsync(urlWithBuster, filePath);
+          }
+          finalUri = filePath;
+        } catch (downloadErr) {
+          console.warn('Logo download failed, using remote URL:', downloadErr);
+        }
+      }
+      console.log('Setting logo image URI:', finalUri);
+      setLogoImage(finalUri);
+      await AsyncStorage.setItem(`schoolLogo_${user?.schoolId}`, finalUri);
+    } catch (error) {
+      console.error('Failed to load logo image:', error);
+    }
+  };
+
   const loadBannerImage = async (logoUrl: string, forceClear: boolean = false) => {
     try {
+      // Add cache-buster to avoid stale/partial cached streams on Android
+      const urlWithBuster = logoUrl + (logoUrl.includes('?') ? `&v=${Date.now()}` : `?v=${Date.now()}`);
       // If forceClear is true, skip cache check
       if (!forceClear) {
         // Check if banner is already cached
@@ -166,15 +189,15 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       }
       
       // Attempt to download & cache locally for reliability (falls back to remote URL)
-      let finalUri = logoUrl;
-      if (logoUrl.startsWith('http')) {
+      let finalUri = urlWithBuster;
+      if (urlWithBuster.startsWith('http')) {
         try {
           const fileName = `schoolBanner_${user?.schoolId}.jpg`;
           const filePath = FileSystem.cacheDirectory + fileName;
           const info = await FileSystem.getInfoAsync(filePath);
           if (!info.exists || forceClear) {
             console.log('Downloading banner image to cache:', filePath);
-            await FileSystem.downloadAsync(logoUrl, filePath);
+            await FileSystem.downloadAsync(urlWithBuster, filePath);
           }
           finalUri = filePath;
         } catch (downloadErr) {
@@ -317,9 +340,19 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         )}
         
         <View style={styles.schoolInfo}>
-          {school?.logo ? (
-            <Image 
-              source={{ uri: school.logo }} 
+          {logoImage ? (
+            <Image
+              source={{ uri: logoImage }}
+              style={styles.logo}
+              onError={(error: any) => {
+                console.log('Cached logo load error:', error.nativeEvent?.error);
+                setLogoImage(null);
+              }}
+              onLoad={() => console.log('Cached logo loaded successfully')}
+            />
+          ) : school?.logo ? (
+            <Image
+              source={{ uri: school.logo + (school.logo?.includes('?') ? `&v=${lastRefreshTime}` : `?v=${lastRefreshTime}`) }}
               style={styles.logo}
               onError={(error: any) => {
                 console.log('Logo load error:', error.nativeEvent?.error);

@@ -31,6 +31,9 @@ function Sidebar({ authUser, onLogoUpdate }){
   const userRole = authUser?.userRole; // viewer | editor | manager
   const isViewer = isSchoolUser && userRole === 'viewer';
   const logo = (isSchoolAdmin || isSchoolUser || isDriver || isParent) ? authUser?.logo : null;
+  const schoolIdForBranding = isSchoolAdmin ? authUser?.id : authUser?.schoolId;
+  const host = SERVER_URL || '';
+  const logoUrl = schoolIdForBranding ? `${host}/api/schools/${schoolIdForBranding}/logo` : (logo || null);
   const [adminLogo, setAdminLogo] = React.useState(localStorage.getItem('adminLogo') || null);
   
   const handleLogoUpload = (e) => {
@@ -104,7 +107,7 @@ function Sidebar({ authUser, onLogoUpdate }){
           </div>
         ) : logo ? (
           <img 
-            src={logo.startsWith('/uploads') ? `${SERVER_URL}${logo}` : logo} 
+            src={logoUrl} 
             alt="School Logo" 
             className="h-20 w-auto max-w-[180px] object-contain" 
           />
@@ -157,6 +160,8 @@ function Header({ onLogout, authUser }) {
   const isParent = authUser?.role === 'parent';
   const isAdmin = authUser?.role === 'admin';
   const { theme, setTheme } = useTheme();
+  const host = SERVER_URL || '';
+  const schoolIdForBranding = isAdmin ? null : (authUser?.role === 'school' ? authUser?.id : authUser?.schoolId);
   
   const ThemeIcon = ({ type }) => {
     if (type === 'light') return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
@@ -198,8 +203,8 @@ function Header({ onLogout, authUser }) {
         {isDriver || isParent ? (
           <>
             <div className="flex items-center gap-4 flex-1">
-              {authUser?.logo && (
-                <img src={authUser.logo.startsWith('/uploads') ? `${SERVER_URL}${authUser.logo}` : authUser.logo} alt="School Logo" className="h-12 w-auto object-contain" />
+              {schoolIdForBranding && (
+                <img src={`${host}/api/schools/${schoolIdForBranding}/logo`} alt="School Logo" className="h-12 w-auto object-contain" />
               )}
               <div className="flex flex-col">
                 <div className={`text-xl font-semibold ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>{authUser?.name || 'School'}</div>
@@ -232,6 +237,11 @@ function Header({ onLogout, authUser }) {
             {isSchool ? (
               <div className="flex-1 flex flex-col justify-center">
                 <div className={`text-2xl md:text-3xl font-bold leading-tight ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>{schoolName}</div>
+                {schoolIdForBranding && (
+                  <div className="mt-2">
+                    <img src={`${host}/api/schools/${schoolIdForBranding}/banner`} alt="School Banner" className="h-24 w-full object-cover rounded-md" />
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   {authUser?.address && (
                     <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>{authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
