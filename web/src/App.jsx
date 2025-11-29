@@ -237,11 +237,6 @@ function Header({ onLogout, authUser }) {
             {isSchool ? (
               <div className="flex-1 flex flex-col justify-center">
                 <div className={`text-2xl md:text-3xl font-bold leading-tight ${hasCustomHeaderColors() ? 'text-white drop-shadow-md' : 'text-slate-800 dark:text-slate-200'}`}>{schoolName}</div>
-                {schoolIdForBranding && (
-                  <div className="mt-2">
-                    <img src={`${host}/api/schools/${schoolIdForBranding}/banner`} alt="School Banner" className="h-24 w-full object-cover rounded-md" />
-                  </div>
-                )}
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   {authUser?.address && (
                     <span className={`text-sm ${hasCustomHeaderColors() ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}`}>{authUser.address}{authUser.city || authUser.state ? `, ${[authUser.city, authUser.state].filter(Boolean).join(', ')}` : ''}</span>
