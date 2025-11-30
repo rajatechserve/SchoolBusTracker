@@ -411,49 +411,6 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             </View>
           </View>
         )}
-        {showBackButton ? (
-          <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
-            <Text style={styles.menuIcon}>←</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-            <Text style={styles.menuIcon}>☰</Text>
-          </TouchableOpacity>
-        )}
-        
-        <View style={styles.schoolInfo}>
-          {logoImage ? (
-            <Image
-              source={{ uri: logoImage }}
-              style={styles.logo}
-              onError={(error: any) => {
-                console.log('Cached logo load error:', error.nativeEvent?.error);
-                setLogoImage(null);
-              }}
-              onLoad={() => console.log('Cached logo loaded successfully')}
-            />
-          ) : school?.logo ? (
-            <Image
-              source={{ uri: school.logo + (school.logo?.includes('?') ? `&v=${lastRefreshTime}` : `?v=${lastRefreshTime}`) }}
-              style={styles.logo}
-              onError={(error: any) => {
-                console.log('Logo load error:', error.nativeEvent?.error);
-                setSchool({ ...school, logo: undefined });
-              }}
-              onLoad={() => console.log('Logo loaded successfully')}
-            />
-          ) : (
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>🏫</Text>
-            </View>
-          )}
-          <View style={styles.schoolDetails}>
-            <Text style={styles.schoolName} numberOfLines={1}>
-              {school?.name || 'School Name'}
-            </Text>
-          </View>
-        </View>
-      </View>
       </SafeAreaView>
 
       {/* School Banner - Only on Home Page */}
@@ -605,7 +562,6 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             </View>
           </Animated.View>
         )}
-        </Animated.View>
       </Modal>
     </>
   );
