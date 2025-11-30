@@ -271,7 +271,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     setDrawerVisible(true);
     Animated.timing(slideAnim, {
       toValue: 0,
-      duration: 300,
+      duration: 250,
       useNativeDriver: true,
     }).start();
   };
@@ -279,7 +279,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const closeDrawer = () => {
     Animated.timing(slideAnim, {
       toValue: -width * 0.6,
-      duration: 300,
+      duration: 250,
       useNativeDriver: true,
     }).start(() => {
       setDrawerVisible(false);
