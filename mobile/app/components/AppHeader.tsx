@@ -14,6 +14,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Platform, StatusBar } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -49,6 +50,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.6))[0];
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
+  const [headerColorFrom, setHeaderColorFrom] = useState<string | null>(null);
+  const [headerColorTo, setHeaderColorTo] = useState<string | null>(null);
+  const [sidebarColorFrom, setSidebarColorFrom] = useState<string | null>(null);
+  const [sidebarColorTo, setSidebarColorTo] = useState<string | null>(null);
 
   useEffect(() => {
     loadSchoolInfo();
@@ -103,8 +108,22 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       await AsyncStorage.setItem(`schoolData_${user.schoolId}`, JSON.stringify({
         logo: schoolData.logo,
         photo: schoolData.photo,
+        headerColorFrom: schoolData.headerColorFrom || null,
+        headerColorTo: schoolData.headerColorTo || null,
+        sidebarColorFrom: schoolData.sidebarColorFrom || null,
+        sidebarColorTo: schoolData.sidebarColorTo || null,
         updatedAt: Date.now()
       }));
+
+      // Persist colors locally for offline use
+      await AsyncStorage.setItem(`schoolHeaderFrom_${user.schoolId}`, schoolData.headerColorFrom || '');
+      await AsyncStorage.setItem(`schoolHeaderTo_${user.schoolId}`, schoolData.headerColorTo || '');
+      await AsyncStorage.setItem(`schoolSidebarFrom_${user.schoolId}`, schoolData.sidebarColorFrom || '');
+      await AsyncStorage.setItem(`schoolSidebarTo_${user.schoolId}`, schoolData.sidebarColorTo || '');
+      setHeaderColorFrom(schoolData.headerColorFrom || null);
+      setHeaderColorTo(schoolData.headerColorTo || null);
+      setSidebarColorFrom(schoolData.sidebarColorFrom || null);
+      setSidebarColorTo(schoolData.sidebarColorTo || null);
       
       // Prefer DB-served logo endpoint
       if (user?.schoolId) {
@@ -131,6 +150,21 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       }
     } catch (e) {
       console.error('Failed to load school info:', e);
+      // Fallback: load cached colors
+      try {
+        if (user?.schoolId) {
+          const hFrom = await AsyncStorage.getItem(`schoolHeaderFrom_${user.schoolId}`);
+          const hTo = await AsyncStorage.getItem(`schoolHeaderTo_${user.schoolId}`);
+          const sFrom = await AsyncStorage.getItem(`schoolSidebarFrom_${user.schoolId}`);
+          const sTo = await AsyncStorage.getItem(`schoolSidebarTo_${user.schoolId}`);
+          setHeaderColorFrom(hFrom || null);
+          setHeaderColorTo(hTo || null);
+          setSidebarColorFrom(sFrom || null);
+          setSidebarColorTo(sTo || null);
+        }
+      } catch (colorErr) {
+        console.warn('Failed to load cached colors:', colorErr);
+      }
     }
   };
 
@@ -328,7 +362,55 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     <>
       {/* Header with Safe Area */}
       <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
+        {headerColorFrom && headerColorTo ? (
+          <LinearGradient colors={[headerColorFrom, headerColorTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
+            {showBackButton ? (
+              <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
+                <Text style={styles.menuIcon}>←</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+                <Text style={styles.menuIcon}>☰</Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.schoolInfo}>
+              {logoImage ? (
+                <Image source={{ uri: logoImage }} style={styles.logo} onError={(error: any) => { console.log('Cached logo load error:', error.nativeEvent?.error); setLogoImage(null); }} onLoad={() => console.log('Cached logo loaded successfully')} />
+              ) : school?.logo ? (
+                <Image source={{ uri: school.logo + (school.logo?.includes('?') ? `&v=${lastRefreshTime}` : `?v=${lastRefreshTime}`) }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
+              ) : (
+                <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
+              )}
+              <View style={styles.schoolDetails}>
+                <Text style={[styles.schoolName, { color: '#fff' }]} numberOfLines={1}>{school?.name || 'School Name'}</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        ) : (
+          <View style={styles.header}>
+            {showBackButton ? (
+              <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
+                <Text style={styles.menuIcon}>←</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+                <Text style={styles.menuIcon}>☰</Text>
+              </TouchableOpacity>
+            )}
+            <View style={styles.schoolInfo}>
+              {logoImage ? (
+                <Image source={{ uri: logoImage }} style={styles.logo} onError={(error: any) => { console.log('Cached logo load error:', error.nativeEvent?.error); setLogoImage(null); }} onLoad={() => console.log('Cached logo loaded successfully')} />
+              ) : school?.logo ? (
+                <Image source={{ uri: school.logo + (school.logo?.includes('?') ? `&v=${lastRefreshTime}` : `?v=${lastRefreshTime}`) }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
+              ) : (
+                <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
+              )}
+              <View style={styles.schoolDetails}>
+                <Text style={styles.schoolName} numberOfLines={1}>{school?.name || 'School Name'}</Text>
+              </View>
+            </View>
+          </View>
+        )}
         {showBackButton ? (
           <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
             <Text style={styles.menuIcon}>←</Text>
@@ -403,88 +485,126 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           activeOpacity={1}
           onPress={closeDrawer}
         />
-        <Animated.View
-          style={[
-            styles.drawer,
-            {
-              transform: [{ translateX: slideAnim }],
-            },
-          ]}
-        >
-          {/* User Profile Section */}
-          <View style={styles.profileSection}>
-            <TouchableOpacity onPress={changeUserImage} style={styles.avatarContainer}>
-              {userImage ? (
-                <Image source={{ uri: userImage }} style={styles.userImage} />
-              ) : (
-                <View style={styles.defaultAvatar}>
-                  <Text style={styles.avatar}>
-                    {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.editBadge}>
-                <Text style={styles.editIcon}>✏️</Text>
+        {sidebarColorFrom && sidebarColorTo ? (
+          <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
+            <LinearGradient colors={[sidebarColorFrom, sidebarColorTo]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.drawer}>
+              {/* User Profile Section */}
+              <View style={styles.profileSection}>
+                <TouchableOpacity onPress={changeUserImage} style={styles.avatarContainer}>
+                  {userImage ? (
+                    <Image source={{ uri: userImage }} style={styles.userImage} />
+                  ) : (
+                    <View style={styles.defaultAvatar}>
+                      <Text style={styles.avatar}>
+                        {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.editBadge}>
+                    <Text style={styles.editIcon}>✏️</Text>
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.userName}>{user?.name || 'User'}</Text>
               </View>
-            </TouchableOpacity>
-            <Text style={styles.userName}>{user?.name || 'User'}</Text>
-          </View>
-
-          {/* Menu Items */}
-          <View style={styles.menuSection}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo('dashboard')}
-            >
-              <Text style={styles.menuItemIcon}>🏠</Text>
-              <Text style={styles.menuItemText}>Dashboard</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo('profile')}
-            >
-              <Text style={styles.menuItemIcon}>👤</Text>
-              <Text style={styles.menuItemText}>Profile</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo('notifications')}
-            >
-              <Text style={styles.menuItemIcon}>🔔</Text>
-              <Text style={styles.menuItemText}>Alert</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateTo('assignments')}
-            >
-              <Text style={styles.menuItemIcon}>📋</Text>
-              <Text style={styles.menuItemText}>Assignments</Text>
-            </TouchableOpacity>
-
-            {user?.role === 'parent' && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => navigateTo('attendance')}
-              >
-                <Text style={styles.menuItemIcon}>📊</Text>
-                <Text style={styles.menuItemText}>Attendance</Text>
+              {/* Menu Items */}
+              <View style={styles.menuSection}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => navigateTo('dashboard')}
+                >
+                  <Text style={styles.menuItemIcon}>🏠</Text>
+                  <Text style={styles.menuItemText}>Dashboard</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('profile')}>
+                  <Text style={styles.menuItemIcon}>👤</Text>
+                  <Text style={styles.menuItemText}>Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('notifications')}>
+                  <Text style={styles.menuItemIcon}>🔔</Text>
+                  <Text style={styles.menuItemText}>Alert</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('assignments')}>
+                  <Text style={styles.menuItemIcon}>📋</Text>
+                  <Text style={styles.menuItemText}>Assignments</Text>
+                </TouchableOpacity>
+                {user?.role === 'parent' && (
+                  <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('attendance')}>
+                    <Text style={styles.menuItemIcon}>📊</Text>
+                    <Text style={styles.menuItemText}>Attendance</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {/* Logout Section at Bottom */}
+              <View style={styles.logoutSection}>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                  <Text style={styles.logoutIcon}>🚪</Text>
+                  <Text style={styles.logoutText}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        ) : (
+          <Animated.View
+            style={[
+              styles.drawer,
+              sidebarColorFrom ? { backgroundColor: sidebarColorFrom } : null,
+              {
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            {/* User Profile Section */}
+            <View style={styles.profileSection}>
+              <TouchableOpacity onPress={changeUserImage} style={styles.avatarContainer}>
+                {userImage ? (
+                  <Image source={{ uri: userImage }} style={styles.userImage} />
+                ) : (
+                  <View style={styles.defaultAvatar}>
+                    <Text style={styles.avatar}>
+                      {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.editBadge}>
+                  <Text style={styles.editIcon}>✏️</Text>
+                </View>
               </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Logout Section at Bottom */}
-          <View style={styles.logoutSection}>
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
-            >
-              <Text style={styles.logoutIcon}>🚪</Text>
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.userName}>{user?.name || 'User'}</Text>
+            </View>
+            {/* Menu Items */}
+            <View style={styles.menuSection}>
+              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('dashboard')}>
+                <Text style={styles.menuItemIcon}>🏠</Text>
+                <Text style={styles.menuItemText}>Dashboard</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('profile')}>
+                <Text style={styles.menuItemIcon}>👤</Text>
+                <Text style={styles.menuItemText}>Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('notifications')}>
+                <Text style={styles.menuItemIcon}>🔔</Text>
+                <Text style={styles.menuItemText}>Alert</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('assignments')}>
+                <Text style={styles.menuItemIcon}>📋</Text>
+                <Text style={styles.menuItemText}>Assignments</Text>
+              </TouchableOpacity>
+              {user?.role === 'parent' && (
+                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('attendance')}>
+                  <Text style={styles.menuItemIcon}>📊</Text>
+                  <Text style={styles.menuItemText}>Attendance</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {/* Logout Section at Bottom */}
+            <View style={styles.logoutSection}>
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Text style={styles.logoutIcon}>🚪</Text>
+                <Text style={styles.logoutText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
         </Animated.View>
       </Modal>
     </>
