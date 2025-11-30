@@ -50,6 +50,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.6))[0];
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
+  const [brandingVersion, setBrandingVersion] = useState<number>(Date.now());
   const [headerColorFrom, setHeaderColorFrom] = useState<string | null>(null);
   const [headerColorTo, setHeaderColorTo] = useState<string | null>(null);
   const [sidebarColorFrom, setSidebarColorFrom] = useState<string | null>(null);
@@ -107,11 +108,16 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       // Check if school data has changed by comparing with cached data
       const cachedSchoolData = await AsyncStorage.getItem(`schoolData_${user.schoolId}`);
       let shouldClearCache = false;
+      const incomingVersion = Number(schoolData.lastUpdated || schoolData.updatedAt || Date.now());
       
       if (cachedSchoolData) {
         const parsedCachedData = JSON.parse(cachedSchoolData);
-        // Compare logo/photo URLs to detect changes
-        if (parsedCachedData.logo !== schoolData.logo || parsedCachedData.photo !== schoolData.photo) {
+        // Compare logo/photo URLs or version timestamp to detect changes
+        if (
+          parsedCachedData.logo !== schoolData.logo ||
+          parsedCachedData.photo !== schoolData.photo ||
+          (parsedCachedData.version && incomingVersion && Number(parsedCachedData.version) !== Number(incomingVersion))
+        ) {
           console.log('School data changed, clearing cache...');
           shouldClearCache = true;
           // Clear cached banner
@@ -129,7 +135,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         headerColorTo: schoolData.headerColorTo || null,
         sidebarColorFrom: schoolData.sidebarColorFrom || null,
         sidebarColorTo: schoolData.sidebarColorTo || null,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        version: incomingVersion
       }));
 
       // Resolve and persist colors locally for offline use
@@ -149,7 +156,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       // Prefer DB-served logo endpoint
       if (user?.schoolId) {
         const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
-        const logoUrl = `${host}/api/schools/${user.schoolId}/logo`;
+        const logoUrl = `${host}/api/schools/${user.schoolId}/logo?t=${incomingVersion}`;
         schoolData.logo = logoUrl;
         console.log('Logo URL:', logoUrl);
         // Load and cache the logo locally similar to banner
@@ -159,12 +166,13 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       // Handle banner/photo URL for banner display
       if (showBanner) {
         const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
-        const bannerUrl = `${host}/api/schools/${user.schoolId}/banner`;
+        const bannerUrl = `${host}/api/schools/${user.schoolId}/banner?t=${incomingVersion}`;
         console.log('Banner URL:', bannerUrl);
         loadBannerImage(bannerUrl, shouldClearCache);
       }
       
       setSchool(schoolData);
+      setBrandingVersion(incomingVersion || Date.now());
       setLastRefreshTime(Date.now()); // Trigger re-render
       if (onSchoolLoaded) {
         onSchoolLoaded(schoolData);
