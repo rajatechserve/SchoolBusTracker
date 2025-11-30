@@ -55,6 +55,23 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [sidebarColorFrom, setSidebarColorFrom] = useState<string | null>(null);
   const [sidebarColorTo, setSidebarColorTo] = useState<string | null>(null);
 
+  const colorMap: Record<string, string> = {
+    white: '#ffffff',
+    'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
+    'pink-500': '#ec4899', 'red-500': '#ef4444', 'orange-500': '#f97316',
+    'amber-500': '#f59e0b', 'yellow-500': '#eab308', 'lime-500': '#84cc16',
+    'green-600': '#16a34a', 'emerald-600': '#059669', 'teal-600': '#0d9488',
+    'cyan-500': '#06b6d4', 'sky-500': '#0ea5e9', 'violet-600': '#7c3aed',
+    'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155'
+  };
+  const resolveColor = (val?: string | null): string | null => {
+    if (!val) return null;
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('#') || /^rgb\(/.test(trimmed)) return trimmed;
+    return colorMap[trimmed] || null;
+  };
+
   useEffect(() => {
     loadSchoolInfo();
     loadUserImage();
@@ -115,15 +132,19 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         updatedAt: Date.now()
       }));
 
-      // Persist colors locally for offline use
-      await AsyncStorage.setItem(`schoolHeaderFrom_${user.schoolId}`, schoolData.headerColorFrom || '');
-      await AsyncStorage.setItem(`schoolHeaderTo_${user.schoolId}`, schoolData.headerColorTo || '');
-      await AsyncStorage.setItem(`schoolSidebarFrom_${user.schoolId}`, schoolData.sidebarColorFrom || '');
-      await AsyncStorage.setItem(`schoolSidebarTo_${user.schoolId}`, schoolData.sidebarColorTo || '');
-      setHeaderColorFrom(schoolData.headerColorFrom || null);
-      setHeaderColorTo(schoolData.headerColorTo || null);
-      setSidebarColorFrom(schoolData.sidebarColorFrom || null);
-      setSidebarColorTo(schoolData.sidebarColorTo || null);
+      // Resolve and persist colors locally for offline use
+      const hFrom = resolveColor(schoolData.headerColorFrom);
+      const hTo = resolveColor(schoolData.headerColorTo);
+      const sFrom = resolveColor(schoolData.sidebarColorFrom);
+      const sTo = resolveColor(schoolData.sidebarColorTo);
+      setHeaderColorFrom(hFrom);
+      setHeaderColorTo(hTo);
+      setSidebarColorFrom(sFrom);
+      setSidebarColorTo(sTo);
+      if (hFrom) await AsyncStorage.setItem(`schoolHeaderFrom_${user.schoolId}`, hFrom); else await AsyncStorage.removeItem(`schoolHeaderFrom_${user.schoolId}`);
+      if (hTo) await AsyncStorage.setItem(`schoolHeaderTo_${user.schoolId}`, hTo); else await AsyncStorage.removeItem(`schoolHeaderTo_${user.schoolId}`);
+      if (sFrom) await AsyncStorage.setItem(`schoolSidebarFrom_${user.schoolId}`, sFrom); else await AsyncStorage.removeItem(`schoolSidebarFrom_${user.schoolId}`);
+      if (sTo) await AsyncStorage.setItem(`schoolSidebarTo_${user.schoolId}`, sTo); else await AsyncStorage.removeItem(`schoolSidebarTo_${user.schoolId}`);
       
       // Prefer DB-served logo endpoint
       if (user?.schoolId) {
@@ -157,10 +178,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           const hTo = await AsyncStorage.getItem(`schoolHeaderTo_${user.schoolId}`);
           const sFrom = await AsyncStorage.getItem(`schoolSidebarFrom_${user.schoolId}`);
           const sTo = await AsyncStorage.getItem(`schoolSidebarTo_${user.schoolId}`);
-          setHeaderColorFrom(hFrom || null);
-          setHeaderColorTo(hTo || null);
-          setSidebarColorFrom(sFrom || null);
-          setSidebarColorTo(sTo || null);
+          setHeaderColorFrom(resolveColor(hFrom));
+          setHeaderColorTo(resolveColor(hTo));
+          setSidebarColorFrom(resolveColor(sFrom));
+          setSidebarColorTo(resolveColor(sTo));
         }
       } catch (colorErr) {
         console.warn('Failed to load cached colors:', colorErr);
@@ -654,7 +675,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   drawer: {
     position: 'absolute',
