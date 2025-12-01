@@ -15,6 +15,7 @@ import { router, useFocusEffect } from 'expo-router';
 import api, { request } from '../services/api';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const globalThis: any;
+import theme from '../constants/theme';
 type ThemeMode = 'light' | 'dark' | 'system';
 const THEME_STORAGE_KEY = '@app_theme';
 export default function ProfileScreen() {
