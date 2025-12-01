@@ -13,7 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
-import api from '../services/api';
+import api, { request } from '../services/api';
 import theme from '../constants/theme';
 import AppHeader from '../components/AppHeader';
 
@@ -76,7 +76,7 @@ export default function ProfileScreen() {
     try {
       setLoading(true);
       const endpoint = user?.role === 'driver' ? '/drivers' : '/parents';
-      await api.put(`${endpoint}/${user?.id}`, { phone });
+      await request({ method: 'put', url: `${endpoint}/${user?.id}`, data: { phone } });
       
       // Update local user data
       if (user) {

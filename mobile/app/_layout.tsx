@@ -6,6 +6,7 @@ import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 're
 import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native-paper';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NetworkProvider } from './context/NetworkContext';
 
 import { useColorScheme } from '../hooks/use-color-scheme';
 
@@ -92,7 +93,9 @@ function InnerLayout() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <InnerLayout />
+      <NetworkProvider>
+        <InnerLayout />
+      </NetworkProvider>
     </AuthProvider>
   );
 }

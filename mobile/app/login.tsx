@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from './context/AuthContext';
 import { useRouter } from 'expo-router';
-import api from './services/api';
+import api, { baseURL, request } from './services/api';
 
 export default function LoginScreen() {
   const { loginLocal } = useAuth();
@@ -47,7 +47,7 @@ export default function LoginScreen() {
       console.log('=== LOGIN ATTEMPT ===');
       console.log('Phone:', trimmedPhone);
       
-      const response = await api.post('/auth/mobile-login', {
+      const response = await request({ method: 'post', url: '/auth/mobile-login', data: {
         phone: trimmedPhone,
       });
 

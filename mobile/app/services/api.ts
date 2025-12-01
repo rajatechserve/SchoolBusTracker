@@ -1,7 +1,14 @@
-import axios, { type AxiosResponse, type AxiosError } from 'axios';
+import axios, { type AxiosResponse, type AxiosError, type AxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+// Defer type import to avoid RN type requirement in web tooling
+// Avoid TS type resolution issues in Expo environment
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const globalThis: any;
+const DeviceEventEmitter: any = (globalThis?.DeviceEventEmitter) || ({} as any);
 
 // Provide a loose type for process since Node types are not included in Expo by default.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,3 +84,66 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// Offline queue support
+type QueuedRequest = {
+  config: AxiosRequestConfig;
+  enqueuedAt: number;
+};
+
+const QUEUE_KEY = 'offline_queue_v1';
+
+async function enqueueRequest(config: AxiosRequestConfig) {
+  try {
+    const current = await AsyncStorage.getItem(QUEUE_KEY);
+    const list: QueuedRequest[] = current ? JSON.parse(current) : [];
+    list.push({ config, enqueuedAt: Date.now() });
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(list));
+    console.log('📦 Enqueued offline request:', config.url);
+  } catch (e) {
+    console.warn('Failed to enqueue offline request', e);
+  }
+}
+
+async function flushQueue() {
+  try {
+    const current = await AsyncStorage.getItem(QUEUE_KEY);
+    const list: QueuedRequest[] = current ? JSON.parse(current) : [];
+    if (!list.length) return;
+    console.log(`🔁 Flushing ${list.length} queued request(s)`);
+    const remaining: QueuedRequest[] = [];
+    let flushed = 0;
+    for (const item of list) {
+      try {
+        await api.request(item.config);
+        flushed += 1;
+      } catch (e) {
+        console.warn('Replay failed, keeping in queue:', (item.config.url || ''), e);
+        remaining.push(item);
+      }
+    }
+    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+    try {
+      DeviceEventEmitter.emit && DeviceEventEmitter.emit('offline-queue-flushed', { flushed, remaining: remaining.length });
+    } catch {}
+  } catch (e) {
+    console.warn('Failed to flush offline queue', e);
+  }
+}
+
+NetInfo.addEventListener((state: any) => {
+  const connected = !!(state.isConnected && state.isInternetReachable !== false);
+  if (connected) flushQueue();
+});
+
+export async function request(config: AxiosRequestConfig) {
+  const method = (config.method || 'get').toLowerCase();
+  const isMutation = method !== 'get';
+  const net = await NetInfo.fetch();
+  const connected = !!(net.isConnected && net.isInternetReachable !== false);
+  if (!connected && isMutation) {
+    await enqueueRequest({ ...config });
+    return Promise.resolve({ data: { offline: true }, status: 202, statusText: 'Accepted (offline)', headers: {}, config } as AxiosResponse);
+  }
+  return api.request(config);
+}

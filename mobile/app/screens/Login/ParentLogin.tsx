@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import api, { attachToken } from '../../services/api';
+import api, { attachToken, request } from '../../services/api';
 import { router } from 'expo-router';
 
 export default function ParentLogin() {
@@ -14,7 +14,7 @@ export default function ParentLogin() {
     if (!valid || loading) return;
     setLoading(true);
     try {
-      const resp = await api.post('/auth/parent-login', { phone: phone.trim() });
+        const resp = await request({ method: 'post', url: '/auth/parent-login', data: { phone: phone.trim() } });
       const token = resp.data?.token;
       const parent = resp.data?.parent;
       if (token) attachToken(token);
