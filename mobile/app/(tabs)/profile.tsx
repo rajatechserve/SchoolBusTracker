@@ -46,9 +46,33 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
-    } catch (error) {
-      console.error('Failed to load theme preference:', error);
-    }
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (savedTheme) setSelectedTheme(savedTheme as ThemeMode);
+      } catch (error) {
+        console.error('Failed to load theme preference:', error);
+      }
+    };
+    loadThemePreference();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadUserImage = async () => {
+        if (!user?.id) return;
+        try {
+          const savedImage = await AsyncStorage.getItem(`userImage_${user.id}`);
+          setUserImage(savedImage || null);
+        } catch (error) {
+          console.error('Failed to load user image:', error);
+          setUserImage(null);
+        }
+      };
+      loadUserImage();
+    }, [user?.id])
+  );
   const handleThemeChange = async (newTheme: ThemeMode) => {
     try {
       setSelectedTheme(newTheme);
