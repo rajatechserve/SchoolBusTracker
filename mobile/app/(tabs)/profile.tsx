@@ -15,6 +15,8 @@ import { router, useFocusEffect } from 'expo-router';
 import api, { request } from '../services/api';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const globalThis: any;
+type ThemeMode = 'light' | 'dark' | 'system';
+const THEME_STORAGE_KEY = '@app_theme';
 export default function ProfileScreen() {
   const { user, loginLocal } = useAuth();
   const [phone, setPhone] = useState(user?.phone || '');
@@ -23,6 +25,27 @@ export default function ProfileScreen() {
   const [selectedTheme, setSelectedTheme] = useState<ThemeMode>('system');
   const [userImage, setUserImage] = useState<string | null>(null);
   const systemColorScheme = useSystemColorScheme();
+
+  const handleUpdatePhone = async () => {
+    if (!phone || phone.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+      return;
+    }
+    try {
+      setLoading(true);
+      const endpoint = user?.role === 'driver' ? '/drivers' : '/parents';
+      await request({ method: 'put', url: `${endpoint}/${user?.id}`, data: { phone } });
+      if (user) {
+        loginLocal(user.role, { ...user, phone }, null);
+      }
+      Alert.alert('Success', 'Phone number updated successfully');
+      setIsEditing(false);
+    } catch (error: any) {
+      Alert.alert('Error', error?.response?.data?.error || 'Failed to update phone number');
+    } finally {
+      setLoading(false);
+    }
+  };
     } catch (error) {
       console.error('Failed to load theme preference:', error);
     }
