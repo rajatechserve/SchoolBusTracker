@@ -463,6 +463,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         visible={drawerVisible}
         transparent
         animationType="none"
+        statusBarTranslucent
+        hardwareAccelerated
         onRequestClose={closeDrawer}
       >
         {/* Overlay only covers area outside drawer to keep drawer clickable */}
@@ -472,7 +474,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           onPress={closeDrawer}
         />
         {sidebarColorFrom && sidebarColorTo ? (
-          <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
+          <Animated.View style={{ transform: [{ translateX: slideAnim }], zIndex: 2000 }}>
             <LinearGradient colors={[sidebarColorFrom, sidebarColorTo]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.drawer}>
               {/* User Profile Section */}
               <View style={styles.profileSection}>
@@ -536,6 +538,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               sidebarColorFrom ? { backgroundColor: sidebarColorFrom } : null,
               {
                 transform: [{ translateX: slideAnim }],
+                zIndex: 2000,
               },
             ]}
           >
