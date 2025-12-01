@@ -75,15 +75,9 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   };
 
   useEffect(() => {
-    loadSchoolInfo();
+    // First hydrate from cache (fast, offline friendly), then attempt a single version check.
+    hydrateFromCacheThenFetch();
     loadUserImage();
-    
-    // Set up polling to check for school data changes every 30 seconds
-    const pollInterval = setInterval(() => {
-      loadSchoolInfo();
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(pollInterval);
   }, [user?.schoolId, user?.id]);
 
   const loadUserImage = async () => {
@@ -98,45 +92,64 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     }
   };
 
-  const loadSchoolInfo = async () => {
+  const hydrateFromCacheThenFetch = async () => {
+    if (!user?.schoolId) return;
+    try {
+      const cachedSchoolDataStr = await AsyncStorage.getItem(`schoolData_${user.schoolId}`);
+      if (cachedSchoolDataStr) {
+        const cached = JSON.parse(cachedSchoolDataStr);
+        setHeaderColorFrom(resolveColor(cached.headerColorFrom));
+        setHeaderColorTo(resolveColor(cached.headerColorTo));
+        setSidebarColorFrom(resolveColor(cached.sidebarColorFrom));
+        setSidebarColorTo(resolveColor(cached.sidebarColorTo));
+        // Cached logo/banner URIs (already downloaded) if present
+        const cachedLogo = await AsyncStorage.getItem(`schoolLogo_${user.schoolId}`);
+        if (cachedLogo) setLogoImage(cachedLogo);
+        const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${user.schoolId}`);
+        if (cachedBanner && showBanner) setBannerImage(cachedBanner);
+        // Minimal school object for immediate UI
+        setSchool({
+          id: user.schoolId,
+          name: cached.name || cached.schoolName || 'School',
+          address: cached.address,
+          phone: cached.phone,
+          mobile: cached.mobile,
+          logo: cached.logo,
+        });
+      }
+    } catch {}
+    // After hydration attempt remote version check (single fetch)
+    await loadSchoolInfoVersionAware();
+  };
+
+  const loadSchoolInfoVersionAware = async () => {
     if (!user?.schoolId) return;
     try {
       const response = await api.get(`/public/schools/${user.schoolId}`);
       console.log('School API Response:', response.data);
       
       const schoolData = response.data;
-      
-      // Check if school data has changed by comparing with cached data
-      const cachedSchoolData = await AsyncStorage.getItem(`schoolData_${user.schoolId}`);
-      let shouldClearCache = false;
-      const incomingVersion = Number(schoolData.lastUpdated || schoolData.updatedAt || Date.now());
-      
-      if (cachedSchoolData) {
-        const parsedCachedData = JSON.parse(cachedSchoolData);
-        // Compare logo/photo URLs or version timestamp to detect changes
-        if (
-          parsedCachedData.logo !== schoolData.logo ||
-          parsedCachedData.photo !== schoolData.photo ||
-          (parsedCachedData.version && incomingVersion && Number(parsedCachedData.version) !== Number(incomingVersion))
-        ) {
-          console.log('School data changed, clearing cache...');
-          shouldClearCache = true;
-          // Clear cached banner
-          await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
-          // Clear cached logo
-          await AsyncStorage.removeItem(`schoolLogo_${user.schoolId}`);
-        }
+      // Determine incoming version (timestamp or provided version field)
+      const incomingVersion = Number(schoolData.version || schoolData.lastUpdated || schoolData.updatedAt || Date.now());
+      const cachedSchoolDataStr = await AsyncStorage.getItem(`schoolData_${user.schoolId}`);
+      let cachedVersion: number | null = null;
+      if (cachedSchoolDataStr) {
+        try { cachedVersion = Number(JSON.parse(cachedSchoolDataStr).version) || null; } catch {}
       }
-      
-      // Update cached school data
+      const versionChanged = !cachedVersion || cachedVersion !== incomingVersion;
+
+      // Persist metadata (always update version / colors for consistency)
       await AsyncStorage.setItem(`schoolData_${user.schoolId}`, JSON.stringify({
+        name: schoolData.name,
+        address: schoolData.address,
+        phone: schoolData.phone,
+        mobile: schoolData.mobile,
         logo: schoolData.logo,
         photo: schoolData.photo,
         headerColorFrom: schoolData.headerColorFrom || null,
         headerColorTo: schoolData.headerColorTo || null,
         sidebarColorFrom: schoolData.sidebarColorFrom || null,
         sidebarColorTo: schoolData.sidebarColorTo || null,
-        updatedAt: Date.now(),
         version: incomingVersion
       }));
 
@@ -153,23 +166,27 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       if (hTo) await AsyncStorage.setItem(`schoolHeaderTo_${user.schoolId}`, hTo); else await AsyncStorage.removeItem(`schoolHeaderTo_${user.schoolId}`);
       if (sFrom) await AsyncStorage.setItem(`schoolSidebarFrom_${user.schoolId}`, sFrom); else await AsyncStorage.removeItem(`schoolSidebarFrom_${user.schoolId}`);
       if (sTo) await AsyncStorage.setItem(`schoolSidebarTo_${user.schoolId}`, sTo); else await AsyncStorage.removeItem(`schoolSidebarTo_${user.schoolId}`);
-      
-      // Prefer DB-served logo endpoint
-      if (user?.schoolId) {
-        const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
-        const logoUrl = `${host}/api/schools/${user.schoolId}/logo?t=${incomingVersion}`;
-        schoolData.logo = logoUrl;
-        console.log('Logo URL:', logoUrl);
-        // Load and cache the logo locally similar to banner
-        await loadLogoImage(logoUrl, shouldClearCache);
-      }
-      
-      // Handle banner/photo URL for banner display
-      if (showBanner) {
-        const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
-        const bannerUrl = `${host}/api/schools/${user.schoolId}/banner?t=${incomingVersion}`;
-        console.log('Banner URL:', bannerUrl);
-        loadBannerImage(bannerUrl, shouldClearCache);
+      // Only refresh/download images if version changed
+      if (versionChanged) {
+        if (user?.schoolId) {
+          const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
+          const logoUrl = `${host}/api/schools/${user.schoolId}/logo`; // removed timestamp for strict caching
+          schoolData.logo = logoUrl;
+          await loadLogoImage(logoUrl, true);
+        }
+        if (showBanner) {
+          const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
+          const bannerUrl = `${host}/api/schools/${user.schoolId}/banner`; // removed timestamp for strict caching
+          await loadBannerImage(bannerUrl, true);
+        }
+      } else {
+        // Use cached logo/banner if present without re-download
+        const cachedLogo = await AsyncStorage.getItem(`schoolLogo_${user.schoolId}`);
+        if (cachedLogo) setLogoImage(cachedLogo);
+        if (showBanner) {
+          const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${user.schoolId}`);
+          if (cachedBanner) setBannerImage(cachedBanner);
+        }
       }
       
       setSchool(schoolData);
@@ -197,6 +214,18 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       }
     }
   };
+
+  // Listen for manual refresh event
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const emitter: any = (globalThis as any)?.DeviceEventEmitter;
+    if (!emitter || !emitter.addListener) return;
+    const sub = emitter.addListener('refresh-school-branding', async () => {
+      console.log('Manual branding refresh triggered');
+      await loadSchoolInfoVersionAware();
+    });
+    return () => { try { sub?.remove?.(); } catch {} };
+  }, [user?.schoolId]);
 
   const loadLogoImage = async (logoUrl: string, forceClear: boolean = false) => {
     try {
@@ -394,20 +423,22 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       <SafeAreaView style={styles.safeArea}>
         {headerColorFrom && headerColorTo ? (
           <LinearGradient colors={[headerColorFrom, headerColorTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
-            {showBackButton ? (
-              <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
-                <Text style={styles.menuIcon}>←</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-                <Text style={styles.menuIcon}>☰</Text>
-              </TouchableOpacity>
-            )}
+            <View style={{ flexDirection:'row', alignItems:'center' }}>
+              {showBackButton ? (
+                <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
+                  <Text style={styles.menuIcon}>←</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+                  <Text style={styles.menuIcon}>☰</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.schoolInfo}>
               {logoImage ? (
                 <Image source={{ uri: logoImage }} style={styles.logo} onError={(error: any) => { console.log('Cached logo load error:', error.nativeEvent?.error); setLogoImage(null); }} onLoad={() => console.log('Cached logo loaded successfully')} />
               ) : school?.logo ? (
-                <Image source={{ uri: school.logo + (school.logo?.includes('?') ? `&v=${lastRefreshTime}` : `?v=${lastRefreshTime}`) }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
+                <Image source={{ uri: school.logo }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
               ) : (
                 <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
               )}
@@ -418,20 +449,22 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           </LinearGradient>
         ) : (
           <View style={styles.header}>
-            {showBackButton ? (
-              <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
-                <Text style={styles.menuIcon}>←</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-                <Text style={styles.menuIcon}>☰</Text>
-              </TouchableOpacity>
-            )}
+            <View style={{ flexDirection:'row', alignItems:'center' }}>
+              {showBackButton ? (
+                <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
+                  <Text style={styles.menuIcon}>←</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
+                  <Text style={styles.menuIcon}>☰</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.schoolInfo}>
               {logoImage ? (
                 <Image source={{ uri: logoImage }} style={styles.logo} onError={(error: any) => { console.log('Cached logo load error:', error.nativeEvent?.error); setLogoImage(null); }} onLoad={() => console.log('Cached logo loaded successfully')} />
               ) : school?.logo ? (
-                <Image source={{ uri: school.logo + (school.logo?.includes('?') ? `&v=${lastRefreshTime}` : `?v=${lastRefreshTime}`) }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
+                <Image source={{ uri: school.logo }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
               ) : (
                 <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
               )}
@@ -502,25 +535,25 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                   style={styles.menuItem}
                   onPress={() => navigateTo('dashboard')}
                 >
-                  <Text style={styles.menuItemIcon}>🏠</Text>
-                  <Text style={styles.menuItemText}>Dashboard</Text>
+                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>🏠</Text>
+                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Dashboard</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('profile')}>
-                  <Text style={styles.menuItemIcon}>👤</Text>
-                  <Text style={styles.menuItemText}>Profile</Text>
+                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>👤</Text>
+                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Profile</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('notifications')}>
-                  <Text style={styles.menuItemIcon}>🔔</Text>
-                  <Text style={styles.menuItemText}>Alert</Text>
+                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>🔔</Text>
+                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Alert</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('assignments')}>
-                  <Text style={styles.menuItemIcon}>📋</Text>
-                  <Text style={styles.menuItemText}>Assignments</Text>
+                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>📋</Text>
+                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Assignments</Text>
                 </TouchableOpacity>
                 {user?.role === 'parent' && (
                   <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('attendance')}>
-                    <Text style={styles.menuItemIcon}>📊</Text>
-                    <Text style={styles.menuItemText}>Attendance</Text>
+                    <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>📊</Text>
+                    <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Attendance</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -591,8 +624,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             {/* Logout Section at Bottom */}
             <View style={styles.logoutSection}>
               <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutIcon}>🚪</Text>
-                <Text style={styles.logoutText}>Logout</Text>
+                <Text style={[styles.logoutIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#d32f2f' } : null]}>🚪</Text>
+                <Text style={[styles.logoutText, (sidebarColorFrom && sidebarColorTo) ? { color:'#d32f2f' } : null]}>Logout</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>

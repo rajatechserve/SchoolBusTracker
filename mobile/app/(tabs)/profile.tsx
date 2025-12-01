@@ -14,6 +14,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
 import api, { request } from '../services/api';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const globalThis: any;
 import theme from '../constants/theme';
 import AppHeader from '../components/AppHeader';
 
@@ -105,6 +107,16 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Failed to save theme preference:', error);
       Alert.alert('Error', 'Failed to save theme preference');
+    }
+  };
+
+  const triggerBrandingRefresh = () => {
+    try {
+      const emitter = globalThis?.DeviceEventEmitter;
+      emitter?.emit?.('refresh-school-branding');
+      Alert.alert('Branding', 'Refresh requested.');
+    } catch (e) {
+      Alert.alert('Branding', 'Unable to trigger refresh');
     }
   };
 
@@ -218,6 +230,9 @@ export default function ProfileScreen() {
               <Text style={styles.themeIconOnly}>⚙️</Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity style={styles.refreshBrandingBtn} onPress={triggerBrandingRefresh}>
+            <Text style={styles.refreshBrandingText}>Refresh Branding</Text>
+          </TouchableOpacity>
         </View>
       </View>
       </ScrollView>
