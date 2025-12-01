@@ -49,7 +49,7 @@ export default function LoginScreen() {
       
       const response = await request({ method: 'post', url: '/auth/mobile-login', data: {
         phone: trimmedPhone,
-      });
+      } });
 
       console.log('=== LOGIN RESPONSE ===');
       console.log('Response data:', response.data);
