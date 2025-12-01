@@ -4,10 +4,9 @@ import {
   Text, 
   StyleSheet, 
   FlatList, 
-  TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator 
+  RefreshControl 
 } from 'react-native';
+import { Card, Chip, List, ActivityIndicator } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -111,44 +110,26 @@ export default function AssignmentsScreen() {
   };
 
   const renderItem = ({ item }: { item: Assignment }) => (
-    <View style={styles.assignmentCard}>
-      <View style={styles.cardHeader}>
-        <View style={styles.busInfo}>
-          <Text style={styles.busIcon}>🚌</Text>
-          <Text style={styles.busNumber}>{item.busNumber}</Text>
-        </View>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>Active</Text>
-        </View>
-      </View>
-      
-      <View style={styles.cardContent}>
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>Route:</Text>
-          <Text style={styles.value}>{item.routeName}</Text>
-        </View>
-        
+    <Card style={{ marginBottom: 12 }}>
+      <Card.Title
+        title={`Bus ${item.busNumber}`}
+        left={(props) => <Text style={{ fontSize: 24 }}>🚌</Text>}
+        right={(props) => <Chip mode="flat">Active</Chip>}
+      />
+      <Card.Content>
+        <List.Item title="Route" right={() => <Text>{item.routeName}</Text>} />
         {user?.role !== 'driver' && (
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Driver:</Text>
-            <Text style={styles.value}>{item.driverName}</Text>
-          </View>
+          <List.Item title="Driver" right={() => <Text>{item.driverName}</Text>} />
         )}
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.label}>Period:</Text>
-          <Text style={styles.value}>
-            {formatDate(item.startDate)} - {formatDate(item.endDate)}
-          </Text>
-        </View>
-      </View>
-    </View>
+        <List.Item title="Period" right={() => <Text>{`${formatDate(item.startDate)} - ${formatDate(item.endDate)}`}</Text>} />
+      </Card.Content>
+    </Card>
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007BFF" />
+        <ActivityIndicator animating={true} />
         <Text style={styles.loadingText}>Loading assignments...</Text>
       </View>
     );

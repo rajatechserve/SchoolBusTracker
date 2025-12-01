@@ -4,25 +4,24 @@ import {
   Text, 
   StyleSheet, 
   ScrollView, 
-  TextInput, 
-  TouchableOpacity,
   Alert,
   Image,
   useColorScheme as useSystemColorScheme
 } from 'react-native';
+import { Button, TextInput as PaperTextInput, Divider } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
 import api, { request } from '../services/api';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const globalThis: any;
-import theme from '../constants/theme';
-import AppHeader from '../components/AppHeader';
-
-type ThemeMode = 'light' | 'dark' | 'system';
-
-const THEME_STORAGE_KEY = '@app_theme';
-
+                <PaperTextInput
+                  mode="outlined"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  placeholder="Enter phone number"
+                />
 export default function ProfileScreen() {
   const { user, loginLocal } = useAuth();
   const [phone, setPhone] = useState(user?.phone || '');
@@ -31,32 +30,27 @@ export default function ProfileScreen() {
   const [selectedTheme, setSelectedTheme] = useState<ThemeMode>('system');
   const [userImage, setUserImage] = useState<string | null>(null);
   const systemColorScheme = useSystemColorScheme();
-
-  useEffect(() => {
-    loadThemePreference();
-  }, []);
-  
-  useFocusEffect(
-    React.useCallback(() => {
-      // Reload user image every time screen is focused
-      loadUserImage();
-    }, [user?.id])
-  );
-
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-      if (savedTheme) {
-        setSelectedTheme(savedTheme as ThemeMode);
-      }
+              <Button
+                mode="outlined"
+                onPress={() => { setPhone(user?.phone || ''); setIsEditing(false); }}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleUpdatePhone}
+                loading={loading}
+                disabled={loading}
+                style={{ flex: 1 }}
+              >
+                Save
+              </Button>
     } catch (error) {
       console.error('Failed to load theme preference:', error);
-    }
-  };
-
-  const loadUserImage = async () => {
-    if (!user?.id) return;
-    try {
+            <Button mode="contained" onPress={() => setIsEditing(true)}>
+              ✏️ Edit Phone Number
+            </Button>
       const savedImage = await AsyncStorage.getItem(`userImage_${user.id}`);
       if (savedImage) {
         setUserImage(savedImage);
@@ -65,39 +59,12 @@ export default function ProfileScreen() {
       }
     } catch (error) {
       console.error('Failed to load user image:', error);
-      setUserImage(null);
-    }
-  };
-
-  const handleUpdatePhone = async () => {
-    if (!phone || phone.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const endpoint = user?.role === 'driver' ? '/drivers' : '/parents';
-      await request({ method: 'put', url: `${endpoint}/${user?.id}`, data: { phone } });
-      
-      // Update local user data
-      if (user) {
-        loginLocal(user.role, { ...user, phone }, null);
-      }
-      
-      Alert.alert('Success', 'Phone number updated successfully');
-      setIsEditing(false);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to update phone number');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+            <Button mode={selectedTheme === 'light' ? 'contained' : 'outlined'} onPress={() => handleThemeChange('light')}>☀️</Button>
+            <Button mode={selectedTheme === 'dark' ? 'contained' : 'outlined'} onPress={() => handleThemeChange('dark')}>🌙</Button>
+            <Button mode={selectedTheme === 'system' ? 'contained' : 'outlined'} onPress={() => handleThemeChange('system')}>⚙️</Button>
   const handleThemeChange = async (newTheme: ThemeMode) => {
-    try {
-      setSelectedTheme(newTheme);
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
+          <Divider style={{ marginVertical: 8 }} />
+          <Button mode="outlined" onPress={triggerBrandingRefresh}>Refresh Branding</Button>
       
       Alert.alert(
         'Theme Changed', 

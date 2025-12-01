@@ -16,12 +16,13 @@ import {
 import { Platform, StatusBar } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Appbar, Drawer, Divider } from 'react-native-paper';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
-import api, { baseURL } from '../services/api';
+import api, { baseURL, cancelAllRequests } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -365,6 +366,9 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       setDrawerVisible(false);
       console.log('Drawer visibility set to false');
       
+      // Cancel any in-flight API requests to avoid axios state errors
+      cancelAllRequests('User initiated logout');
+
       // Clear auth state
       console.log('Clearing auth state...');
       logout();
@@ -419,68 +423,44 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
   return (
     <>
-      {/* Header with Safe Area */}
+      {/* Header with Material Appbar */}
       <SafeAreaView style={styles.safeArea}>
         {headerColorFrom && headerColorTo ? (
           <LinearGradient colors={[headerColorFrom, headerColorTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
-            <View style={{ flexDirection:'row', alignItems:'center' }}>
+            <Appbar.Header style={{ backgroundColor: 'transparent' }}>
               {showBackButton ? (
-                <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
-                  <Text style={styles.menuIcon}>←</Text>
-                </TouchableOpacity>
+                <Appbar.BackAction onPress={() => router.push('/(tabs)/')} color="#fff" />
               ) : (
-                <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-                  <Text style={styles.menuIcon}>☰</Text>
-                </TouchableOpacity>
+                <Appbar.Action icon="menu" onPress={openDrawer} color="#fff" />
               )}
-            </View>
-            <View style={styles.schoolInfo}>
               {logoImage ? (
-                <Image source={{ uri: logoImage }} style={styles.logo} onError={(error: any) => { console.log('Cached logo load error:', error.nativeEvent?.error); setLogoImage(null); }} onLoad={() => console.log('Cached logo loaded successfully')} />
+                <Image source={{ uri: logoImage }} style={styles.logo} />
               ) : school?.logo ? (
-                <Image source={{ uri: school.logo }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
+                <Image source={{ uri: school.logo }} style={styles.logo} />
               ) : (
                 <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
               )}
-              <View style={styles.schoolDetails}>
-                <Text style={[styles.schoolName, { color: '#fff' }]} numberOfLines={1}>{school?.name || 'School Name'}</Text>
-              </View>
-            </View>
-            {/* Top-right logout icon (always visible) */}
-            <TouchableOpacity onPress={handleLogout} style={styles.headerLogoutButton}>
-              <Text style={[styles.headerLogoutIcon, { color: '#fff' }]}>🚪</Text>
-            </TouchableOpacity>
+              <Appbar.Content title={school?.name || 'School Name'} color="#fff" />
+              <Appbar.Action icon="logout" onPress={handleLogout} color="#fff" />
+            </Appbar.Header>
           </LinearGradient>
         ) : (
-          <View style={styles.header}>
-            <View style={{ flexDirection:'row', alignItems:'center' }}>
-              {showBackButton ? (
-                <TouchableOpacity onPress={() => router.push('/(tabs)/')} style={styles.menuButton}>
-                  <Text style={styles.menuIcon}>←</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={openDrawer} style={styles.menuButton}>
-                  <Text style={styles.menuIcon}>☰</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <View style={styles.schoolInfo}>
-              {logoImage ? (
-                <Image source={{ uri: logoImage }} style={styles.logo} onError={(error: any) => { console.log('Cached logo load error:', error.nativeEvent?.error); setLogoImage(null); }} onLoad={() => console.log('Cached logo loaded successfully')} />
-              ) : school?.logo ? (
-                <Image source={{ uri: school.logo }} style={styles.logo} onError={(error: any) => { console.log('Logo load error:', error.nativeEvent?.error); setSchool({ ...school, logo: undefined }); }} onLoad={() => console.log('Logo loaded successfully')} />
-              ) : (
-                <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
-              )}
-              <View style={styles.schoolDetails}>
-                <Text style={styles.schoolName} numberOfLines={1}>{school?.name || 'School Name'}</Text>
-              </View>
-            </View>
-            {/* Top-right logout icon (always visible) */}
-            <TouchableOpacity onPress={handleLogout} style={styles.headerLogoutButton}>
-              <Text style={styles.headerLogoutIcon}>🚪</Text>
-            </TouchableOpacity>
-          </View>
+          <Appbar.Header>
+            {showBackButton ? (
+              <Appbar.BackAction onPress={() => router.push('/(tabs)/')} />
+            ) : (
+              <Appbar.Action icon="menu" onPress={openDrawer} />
+            )}
+            {logoImage ? (
+              <Image source={{ uri: logoImage }} style={styles.logo} />
+            ) : school?.logo ? (
+              <Image source={{ uri: school.logo }} style={styles.logo} />
+            ) : (
+              <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
+            )}
+            <Appbar.Content title={school?.name || 'School Name'} />
+            <Appbar.Action icon="logout" onPress={handleLogout} />
+          </Appbar.Header>
         )}
       </SafeAreaView>
 
@@ -510,134 +490,59 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         hardwareAccelerated
         onRequestClose={closeDrawer}
       >
-        {/* Overlay only covers area outside drawer to keep drawer clickable */}
-        <TouchableOpacity
-          style={[styles.overlay, { left: width * 0.6 }]}
-          activeOpacity={1}
-          onPress={closeDrawer}
-        />
-        {sidebarColorFrom && sidebarColorTo ? (
-          <Animated.View style={{ transform: [{ translateX: slideAnim }], zIndex: 2000, elevation: 100 }}>
-            <LinearGradient colors={[sidebarColorFrom, sidebarColorTo]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.drawer}>
-              {/* User Profile Section */}
-              <View style={styles.profileSection}>
-                <TouchableOpacity onPress={changeUserImage} style={styles.avatarContainer}>
-                  {userImage ? (
-                    <Image source={{ uri: userImage }} style={styles.userImage} />
-                  ) : (
-                    <View style={styles.defaultAvatar}>
-                      <Text style={styles.avatar}>
-                        {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.editBadge}>
-                    <Text style={styles.editIcon}>✏️</Text>
-                  </View>
-                </TouchableOpacity>
-                <Text style={styles.userName}>{user?.name || 'User'}</Text>
-              </View>
-              {/* Menu Items */}
-              <View style={styles.menuSection}>
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => navigateTo('dashboard')}
-                >
-                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>🏠</Text>
-                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Dashboard</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('profile')}>
-                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>👤</Text>
-                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Profile</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('notifications')}>
-                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>🔔</Text>
-                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Alert</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('assignments')}>
-                  <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>📋</Text>
-                  <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Assignments</Text>
-                </TouchableOpacity>
-                {user?.role === 'parent' && (
-                  <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('attendance')}>
-                    <Text style={[styles.menuItemIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>📊</Text>
-                    <Text style={[styles.menuItemText, (sidebarColorFrom && sidebarColorTo) ? { color:'#fff' } : null]}>Attendance</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {/* Logout Section at Bottom */}
-              <View style={styles.logoutSection}>
-                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                  <Text style={styles.logoutIcon}>🚪</Text>
-                  <Text style={styles.logoutText}>Logout</Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </Animated.View>
-        ) : (
-          <Animated.View
-            style={[
-              styles.drawer,
-              sidebarColorFrom ? { backgroundColor: sidebarColorFrom } : null,
-              {
-                transform: [{ translateX: slideAnim }],
-                zIndex: 2000,
-                elevation: 100,
-              },
-            ]}
+        <View style={styles.modalRoot} pointerEvents="box-none">
+          {/* Overlay */}
+          <TouchableOpacity
+            style={[styles.overlay]}
+            activeOpacity={1}
+            onPress={closeDrawer}
+          />
+          {/* Drawer */}
+          <Animated.View style={[styles.drawerContainer, { transform: [{ translateX: slideAnim }] }]}
           >
-            {/* User Profile Section */}
-            <View style={styles.profileSection}>
-              <TouchableOpacity onPress={changeUserImage} style={styles.avatarContainer}>
-                {userImage ? (
-                  <Image source={{ uri: userImage }} style={styles.userImage} />
-                ) : (
-                  <View style={styles.defaultAvatar}>
-                    <Text style={styles.avatar}>
-                      {user?.role === 'driver' ? '🚌' : '👨‍👩‍👧‍👦'}
-                    </Text>
-                  </View>
+            <View style={[styles.drawer, { backgroundColor: '#fff' }]}
+            >
+              <Drawer.Section>
+                <Drawer.Item
+                  label="Dashboard"
+                  icon="home"
+                  onPress={() => navigateTo('dashboard')}
+                />
+                <Drawer.Item
+                  label="Profile"
+                  icon="account"
+                  onPress={() => navigateTo('profile')}
+                />
+                <Drawer.Item
+                  label="Alerts"
+                  icon="bell"
+                  onPress={() => navigateTo('notifications')}
+                />
+                <Drawer.Item
+                  label="Assignments"
+                  icon="clipboard-list"
+                  onPress={() => navigateTo('assignments')}
+                />
+                {user?.role === 'parent' && (
+                  <Drawer.Item
+                    label="Attendance"
+                    icon="chart-bar"
+                    onPress={() => navigateTo('attendance')}
+                  />
                 )}
-                <View style={styles.editBadge}>
-                  <Text style={styles.editIcon}>✏️</Text>
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.userName}>{user?.name || 'User'}</Text>
-            </View>
-            {/* Menu Items */}
-            <View style={styles.menuSection}>
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('dashboard')}>
-                <Text style={styles.menuItemIcon}>🏠</Text>
-                <Text style={styles.menuItemText}>Dashboard</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('profile')}>
-                <Text style={styles.menuItemIcon}>👤</Text>
-                <Text style={styles.menuItemText}>Profile</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('notifications')}>
-                <Text style={styles.menuItemIcon}>🔔</Text>
-                <Text style={styles.menuItemText}>Alert</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('assignments')}>
-                <Text style={styles.menuItemIcon}>📋</Text>
-                <Text style={styles.menuItemText}>Assignments</Text>
-              </TouchableOpacity>
-              {user?.role === 'parent' && (
-                <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('attendance')}>
-                  <Text style={styles.menuItemIcon}>📊</Text>
-                  <Text style={styles.menuItemText}>Attendance</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            {/* Logout Section at Bottom */}
-            <View style={styles.logoutSection}>
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={[styles.logoutIcon, (sidebarColorFrom && sidebarColorTo) ? { color:'#d32f2f' } : null]}>🚪</Text>
-                <Text style={[styles.logoutText, (sidebarColorFrom && sidebarColorTo) ? { color:'#d32f2f' } : null]}>Logout</Text>
-              </TouchableOpacity>
+              </Drawer.Section>
+              <Divider />
+              <Drawer.Section>
+                <Drawer.Item
+                  label="Logout"
+                  icon="logout"
+                  onPress={handleLogout}
+                />
+              </Drawer.Section>
             </View>
           </Animated.View>
-        )}
+          
+        </View>
       </Modal>
     </>
   );
@@ -726,26 +631,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    zIndex: 1000,
+  },
+  modalRoot: {
+    flex: 1,
+  },
+  drawerContainer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 2001,
+    elevation: 100,
+    width: width * 0.6,
   },
   drawer: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: width * 0.6,
+    flex: 1,
     backgroundColor: '#fff',
     elevation: 16,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    zIndex: 1000,
   },
   closeButton: {
     position: 'absolute',

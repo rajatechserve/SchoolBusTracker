@@ -37,10 +37,22 @@ export const baseURL = resolveBaseUrl();
 console.log('🌐 API Base URL:', baseURL);
 
 const api = axios.create({ baseURL });
+// Track pending requests to allow cancellation on logout/navigation
+const pendingControllers = new Set<AbortController>();
 
 export function attachToken(token: string | null) {
   if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
   else delete api.defaults.headers.common.Authorization;
+}
+
+export function cancelAllRequests(reason: string = 'App logout/navigation') {
+  try {
+    pendingControllers.forEach((c) => { try { c.abort(); } catch {} });
+    pendingControllers.clear();
+    console.log('⛔ Cancelled all pending API requests:', reason);
+  } catch (e) {
+    console.warn('Failed to cancel requests', e);
+  }
 }
 
 let unauthorizedGuard = false;
@@ -145,5 +157,14 @@ export async function request(config: AxiosRequestConfig) {
     await enqueueRequest({ ...config });
     return Promise.resolve({ data: { offline: true }, status: 202, statusText: 'Accepted (offline)', headers: {}, config } as AxiosResponse);
   }
-  return api.request(config);
+  // Use AbortController to track and cancel if needed
+  const controller = new AbortController();
+  pendingControllers.add(controller);
+  const finalConfig: AxiosRequestConfig = { ...config, signal: controller.signal };
+  try {
+    const resp = await api.request(finalConfig);
+    return resp;
+  } finally {
+    pendingControllers.delete(controller);
+  }
 }
