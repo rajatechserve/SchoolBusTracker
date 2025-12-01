@@ -14,6 +14,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Platform, StatusBar } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
@@ -463,6 +464,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         visible={drawerVisible}
         transparent
         animationType="none"
+        presentationStyle="overFullScreen"
         statusBarTranslucent
         hardwareAccelerated
         onRequestClose={closeDrawer}
@@ -474,7 +476,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           onPress={closeDrawer}
         />
         {sidebarColorFrom && sidebarColorTo ? (
-          <Animated.View style={{ transform: [{ translateX: slideAnim }], zIndex: 2000 }}>
+          <Animated.View style={{ transform: [{ translateX: slideAnim }], zIndex: 2000, elevation: 100 }}>
             <LinearGradient colors={[sidebarColorFrom, sidebarColorTo]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.drawer}>
               {/* User Profile Section */}
               <View style={styles.profileSection}>
@@ -539,6 +541,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               {
                 transform: [{ translateX: slideAnim }],
                 zIndex: 2000,
+                elevation: 100,
               },
             ]}
           >
