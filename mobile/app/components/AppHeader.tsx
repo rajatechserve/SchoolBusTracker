@@ -446,6 +446,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                 <Text style={[styles.schoolName, { color: '#fff' }]} numberOfLines={1}>{school?.name || 'School Name'}</Text>
               </View>
             </View>
+            {/* Top-right logout icon (always visible) */}
+            <TouchableOpacity onPress={handleLogout} style={styles.headerLogoutButton}>
+              <Text style={[styles.headerLogoutIcon, { color: '#fff' }]}>🚪</Text>
+            </TouchableOpacity>
           </LinearGradient>
         ) : (
           <View style={styles.header}>
@@ -472,6 +476,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                 <Text style={styles.schoolName} numberOfLines={1}>{school?.name || 'School Name'}</Text>
               </View>
             </View>
+            {/* Top-right logout icon (always visible) */}
+            <TouchableOpacity onPress={handleLogout} style={styles.headerLogoutButton}>
+              <Text style={styles.headerLogoutIcon}>🚪</Text>
+            </TouchableOpacity>
           </View>
         )}
       </SafeAreaView>
@@ -653,6 +661,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+    position: 'relative',
   },
   bannerContainer: {
     width: '100%',
@@ -865,6 +874,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     backgroundColor: '#f9f9f9',
+  },
+  headerLogoutButton: {
+    position: 'absolute',
+    right: 12,
+    top: Platform.OS === 'android' ? 8 : 6,
+    padding: 6,
+    zIndex: 50,
+  },
+  headerLogoutIcon: {
+    fontSize: 22,
+    color: '#333',
   },
   footerSchoolName: {
     fontSize: 14,
