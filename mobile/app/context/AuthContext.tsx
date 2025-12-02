@@ -26,8 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate persisted auth state
+  // Hydrate persisted auth state (do not block UI on storage)
   useEffect(() => {
+    // Mark as hydrated immediately to avoid spinner getting stuck
+    setHydrated(true);
+
+    // Load persisted auth in the background
     (async () => {
       try {
         const raw = await AsyncStorage.getItem('auth');
@@ -41,8 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         // swallow – persistence is best-effort
-      } finally {
-        setHydrated(true);
       }
     })();
   }, []);

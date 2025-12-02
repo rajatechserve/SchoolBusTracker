@@ -2,36 +2,58 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useSegments, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 'react-native-paper';
+import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme, MD3DarkTheme as PaperDarkTheme } from 'react-native-paper';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native-paper';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NetworkProvider } from './context/NetworkContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useColorScheme } from '../hooks/use-color-scheme';
 
 // Extend the React Navigation theme while also providing a Paper theme.
-function useThemes(colorScheme: string | null) {
-  const baseNav = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
+function useThemes(effectiveScheme: string | null) {
+  const isDark = effectiveScheme === 'dark';
+  const baseNav = isDark ? DarkTheme : DefaultTheme;
   const navTheme = {
     ...baseNav,
     colors: {
       ...baseNav.colors,
       primary: '#4CAF50',
+      background: isDark ? '#000000' : '#f5f5f5',
+      card: isDark ? '#121212' : baseNav.colors.card,
+      text: isDark ? '#f5f5f5' : '#212121',
+      border: isDark ? '#2a2a2a' : baseNav.colors.border,
+      notification: '#FFC107',
     },
   };
-  const paperTheme = {
+  const lightPaper = {
     ...PaperDefaultTheme,
     colors: {
       ...PaperDefaultTheme.colors,
       primary: '#4CAF50',
-      accent: '#FFC107',
-      background: '#F5F5F5',
+      secondary: '#FFC107',
+      background: '#f5f5f5',
       surface: '#FFFFFF',
       text: '#212121',
       placeholder: '#757575',
+      onSurfaceVariant: '#444',
     },
-  } as typeof PaperDefaultTheme;
-  return { navTheme, paperTheme };
+  };
+  const darkPaper = {
+    ...PaperDarkTheme,
+    colors: {
+      ...PaperDarkTheme.colors,
+      primary: '#4CAF50',
+      secondary: '#FFC107',
+      background: '#000000',
+      surface: '#121212',
+      text: '#f5f5f5',
+      placeholder: '#b0b0b0',
+      onSurfaceVariant: '#aaa',
+    },
+  };
+  return { navTheme, paperTheme: isDark ? darkPaper : lightPaper };
 }
 
 export const unstable_settings = {
@@ -39,8 +61,20 @@ export const unstable_settings = {
 };
 
 function InnerLayout() {
-  const colorScheme = useColorScheme();
-  const { navTheme, paperTheme } = useThemes(colorScheme);
+  const systemScheme = useColorScheme();
+  const [pref, setPref] = useState<'light' | 'dark' | 'system'>('system');
+  const [themeReady, setThemeReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@app_theme');
+        if (saved === 'light' || saved === 'dark' || saved === 'system') setPref(saved);
+      } catch {}
+      setThemeReady(true);
+    })();
+  }, []);
+  const effectiveScheme = pref === 'system' ? systemScheme : pref;
+  const { navTheme, paperTheme } = useThemes(effectiveScheme);
   const segments = useSegments();
   const router = useRouter();
   const { user, hydrated } = useAuth();
@@ -61,12 +95,12 @@ function InnerLayout() {
   }, [user, segments, router, hydrated]);
 
   // Show loading only until auth is hydrated
-  if (!hydrated) {
+  if (!hydrated || !themeReady) {
     return (
       <ThemeProvider value={navTheme}>
         <PaperProvider theme={paperTheme}>
           <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
-          <StatusBar style="auto" />
+          <StatusBar style={effectiveScheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
         </PaperProvider>
       </ThemeProvider>
     );
@@ -83,7 +117,7 @@ function InnerLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
         </Stack>
-        <StatusBar style="auto" />
+        <StatusBar style={effectiveScheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor={effectiveScheme === 'dark' ? 'rgba(0,0,0,0.3)' : 'transparent'} />
       </PaperProvider>
     </ThemeProvider>
   );
@@ -92,7 +126,9 @@ function InnerLayout() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <InnerLayout />
+      <NetworkProvider>
+        <InnerLayout />
+      </NetworkProvider>
     </AuthProvider>
   );
 }

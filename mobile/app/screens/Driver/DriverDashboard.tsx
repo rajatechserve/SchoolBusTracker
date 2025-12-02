@@ -11,7 +11,7 @@ import {
   RefreshControl
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import api, { request } from '../../services/api';
 import AppHeader from '../../components/AppHeader';
 
 interface Student {
@@ -136,12 +136,12 @@ export default function DriverDashboard() {
 
   const markAttendance = async (studentId: string, status: 'present' | 'absent') => {
     try {
-      await api.post('/attendance', {
+      await request({ method: 'post', url: '/attendance', data: {
         studentId,
         busId: null,
         status,
         timestamp: Date.now()
-      });
+      }});
       loadTodayAttendance();
       Alert.alert('Success', `Student marked as ${status}`);
     } catch (e: any) {
@@ -162,12 +162,12 @@ export default function DriverDashboard() {
   const saveLocation = async () => {
     if (!editingStudent) return;
     try {
-      await api.put(`/students/${editingStudent.id}`, {
+      await request({ method: 'put', url: `/students/${editingStudent.id}`, data: {
         pickupLat: locationForm.pickupLat ? parseFloat(locationForm.pickupLat) : null,
         pickupLng: locationForm.pickupLng ? parseFloat(locationForm.pickupLng) : null,
         dropLat: locationForm.dropLat ? parseFloat(locationForm.dropLat) : null,
         dropLng: locationForm.dropLng ? parseFloat(locationForm.dropLng) : null
-      });
+      }});
       Alert.alert('Success', 'Location saved successfully');
       setEditingStudent(null);
       setLocationForm({ pickupLat: '', pickupLng: '', dropLat: '', dropLng: '' });
@@ -210,7 +210,7 @@ export default function DriverDashboard() {
   return (
     <View style={styles.container}>
       {/* School Header with Menu */}
-      <AppHeader onSchoolLoaded={setSchool} showBanner={true} />
+      <AppHeader onSchoolLoaded={setSchool} showBanner={false} />
 
       {/* Tabs */}
       <View style={styles.tabContainer}>

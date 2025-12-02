@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import api, { attachToken } from '../../services/api';
+import api, { attachToken, request } from '../../services/api';
 import { router } from 'expo-router';
 
 export default function UnifiedLogin() {
@@ -14,7 +14,7 @@ export default function UnifiedLogin() {
     if (!phoneValid || loading) return;
     setLoading(true);
     try {
-      const resp = await api.post('/auth/mobile-login', { phone: phone.trim() });
+      const resp = await request({ method: 'post', url: '/auth/mobile-login', data: { phone: phone.trim() } });
       const token = resp.data?.token;
       const role = resp.data?.role; // 'driver' or 'parent'
       const user = resp.data?.user;

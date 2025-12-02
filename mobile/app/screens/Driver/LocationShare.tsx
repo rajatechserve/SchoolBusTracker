@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import * as Location from 'expo-location';
-import api from '../../services/api';
+import api, { request } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LocationShare() {
@@ -14,10 +14,10 @@ export default function LocationShare() {
     if (!user) return;
     try {
       const position = await Location.getCurrentPositionAsync({});
-      await api.post(`/buses/${user.bus || user.id}/location`, {
+      await request({ method: 'post', url: `/buses/${user.bus || user.id}/location`, data: {
         lat: position.coords.latitude,
         lng: position.coords.longitude,
-      });
+      }});
     } catch (e: any) {
       console.warn('Location post failed', e?.message);
     }

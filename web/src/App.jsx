@@ -22,6 +22,18 @@ import Login from './pages/Login';
 import api, { getAuthUser, setAuthToken, setAuthUser, SERVER_URL } from './services/api';
 import { useTheme } from './context/ThemeContext';
 
+// Shared color mapping for Tailwind-like tokens to hex
+const COLOR_MAP = {
+  'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
+  'pink-500': '#ec4899', 'red-500': '#ef4444', 'orange-500': '#f97316',
+  'amber-500': '#f59e0b', 'yellow-500': '#eab308', 'lime-500': '#84cc16',
+  'green-600': '#16a34a', 'emerald-600': '#059669', 'teal-600': '#0d9488',
+  'cyan-500': '#06b6d4', 'sky-500': '#0ea5e9', 'violet-600': '#7c3aed',
+  'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155',
+  'white': '#ffffff'
+};
+const toHex = (val) => COLOR_MAP[val] || val;
+
 function Sidebar({ authUser, onLogoUpdate }){ 
   const isAdmin = authUser?.role === 'admin';
   const isSchoolAdmin = authUser?.role === 'school';
@@ -31,6 +43,9 @@ function Sidebar({ authUser, onLogoUpdate }){
   const userRole = authUser?.userRole; // viewer | editor | manager
   const isViewer = isSchoolUser && userRole === 'viewer';
   const logo = (isSchoolAdmin || isSchoolUser || isDriver || isParent) ? authUser?.logo : null;
+  const schoolIdForBranding = isSchoolAdmin ? authUser?.id : authUser?.schoolId;
+  const host = SERVER_URL || '';
+  const logoUrl = schoolIdForBranding ? `${host}/api/schools/${schoolIdForBranding}/logo` : (logo || null);
   const [adminLogo, setAdminLogo] = React.useState(localStorage.getItem('adminLogo') || null);
   
   const handleLogoUpload = (e) => {
@@ -50,22 +65,15 @@ function Sidebar({ authUser, onLogoUpdate }){
   
   const getSidebarStyle = () => {
     if(!isAdmin && authUser?.sidebarColorFrom && authUser?.sidebarColorTo){
-      return { background: `linear-gradient(to bottom, ${authUser.sidebarColorFrom}, ${authUser.sidebarColorTo})` };
+      const fromHex = toHex(authUser.sidebarColorFrom);
+      const toHexVal = toHex(authUser.sidebarColorTo);
+      return { background: `linear-gradient(to bottom, ${fromHex}, ${toHexVal})` };
     }
     const prefix = isAdmin ? 'admin' : 'school';
     const from = localStorage.getItem(`${prefix}SidebarFrom`);
     const to = localStorage.getItem(`${prefix}SidebarTo`);
     if (from && to) {
-      const colorMap = {
-        'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
-        'pink-500': '#ec4899', 'red-500': '#ef4444', 'orange-500': '#f97316',
-        'amber-500': '#f59e0b', 'yellow-500': '#eab308', 'lime-500': '#84cc16',
-        'green-600': '#16a34a', 'emerald-600': '#059669', 'teal-600': '#0d9488',
-        'cyan-500': '#06b6d4', 'sky-500': '#0ea5e9', 'violet-600': '#7c3aed',
-        'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155',
-        'white': '#ffffff'
-      };
-      return { background: `linear-gradient(to bottom, ${colorMap[from]}, ${colorMap[to]})` };
+      return { background: `linear-gradient(to bottom, ${toHex(from)}, ${toHex(to)})` };
     }
     return {};
   };
@@ -104,7 +112,7 @@ function Sidebar({ authUser, onLogoUpdate }){
           </div>
         ) : logo ? (
           <img 
-            src={logo.startsWith('/uploads') ? `${SERVER_URL}${logo}` : logo} 
+            src={logoUrl} 
             alt="School Logo" 
             className="h-20 w-auto max-w-[180px] object-contain" 
           />
@@ -157,6 +165,8 @@ function Header({ onLogout, authUser }) {
   const isParent = authUser?.role === 'parent';
   const isAdmin = authUser?.role === 'admin';
   const { theme, setTheme } = useTheme();
+  const host = SERVER_URL || '';
+  const schoolIdForBranding = isAdmin ? null : (authUser?.role === 'school' ? authUser?.id : authUser?.schoolId);
   
   const ThemeIcon = ({ type }) => {
     if (type === 'light') return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
@@ -166,22 +176,15 @@ function Header({ onLogout, authUser }) {
   
   const getHeaderStyle = () => {
     if(!isAdmin && authUser?.headerColorFrom && authUser?.headerColorTo){
-      return { background: `linear-gradient(to right, ${authUser.headerColorFrom}, ${authUser.headerColorTo})` };
+      const fromHex = toHex(authUser.headerColorFrom);
+      const toHexVal = toHex(authUser.headerColorTo);
+      return { background: `linear-gradient(to right, ${fromHex}, ${toHexVal})` };
     }
     const prefix = isAdmin ? 'admin' : 'school';
     const from = localStorage.getItem(`${prefix}HeaderFrom`);
     const to = localStorage.getItem(`${prefix}HeaderTo`);
     if (from && to) {
-      const colorMap = {
-        'blue-500': '#3b82f6', 'indigo-600': '#4f46e5', 'purple-600': '#9333ea',
-        'pink-500': '#ec4899', 'red-500': '#ef4444', 'orange-500': '#f97316',
-        'amber-500': '#f59e0b', 'yellow-500': '#eab308', 'lime-500': '#84cc16',
-        'green-600': '#16a34a', 'emerald-600': '#059669', 'teal-600': '#0d9488',
-        'cyan-500': '#06b6d4', 'sky-500': '#0ea5e9', 'violet-600': '#7c3aed',
-        'fuchsia-600': '#c026d3', 'rose-500': '#f43f5e', 'slate-700': '#334155',
-        'white': '#ffffff'
-      };
-      return { background: `linear-gradient(to right, ${colorMap[from]}, ${colorMap[to]})` };
+      return { background: `linear-gradient(to right, ${toHex(from)}, ${toHex(to)})` };
     }
     return {};
   };
@@ -198,8 +201,8 @@ function Header({ onLogout, authUser }) {
         {isDriver || isParent ? (
           <>
             <div className="flex items-center gap-4 flex-1">
-              {authUser?.logo && (
-                <img src={authUser.logo.startsWith('/uploads') ? `${SERVER_URL}${authUser.logo}` : authUser.logo} alt="School Logo" className="h-12 w-auto object-contain" />
+              {schoolIdForBranding && (
+                <img src={`${host}/api/schools/${schoolIdForBranding}/logo`} alt="School Logo" className="h-12 w-auto object-contain" />
               )}
               <div className="flex flex-col">
                 <div className={`text-xl font-semibold ${hasCustomHeaderColors() ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>{authUser?.name || 'School'}</div>
@@ -282,6 +285,43 @@ export default function App(){
         } catch(e){ console.log('school load (public) failed', e.message); }
       })();
     }
+    // Fetch full school record for school admin or sub-user to ensure branding applies (logo, address, phone, colors)
+    if(['school','schoolUser'].includes(u.role)){
+      (async () => {
+        try {
+          const res = await api.get('/schools');
+          const data = res.data?.data || [];
+          const school = u.role === 'school' ? data.find(s => String(s.id) === String(u.id)) : data.find(s => String(s.id) === String(u.schoolId));
+          if (school){
+            const merged = {
+              ...u,
+              // Core branding fields from school
+              name: school.name || u.name,
+              schoolName: school.name || u.schoolName || u.name,
+              address: school.address || u.address || null,
+              city: school.city || u.city || null,
+              state: school.state || u.state || null,
+              county: school.county || u.county || null,
+              phone: school.phone || u.phone || null,
+              mobile: school.mobile || u.mobile || null,
+              logo: school.logo || u.logo || null,
+              photo: school.photo || u.photo || null,
+              headerColorFrom: school.headerColorFrom || null,
+              headerColorTo: school.headerColorTo || null,
+              sidebarColorFrom: school.sidebarColorFrom || null,
+              sidebarColorTo: school.sidebarColorTo || null,
+            };
+            // Persist to localStorage for consistency
+            localStorage.setItem('schoolHeaderFrom', school.headerColorFrom || '');
+            localStorage.setItem('schoolHeaderTo', school.headerColorTo || '');
+            localStorage.setItem('schoolSidebarFrom', school.sidebarColorFrom || '');
+            localStorage.setItem('schoolSidebarTo', school.sidebarColorTo || '');
+            setAuthUser(merged);
+            setAuthUserState(merged);
+          }
+        } catch(e){ console.log('school load (colors) failed', e.message); }
+      })();
+    }
   }, [authUserState]);
   const logout = () => { setAuthToken(null); setAuthUser(null); setAuthUserState(null); window.location.href = '/login'; };
   return (
@@ -295,7 +335,8 @@ export default function App(){
           <main className="p-6 max-w-7xl mx-auto">
             <Routes>
               <Route path="/login" element={<Login onLogin={() => { setAuthUserState(getAuthUser()); }} />} />
-              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/dashboard" element={authUserState?.role === 'admin' ? <Dashboard/> : <Navigate to="/login" replace />} />
+              <Route path="/" element={<Navigate to={authUserState ? (authUserState.role === 'admin' ? '/dashboard' : (authUserState.role === 'school' || authUserState.role === 'schoolUser' ? '/school-dashboard' : authUserState.role === 'driver' ? '/driver-dashboard' : authUserState.role === 'parent' ? '/parent-dashboard' : '/login')) : '/login'} replace />} />
               <Route path="/map" element={<MapPage/>} />
               <Route path="/buses" element={<Buses/>} />
               <Route path="/drivers" element={<Drivers/>} />

@@ -4,23 +4,21 @@ import {
   Text, 
   StyleSheet, 
   ScrollView, 
-  TextInput, 
-  TouchableOpacity,
   Alert,
   Image,
   useColorScheme as useSystemColorScheme
 } from 'react-native';
+import { Button, TextInput as PaperTextInput, Divider } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
-import api from '../services/api';
+import api, { request } from '../services/api';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const globalThis: any;
 import theme from '../constants/theme';
 import AppHeader from '../components/AppHeader';
-
 type ThemeMode = 'light' | 'dark' | 'system';
-
 const THEME_STORAGE_KEY = '@app_theme';
-
 export default function ProfileScreen() {
   const { user, loginLocal } = useAuth();
   const [phone, setPhone] = useState(user?.phone || '');
@@ -30,81 +28,71 @@ export default function ProfileScreen() {
   const [userImage, setUserImage] = useState<string | null>(null);
   const systemColorScheme = useSystemColorScheme();
 
-  useEffect(() => {
-    loadThemePreference();
-  }, []);
-  
-  useFocusEffect(
-    React.useCallback(() => {
-      // Reload user image every time screen is focused
-      loadUserImage();
-    }, [user?.id])
-  );
-
-  const loadThemePreference = async () => {
-    try {
-      const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-      if (savedTheme) {
-        setSelectedTheme(savedTheme as ThemeMode);
-      }
-    } catch (error) {
-      console.error('Failed to load theme preference:', error);
-    }
-  };
-
-  const loadUserImage = async () => {
-    if (!user?.id) return;
-    try {
-      const savedImage = await AsyncStorage.getItem(`userImage_${user.id}`);
-      if (savedImage) {
-        setUserImage(savedImage);
-      } else {
-        setUserImage(null);
-      }
-    } catch (error) {
-      console.error('Failed to load user image:', error);
-      setUserImage(null);
-    }
-  };
-
   const handleUpdatePhone = async () => {
     if (!phone || phone.length !== 10) {
       Alert.alert('Error', 'Please enter a valid 10-digit phone number');
       return;
     }
-
     try {
       setLoading(true);
       const endpoint = user?.role === 'driver' ? '/drivers' : '/parents';
-      await api.put(`${endpoint}/${user?.id}`, { phone });
-      
-      // Update local user data
+      await request({ method: 'put', url: `${endpoint}/${user?.id}`, data: { phone } });
       if (user) {
         loginLocal(user.role, { ...user, phone }, null);
       }
-      
       Alert.alert('Success', 'Phone number updated successfully');
       setIsEditing(false);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to update phone number');
+      Alert.alert('Error', error?.response?.data?.error || 'Failed to update phone number');
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (savedTheme) setSelectedTheme(savedTheme as ThemeMode);
+      } catch (error) {
+        console.error('Failed to load theme preference:', error);
+      }
+    };
+    loadThemePreference();
+  }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadUserImage = async () => {
+        if (!user?.id) return;
+        try {
+          const savedImage = await AsyncStorage.getItem(`userImage_${user.id}`);
+          setUserImage(savedImage || null);
+        } catch (error) {
+          console.error('Failed to load user image:', error);
+          setUserImage(null);
+        }
+      };
+      loadUserImage();
+    }, [user?.id])
+  );
   const handleThemeChange = async (newTheme: ThemeMode) => {
     try {
       setSelectedTheme(newTheme);
       await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
-      
-      Alert.alert(
-        'Theme Changed', 
-        `Theme preference set to ${newTheme}. Note: Theme changes will be fully supported in a future update.`,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Theme Changed', `Theme preference set to ${newTheme}. Note: Theme changes will be fully supported in a future update.`, [{ text: 'OK' }]);
     } catch (error) {
       console.error('Failed to save theme preference:', error);
       Alert.alert('Error', 'Failed to save theme preference');
+    }
+  };
+
+  const triggerBrandingRefresh = () => {
+    try {
+      const emitter = globalThis?.DeviceEventEmitter;
+      emitter?.emit?.('refresh-school-branding');
+      Alert.alert('Branding', 'Refresh requested.');
+    } catch (e) {
+      Alert.alert('Branding', 'Unable to trigger refresh');
     }
   };
 
@@ -138,8 +126,8 @@ export default function ProfileScreen() {
             <Text style={styles.label}>Phone Number</Text>
             {isEditing ? (
               <View style={styles.editContainer}>
-                <TextInput
-                  style={styles.input}
+                <PaperTextInput
+                  mode="outlined"
                   value={phone}
                   onChangeText={setPhone}
                   keyboardType="phone-pad"
@@ -154,32 +142,27 @@ export default function ProfileScreen() {
 
           {isEditing ? (
             <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => {
-                  setPhone(user?.phone || '');
-                  setIsEditing(false);
-                }}
+              <Button
+                mode="outlined"
+                onPress={() => { setPhone(user?.phone || ''); setIsEditing(false); }}
+                style={{ flex: 1 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, styles.saveButton]}
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
                 onPress={handleUpdatePhone}
+                loading={loading}
                 disabled={loading}
+                style={{ flex: 1 }}
               >
-                <Text style={styles.saveButtonText}>
-                  {loading ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
+                Save
+              </Button>
             </View>
           ) : (
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => setIsEditing(true)}
-            >
-              <Text style={styles.editButtonText}>✏️ Edit Phone Number</Text>
-            </TouchableOpacity>
+            <Button mode="contained" onPress={() => setIsEditing(true)}>
+              ✏️ Edit Phone Number
+            </Button>
           )}
         </View>
       </View>
@@ -188,36 +171,12 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Theme</Text>
         <View style={styles.infoCard}>
           <View style={styles.themeRow}>
-            <TouchableOpacity
-              style={[
-                styles.themeIconButton,
-                selectedTheme === 'light' && styles.themeIconButtonActive
-              ]}
-              onPress={() => handleThemeChange('light')}
-            >
-              <Text style={styles.themeIconOnly}>☀️</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.themeIconButton,
-                selectedTheme === 'dark' && styles.themeIconButtonActive
-              ]}
-              onPress={() => handleThemeChange('dark')}
-            >
-              <Text style={styles.themeIconOnly}>🌙</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.themeIconButton,
-                selectedTheme === 'system' && styles.themeIconButtonActive
-              ]}
-              onPress={() => handleThemeChange('system')}
-            >
-              <Text style={styles.themeIconOnly}>⚙️</Text>
-            </TouchableOpacity>
+            <Button mode={selectedTheme === 'light' ? 'contained' : 'outlined'} onPress={() => handleThemeChange('light')}>☀️</Button>
+            <Button mode={selectedTheme === 'dark' ? 'contained' : 'outlined'} onPress={() => handleThemeChange('dark')}>🌙</Button>
+            <Button mode={selectedTheme === 'system' ? 'contained' : 'outlined'} onPress={() => handleThemeChange('system')}>⚙️</Button>
           </View>
+          <Divider style={{ marginVertical: 8 }} />
+          <Button mode="outlined" onPress={triggerBrandingRefresh}>Refresh Branding</Button>
         </View>
       </View>
       </ScrollView>

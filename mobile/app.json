@@ -47,7 +47,8 @@
     "extra": {
       "expo-router": {
         "appRoot": "app"
-      }
+      },
+      "apiBaseUrl": "https://itech-bustracker-app-b9609b94f375.herokuapp.com/api"
     }
   }
 }

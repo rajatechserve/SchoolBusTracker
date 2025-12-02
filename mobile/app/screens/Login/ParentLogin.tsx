@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, Text, Alert } from 'react-native';
+import { TextInput as PaperTextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { useAuth } from '../../context/AuthContext';
-import api, { attachToken } from '../../services/api';
+import api, { attachToken, request } from '../../services/api';
 import { router } from 'expo-router';
 
 export default function ParentLogin() {
@@ -14,7 +15,7 @@ export default function ParentLogin() {
     if (!valid || loading) return;
     setLoading(true);
     try {
-      const resp = await api.post('/auth/parent-login', { phone: phone.trim() });
+        const resp = await request({ method: 'post', url: '/auth/parent-login', data: { phone: phone.trim() } });
       const token = resp.data?.token;
       const parent = resp.data?.parent;
       if (token) attachToken(token);
@@ -36,18 +37,19 @@ export default function ParentLogin() {
     <View style={styles.container}>
       <Text style={styles.title}>Parent Login</Text>
       <Text style={styles.subtitle}>Enter your registered mobile number</Text>
-      <TextInput 
-        placeholder="Mobile Number (10 digits)" 
-        value={phone} 
-        onChangeText={setPhone} 
-        style={styles.input} 
+      <PaperTextInput
+        mode="outlined"
+        label="Mobile Number"
+        placeholder="10 digits"
+        value={phone}
+        onChangeText={setPhone}
         keyboardType="phone-pad"
         maxLength={10}
       />
       <Text style={styles.hint}>{valid ? 'Ready to login' : 'Enter valid 10-digit mobile number'}</Text>
-      <TouchableOpacity disabled={!valid || loading} onPress={submit} style={[styles.button, (!valid||loading)&&styles.buttonDisabled]}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
-      </TouchableOpacity>
+      <Button mode="contained" disabled={!valid || loading} onPress={submit}>
+        {loading ? <ActivityIndicator animating={true} /> : 'Login'}
+      </Button>
     </View>
   );
 }

@@ -1,7 +1,7 @@
 
 import axios from 'axios';
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
+const baseURL = import.meta.env.VITE_API_URL || 'https://itech-bustracker-app-b9609b94f375.herokuapp.com/api';
+export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://itech-bustracker-app-b9609b94f375.herokuapp.com';
 const api = axios.create({ baseURL, timeout: 12000 });
 
 export function setAuthToken(token){
@@ -17,8 +17,22 @@ api.interceptors.request.use((config)=>{
   return config;
 });
 
+let unauthorizedHandled = false;
 api.interceptors.response.use(r=>r, err=>{
-  if(err?.response?.status === 401){ setAuthToken(null); }
+  const status = err?.response?.status;
+  if(status === 401){
+    // Avoid repeated clearing/navigation storms on multiple concurrent 401s
+    if(!unauthorizedHandled){
+      unauthorizedHandled = true;
+      setAuthToken(null);
+      setAuthUser(null);
+      // Redirect to login only if not already there
+      const currentPath = window.location.pathname;
+      if(currentPath !== '/login'){ window.location.replace('/login'); }
+      // Reset the guard after a short delay to allow next legitimate 401
+      setTimeout(()=>{ unauthorizedHandled = false; }, 2000);
+    }
+  }
   return Promise.reject(err);
 });
 
