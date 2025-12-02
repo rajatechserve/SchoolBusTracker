@@ -56,6 +56,24 @@ export function cancelAllRequests(reason: string = 'App logout/navigation') {
 }
 
 let unauthorizedGuard = false;
+// Attach Authorization header from storage if not already set
+api.interceptors.request.use(async (config: AxiosRequestConfig) => {
+  try {
+    // If caller already set Authorization, keep it
+    if (config.headers && (config.headers as any).Authorization) return config;
+    // Else, try to read token from storage
+    const authStr = await AsyncStorage.getItem('auth');
+    if (authStr) {
+      const auth = JSON.parse(authStr);
+      const token = auth?.token || auth?.accessToken || auth?.jwt;
+      if (token) {
+        (config.headers ||= {}) as any;
+        (config.headers as any).Authorization = `Bearer ${token}`;
+      }
+    }
+  } catch {}
+  return config;
+});
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {

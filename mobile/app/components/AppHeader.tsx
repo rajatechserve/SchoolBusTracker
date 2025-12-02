@@ -126,7 +126,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const loadSchoolInfoVersionAware = async () => {
     if (!user?.schoolId) return;
     try {
-      const response = await api.get(`/public/schools/${user.schoolId}`);
+      const response = await api.request({ method: 'get', url: `/public/schools/${user.schoolId}` });
       console.log('School API Response:', response.data);
       
       const schoolData = response.data;
@@ -440,7 +440,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               ) : (
                 <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
               )}
-              <Appbar.Content title={school?.name || 'School Name'} color="#fff" />
+              <Appbar.Content title={school?.name || 'School Name'} titleStyle={{ color: '#fff' }} style={{ flexGrow: 1 }} />
               <Appbar.Action icon="logout" onPress={handleLogout} color="#fff" />
             </Appbar.Header>
           </LinearGradient>
@@ -458,7 +458,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             ) : (
               <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
             )}
-            <Appbar.Content title={school?.name || 'School Name'} />
+            <Appbar.Content title={school?.name || 'School Name'} style={{ flexGrow: 1 }} />
             <Appbar.Action icon="logout" onPress={handleLogout} />
           </Appbar.Header>
         )}
@@ -502,6 +502,39 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           >
             <View style={[styles.drawer, { backgroundColor: '#fff' }]}
             >
+              {/* Profile Section */}
+              {sidebarColorFrom && sidebarColorTo ? (
+                <LinearGradient
+                  colors={[sidebarColorFrom, sidebarColorTo]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.profileSection}
+                >
+                  <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
+                    {userImage ? (
+                      <Image source={{ uri: userImage }} style={styles.userImage} />
+                    ) : (
+                      <View style={styles.defaultAvatar}><Text style={styles.avatar}>👤</Text></View>
+                    )}
+                    <View style={styles.editBadge}><Text style={styles.editIcon}>✎</Text></View>
+                  </TouchableOpacity>
+                  <Text style={styles.userName}>{user?.name || user?.fullName || user?.phone || 'User'}</Text>
+                  <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={[styles.profileSection, { backgroundColor: '#007BFF' }]}>
+                  <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
+                    {userImage ? (
+                      <Image source={{ uri: userImage }} style={styles.userImage} />
+                    ) : (
+                      <View style={styles.defaultAvatar}><Text style={styles.avatar}>👤</Text></View>
+                    )}
+                    <View style={styles.editBadge}><Text style={styles.editIcon}>✎</Text></View>
+                  </TouchableOpacity>
+                  <Text style={styles.userName}>{user?.name || user?.fullName || user?.phone || 'User'}</Text>
+                  <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
+                </View>
+              )}
               <Drawer.Section>
                 <Drawer.Item
                   label="Dashboard"
