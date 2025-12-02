@@ -57,6 +57,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [headerColorTo, setHeaderColorTo] = useState<string | null>(null);
   const [sidebarColorFrom, setSidebarColorFrom] = useState<string | null>(null);
   const [sidebarColorTo, setSidebarColorTo] = useState<string | null>(null);
+  const [prefTheme, setPrefTheme] = useState<'light' | 'dark' | 'system'>('system');
+  const [isDark, setIsDark] = useState(false);
 
   const colorMap: Record<string, string> = {
     white: '#ffffff',
@@ -79,7 +81,20 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     // First hydrate from cache (fast, offline friendly), then attempt a single version check.
     hydrateFromCacheThenFetch();
     loadUserImage();
+    (async () => {
+      try {
+        const saved = await AsyncStorage.getItem('@app_theme');
+        if (saved === 'light' || saved === 'dark' || saved === 'system') setPrefTheme(saved);
+      } catch {}
+      const scheme = (globalThis as any).Appearance?.getColorScheme?.() || null;
+      const effective = savedThemeToScheme(prefTheme, scheme);
+      setIsDark(effective === 'dark');
+    })();
   }, [user?.schoolId, user?.id]);
+
+  const savedThemeToScheme = (pref: 'light' | 'dark' | 'system', systemScheme: string | null) => {
+    return pref === 'system' ? (systemScheme || 'light') : pref;
+  };
 
   const loadUserImage = async () => {
     if (!user?.id) return;
@@ -451,7 +466,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             </Appbar.Header>
           </LinearGradient>
         ) : (
-          <Appbar.Header>
+          <Appbar.Header style={isDark ? { backgroundColor: '#121212' } : undefined}>
             {showBackButton ? (
               <Appbar.BackAction onPress={() => router.push('/(tabs)/')} />
             ) : (
@@ -468,6 +483,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               title={school?.name || 'School Name'}
               subtitle={school?.address || school?.phone || ''}
               style={{ flexGrow: 1 }}
+              titleStyle={isDark ? { color: '#fff' } : undefined}
+              subtitleStyle={isDark ? { color: '#ccc' } : undefined}
             />
             <Appbar.Action icon="logout" onPress={handleLogout} />
           </Appbar.Header>
@@ -510,7 +527,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           {/* Drawer */}
           <Animated.View style={[styles.drawerContainer, { transform: [{ translateX: slideAnim }] }]}
           >
-            <View style={[styles.drawer, { backgroundColor: '#fff' }]}
+            <View style={[styles.drawer, { backgroundColor: isDark ? '#121212' : '#fff' }]}
             >
               {/* Profile Section */}
               {sidebarColorFrom && sidebarColorTo ? (
@@ -518,7 +535,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                   colors={[sidebarColorFrom, sidebarColorTo]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.profileSection}
+                  style={[styles.profileSection, isDark ? { borderBottomColor: '#222' } : undefined]}
                 >
                   <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
                     {userImage ? (
@@ -532,7 +549,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                   <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
                 </LinearGradient>
               ) : (
-                <View style={[styles.profileSection, { backgroundColor: '#007BFF' }]}>
+                <View style={[styles.profileSection, { backgroundColor: isDark ? '#1e1e1e' : '#007BFF' }] }>
                   <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
                     {userImage ? (
                       <Image source={{ uri: userImage }} style={styles.userImage} />
@@ -545,7 +562,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                   <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
                 </View>
               )}
-              <Drawer.Section>
+              <Drawer.Section style={isDark ? { backgroundColor: '#1e1e1e' } : undefined}>
                 <Drawer.Item
                   label="Dashboard"
                   icon="home"
@@ -575,7 +592,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                 )}
               </Drawer.Section>
               <Divider />
-              <Drawer.Section>
+              <Drawer.Section style={isDark ? { backgroundColor: '#1e1e1e' } : undefined}>
                 <Drawer.Item
                   label="Logout"
                   icon="logout"
