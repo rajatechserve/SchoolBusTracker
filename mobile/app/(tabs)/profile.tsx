@@ -16,6 +16,7 @@ import api, { request } from '../services/api';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const globalThis: any;
 import theme from '../constants/theme';
+import AppHeader from '../components/AppHeader';
 type ThemeMode = 'light' | 'dark' | 'system';
 const THEME_STORAGE_KEY = '@app_theme';
 export default function ProfileScreen() {
