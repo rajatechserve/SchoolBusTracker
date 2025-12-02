@@ -593,7 +593,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
   header: {

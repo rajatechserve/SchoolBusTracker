@@ -18,6 +18,7 @@ function useThemes(colorScheme: string | null) {
     colors: {
       ...baseNav.colors,
       primary: '#4CAF50',
+      background: 'transparent',
     },
   };
   const paperTheme = {
@@ -26,7 +27,7 @@ function useThemes(colorScheme: string | null) {
       ...PaperDefaultTheme.colors,
       primary: '#4CAF50',
       accent: '#FFC107',
-      background: '#F5F5F5',
+      background: 'transparent',
       surface: '#FFFFFF',
       text: '#212121',
       placeholder: '#757575',
@@ -67,7 +68,7 @@ function InnerLayout() {
       <ThemeProvider value={navTheme}>
         <PaperProvider theme={paperTheme}>
           <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
-          <StatusBar style="auto" />
+          <StatusBar style="light" translucent backgroundColor="transparent" />
         </PaperProvider>
       </ThemeProvider>
     );
@@ -84,7 +85,7 @@ function InnerLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
         </Stack>
-        <StatusBar style="auto" />
+        <StatusBar style="light" translucent backgroundColor="transparent" />
       </PaperProvider>
     </ThemeProvider>
   );
