@@ -440,7 +440,13 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               ) : (
                 <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
               )}
-              <Appbar.Content title={school?.name || 'School Name'} titleStyle={{ color: '#fff' }} style={{ flexGrow: 1 }} />
+              <Appbar.Content
+                title={school?.name || 'School Name'}
+                subtitle={school?.address || school?.phone || ''}
+                titleStyle={{ color: '#fff' }}
+                subtitleStyle={{ color: '#e0e0e0' }}
+                style={{ flexGrow: 1 }}
+              />
               <Appbar.Action icon="logout" onPress={handleLogout} color="#fff" />
             </Appbar.Header>
           </LinearGradient>
@@ -458,7 +464,11 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             ) : (
               <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
             )}
-            <Appbar.Content title={school?.name || 'School Name'} style={{ flexGrow: 1 }} />
+            <Appbar.Content
+              title={school?.name || 'School Name'}
+              subtitle={school?.address || school?.phone || ''}
+              style={{ flexGrow: 1 }}
+            />
             <Appbar.Action icon="logout" onPress={handleLogout} />
           </Appbar.Header>
         )}
