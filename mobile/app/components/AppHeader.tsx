@@ -610,6 +610,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
 const styles = StyleSheet.create({
   safeArea: {
+    // Background will be set dynamically to match header for proper mobile top view
     backgroundColor: 'transparent',
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
