@@ -100,7 +100,7 @@ function InnerLayout() {
       <ThemeProvider value={navTheme}>
         <PaperProvider theme={paperTheme}>
           <ActivityIndicator style={{ marginTop: 64 }} animating size="large" color={paperTheme.colors.primary} />
-          <StatusBar style={effectiveScheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+          <StatusBar style={effectiveScheme === 'dark' ? 'light' : 'dark'} translucent={false} />
         </PaperProvider>
       </ThemeProvider>
     );
@@ -117,7 +117,7 @@ function InnerLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
         </Stack>
-        <StatusBar style={effectiveScheme === 'dark' ? 'light' : 'dark'} translucent backgroundColor={effectiveScheme === 'dark' ? 'rgba(0,0,0,0.3)' : 'transparent'} />
+        <StatusBar style={effectiveScheme === 'dark' ? 'light' : 'dark'} translucent={false} />
       </PaperProvider>
     </ThemeProvider>
   );
