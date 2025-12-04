@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import AppHeader from '../../components/AppHeader';
+import api, { request } from '../../services/api';
 
 interface Student {
   id: string;
@@ -60,6 +61,7 @@ export default function ParentDashboard() {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [live, setLive] = useState<{ lat:number; lng:number; running:boolean; lastPingAt:number|null } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -137,7 +139,22 @@ export default function ParentDashboard() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
+    await fetchLive();
     setRefreshing(false);
+  };
+
+  const fetchLive = async () => {
+    try {
+      const childBusIds = [...new Set(children.map((c: Student) => c.busId).filter(Boolean))];
+      const busId = childBusIds[0];
+      if (!busId) return setLive(null);
+      const res = await api.get(`/public/bus/${busId}/live`);
+      const d = res.data;
+      if (d && d.location) setLive({ lat: d.location.lat, lng: d.location.lng, running: !!d.running, lastPingAt: d.lastPingAt || null });
+      else setLive({ lat: 0, lng: 0, running: !!d.running, lastPingAt: d.lastPingAt || null });
+    } catch (e) {
+      console.warn('Failed to fetch live bus status');
+    }
   };
 
   const getBusName = (busId: string) => {
@@ -195,6 +212,15 @@ export default function ParentDashboard() {
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Live Map Stub */}
+        <View style={styles.liveBox}>
+          <Text style={styles.sectionTitle}>Live Bus Status</Text>
+          {live?.running ? (
+            <Text style={styles.liveText}>🚌 at ({live.lat.toFixed(5)}, {live.lng.toFixed(5)}) • last ping {live.lastPingAt ? new Date(live.lastPingAt).toLocaleTimeString() : '—'}</Text>
+          ) : (
+            <Text style={styles.liveText}>Bus not running</Text>
+          )}
+        </View>
         {/* Your Children Tab */}
         {activeTab === 'children' && (
           <View style={styles.tabContent}>
@@ -357,6 +383,21 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  liveBox: {
+    backgroundColor: '#fff',
+    padding: 12,
+    margin: 12,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  liveText: {
+    fontSize: 14,
+    color: '#333',
   },
   tabContent: {
     padding: 16,

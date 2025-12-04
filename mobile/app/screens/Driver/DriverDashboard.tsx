@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api, { request } from '../../services/api';
 import AppHeader from '../../components/AppHeader';
+import * as Location from 'expo-location';
 
 interface Student {
   id: string;
@@ -68,6 +69,10 @@ export default function DriverDashboard() {
   const [todayAttendance, setTodayAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tripRunning, setTripRunning] = useState(false);
+  const [tripDirection, setTripDirection] = useState<'morning'|'evening'>('morning');
+  const locationTimer = useRef<NodeJS.Timer | null>(null);
+  const [lastPing, setLastPing] = useState<number | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [locationForm, setLocationForm] = useState({ 
     pickupLat: '', 
@@ -132,6 +137,61 @@ export default function DriverDashboard() {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const startPostingLocation = async (busId: string) => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location', 'Permission denied');
+        return;
+      }
+      if (locationTimer.current) clearInterval(locationTimer.current as any);
+      locationTimer.current = setInterval(async () => {
+        try {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setLastPing(Date.now());
+          await request({ method: 'post', url: `/trips/${busId}/location`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude } });
+        } catch (e: any) {
+          console.warn('Location post failed:', e.message);
+        }
+      }, 5000);
+    } catch (e) {
+      console.warn('Failed to start location timer', e);
+    }
+  };
+
+  const stopPostingLocation = () => {
+    if (locationTimer.current) {
+      clearInterval(locationTimer.current as any);
+      locationTimer.current = null;
+    }
+  };
+
+  const startTrip = async () => {
+    try {
+      const busId = assignments[0]?.busId || buses[0]?.id;
+      if (!busId) return Alert.alert('Trip', 'No bus assigned');
+      const res = await request({ method: 'post', url: '/trips/start', data: { busId, direction: tripDirection } });
+      setTripRunning(true);
+      await startPostingLocation(busId);
+      Alert.alert('Trip', `Started (${tripDirection})`);
+    } catch (e: any) {
+      Alert.alert('Trip', e?.response?.data?.error || 'Failed to start trip');
+    }
+  };
+
+  const stopTrip = async () => {
+    try {
+      const busId = assignments[0]?.busId || buses[0]?.id;
+      if (!busId) return Alert.alert('Trip', 'No bus assigned');
+      const res = await request({ method: 'post', url: '/trips/stop', data: { busId } });
+      setTripRunning(false);
+      stopPostingLocation();
+      Alert.alert('Trip', 'Stopped');
+    } catch (e: any) {
+      Alert.alert('Trip', e?.response?.data?.error || 'Failed to stop trip');
+    }
   };
 
   const markAttendance = async (studentId: string, status: 'present' | 'absent') => {
@@ -236,6 +296,53 @@ export default function DriverDashboard() {
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Trip Controls */}
+        <View style={styles.tripControls}>
+          <View style={styles.tripRow}>
+            <TouchableOpacity style={[styles.directionBtn, tripDirection==='morning' && styles.directionActive]} onPress={()=>setTripDirection('morning')}>
+              <Text style={styles.directionText}>🌅 Morning</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.directionBtn, tripDirection==='evening' && styles.directionActive]} onPress={()=>setTripDirection('evening')}>
+              <Text style={styles.directionText}>🌇 Evening</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.tripRow}>
+            {!tripRunning ? (
+              <TouchableOpacity style={styles.startBtn} onPress={startTrip}>
+                <Text style={styles.buttonText}>▶ Start Trip</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.stopBtn} onPress={stopTrip}>
+                <Text style={styles.buttonText}>⏹ Stop Trip</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.lastPingText}>Last GPS ping: {lastPing ? new Date(lastPing).toLocaleTimeString() : '—'}</Text>
+          {tripRunning && (
+            <View style={styles.tripRow}>
+              <TouchableOpacity style={styles.arriveBtn} onPress={async ()=>{
+                try {
+                  const busId = assignments[0]?.busId || buses[0]?.id;
+                  if (!busId) return Alert.alert('Trip','No bus');
+                  await request({ method:'post', url:`/trips/${busId}/arrive-stop`, data:{ advance:false } });
+                  Alert.alert('Stop','Arrived at stop');
+                } catch(e:any){ Alert.alert('Stop', e?.response?.data?.error || e.message); }
+              }}>
+                <Text style={styles.buttonText}>🛑 Arrived</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.advanceBtn} onPress={async ()=>{
+                try {
+                  const busId = assignments[0]?.busId || buses[0]?.id;
+                  if (!busId) return Alert.alert('Trip','No bus');
+                  await request({ method:'post', url:`/trips/${busId}/arrive-stop`, data:{ advance:true } });
+                  Alert.alert('Stop','Advanced to next stop');
+                } catch(e:any){ Alert.alert('Stop', e?.response?.data?.error || e.message); }
+              }}>
+                <Text style={styles.buttonText}>➡ Next Stop</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
         {/* Today's Attendance Tab */}
         {activeTab === 'attendance' && (
           <View style={styles.tabContent}>
@@ -283,6 +390,21 @@ export default function DriverDashboard() {
                             >
                               <Text style={styles.buttonText}>✗ Absent</Text>
                             </TouchableOpacity>
+                            {tripRunning && (
+                              <TouchableOpacity 
+                                style={styles.dropButton}
+                                onPress={async ()=>{
+                                  try {
+                                    const busId = assignments[0]?.busId || buses[0]?.id;
+                                    if (!busId) return Alert.alert('Trip','No bus');
+                                    await request({ method:'post', url:`/trips/${busId}/drop-student`, data:{ studentId: student.id } });
+                                    Alert.alert('Dropped', `${student.name} marked dropped`);
+                                  } catch(e:any){ Alert.alert('Dropped', e?.response?.data?.error || e.message); }
+                                }}
+                              >
+                                <Text style={styles.buttonText}>🚪 Dropped</Text>
+                              </TouchableOpacity>
+                            )}
                           </>
                         )}
                       </View>
@@ -474,6 +596,66 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
+  tripControls: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  tripRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  directionBtn: {
+    flex: 1,
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  directionActive: {
+    backgroundColor: '#cfe8ff',
+    borderWidth: 1,
+    borderColor: '#007BFF',
+  },
+  directionText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  startBtn: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  stopBtn: {
+    flex: 1,
+    backgroundColor: '#f44336',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  arriveBtn: {
+    flex: 1,
+    backgroundColor: '#FF9800',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  advanceBtn: {
+    flex: 1,
+    backgroundColor: '#9C27B0',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  lastPingText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
   tab: {
     flex: 1,
     paddingVertical: 12,
@@ -563,6 +745,13 @@ const styles = StyleSheet.create({
   absentButton: {
     flex: 1,
     backgroundColor: '#f44336',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  dropButton: {
+    flex: 1,
+    backgroundColor: '#3F51B5',
     paddingVertical: 10,
     borderRadius: 6,
     alignItems: 'center',
