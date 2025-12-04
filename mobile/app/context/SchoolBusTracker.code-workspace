@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../itech-bustracker-server"
+		},
+		{
+			"path": "../../../../itech-bustracker-web"
+		}
+	],
+	"settings": {}
+}
