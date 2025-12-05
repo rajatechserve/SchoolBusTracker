@@ -15,8 +15,17 @@ export default function DriverLogin() {
   useEffect(() => {
     const loadSchool = async () => {
       try {
-        const schoolId = process.env.EXPO_PUBLIC_SCHOOL_ID;
+        const raw = await AsyncStorage.getItem('auth');
+        const parsed = raw ? JSON.parse(raw) : null;
+        const schoolId = parsed?.user?.schoolId;
         if (schoolId) {
+          const cached = await AsyncStorage.getItem(`schoolData_${schoolId}`);
+          if (cached) {
+            const school = JSON.parse(cached);
+            const name = school?.name || school?.schoolName;
+            if (name) setSchoolName(name);
+            return;
+          }
           const resp = await request({ method: 'get', url: `/public/schools/${schoolId}` });
           const name = resp.data?.name || resp.data?.schoolName;
           if (name) setSchoolName(name);

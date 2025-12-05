@@ -196,7 +196,15 @@ export async function request(config: AxiosRequestConfig) {
     if (!isMutation) {
       // Ensure storage initialized
       initStorage();
-      const schoolId = process?.env?.EXPO_PUBLIC_SCHOOL_ID as string | undefined;
+      // Read schoolId from persisted auth (set at first login)
+      let schoolId: string | undefined;
+      try {
+        const raw = await AsyncStorage.getItem('auth');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          schoolId = parsed?.user?.schoolId as string | undefined;
+        }
+      } catch {}
       const cacheKey = `${finalConfig.url || ''}|${JSON.stringify(finalConfig.params || {})}`;
       if (!connected && schoolId) {
         const cached = await getCache(schoolId, cacheKey);

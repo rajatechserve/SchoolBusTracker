@@ -74,16 +74,7 @@ function InnerLayout() {
       } catch {}
       // Initialize SQLite storage early
       try { initStorage(); } catch {}
-      // Prefetch core public school data if configured
-      try {
-        const sid = (process as any)?.env?.EXPO_PUBLIC_SCHOOL_ID;
-        if (sid) {
-          await request({ method: 'get', url: `/public/schools/${sid}` });
-          // Optionally prefetch common catalog endpoints (routes, stops) if they exist in API
-          try { await request({ method: 'get', url: `/routes`, params: { schoolId: sid } }); } catch {}
-          try { await request({ method: 'get', url: `/stops`, params: { schoolId: sid } }); } catch {}
-        }
-      } catch {}
+      // Do not prefetch by env; wait for authenticated schoolId
       setThemeReady(true);
     })();
   }, []);
@@ -95,7 +86,7 @@ function InnerLayout() {
   // After auth, prefetch role-specific essentials
   useEffect(() => {
     (async () => {
-      const sid = user?.schoolId || (process as any)?.env?.EXPO_PUBLIC_SCHOOL_ID;
+      const sid = user?.schoolId;
       if (!sid) return;
       try {
         if (user?.role === 'parent') {

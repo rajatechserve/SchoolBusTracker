@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { attachToken } from '../services/api';
+import { attachToken, request } from '../services/api';
+import { setCache, initStorage } from '../services/storage';
 
 export type User = {
   role: 'driver' | 'parent';
@@ -80,6 +81,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // persist
     AsyncStorage.setItem('auth', JSON.stringify({ user: next, token: t || null })).catch(() => {});
+    // Fetch and persist school metadata once per login
+    (async () => {
+      try {
+        if (next.schoolId) {
+          initStorage();
+          const resp = await request({ method: 'get', url: `/public/schools/${next.schoolId}` });
+          const school = resp.data || null;
+          await AsyncStorage.setItem(`schoolData_${next.schoolId}`, JSON.stringify(school));
+          try { await setCache(next.schoolId, `public_schools_${next.schoolId}`, school); } catch {}
+        }
+      } catch (e) {
+        // best-effort
+      }
+    })();
   }, []);
 
   const logout = useCallback(async () => {
