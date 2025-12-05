@@ -20,7 +20,8 @@ try {
   LinearGradient = require('expo-linear-gradient').LinearGradient;
 } catch {}
 import { Appbar, Drawer, Divider } from 'react-native-paper';
-import * as FileSystem from 'expo-file-system';
+// Use legacy API to avoid deprecation warnings on Expo SDK 54
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';

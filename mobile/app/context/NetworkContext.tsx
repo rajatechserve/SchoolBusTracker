@@ -44,3 +44,9 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     </NetworkContext.Provider>
   );
 }
+
+// Expo Router treats any file under `app/` as a route. Provide a noop default
+// export to satisfy the router while still using named context exports.
+export default function NetworkContextRoute() {
+  return null;
+}
