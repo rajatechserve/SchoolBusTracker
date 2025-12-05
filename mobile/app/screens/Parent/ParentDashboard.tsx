@@ -11,7 +11,6 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import AppHeader from '../../components/AppHeader';
-import api, { request } from '../../services/api';
 
 interface Student {
   id: string;
