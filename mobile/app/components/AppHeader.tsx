@@ -14,8 +14,11 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Platform, StatusBar } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
-import { LinearGradient } from 'expo-linear-gradient';
+let LinearGradient: any;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch {}
 import { Appbar, Drawer, Divider } from 'react-native-paper';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
