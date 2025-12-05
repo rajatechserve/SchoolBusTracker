@@ -1,9 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-let NetInfo: any;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  NetInfo = require('@react-native-community/netinfo');
-} catch {}
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import * as Network from 'expo-network';
 
 type NetworkContextType = {
   isConnected: boolean;
@@ -23,31 +19,23 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const [lastChangeAt, setLastChangeAt] = useState<number | null>(null);
 
   useEffect(() => {
-    if (NetInfo && NetInfo.addEventListener) {
-      const unsubscribe = NetInfo.addEventListener((state: any) => {
+    let alive = true;
+    const check = async () => {
+      try {
+        const state = await Network.getNetworkStateAsync();
+        if (!alive) return;
         const connected = !!(state.isConnected && state.isInternetReachable !== false);
         setIsConnected(connected);
         setLastChangeAt(Date.now());
-      });
-      return () => unsubscribe();
-    }
-    // Fallback: poll a lightweight health endpoint to infer connectivity
-    let mounted = true;
-    const tick = async () => {
-      try {
-        const res = await fetch('http://localhost:4000/api/health');
-        if (!mounted) return;
-        setIsConnected(res.ok);
-        setLastChangeAt(Date.now());
       } catch {
-        if (!mounted) return;
+        if (!alive) return;
         setIsConnected(false);
         setLastChangeAt(Date.now());
       }
     };
-    tick();
-    const t = setInterval(tick, 5000);
-    return () => { mounted = false; clearInterval(t); };
+    check();
+    const t = setInterval(check, 5000);
+    return () => { alive = false; clearInterval(t); };
   }, []);
 
   return (
