@@ -5,6 +5,8 @@ import 'react-native-reanimated';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme, MD3DarkTheme as PaperDarkTheme } from 'react-native-paper';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native-paper';
+import { initStorage } from './services/storage';
+import { request } from './services/api';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NetworkProvider } from './context/NetworkContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -70,6 +72,18 @@ function InnerLayout() {
         const saved = await AsyncStorage.getItem('@app_theme');
         if (saved === 'light' || saved === 'dark' || saved === 'system') setPref(saved);
       } catch {}
+      // Initialize SQLite storage early
+      try { initStorage(); } catch {}
+      // Prefetch core public school data if configured
+      try {
+        const sid = (process as any)?.env?.EXPO_PUBLIC_SCHOOL_ID;
+        if (sid) {
+          await request({ method: 'get', url: `/public/schools/${sid}` });
+          // Optionally prefetch common catalog endpoints (routes, stops) if they exist in API
+          try { await request({ method: 'get', url: `/routes`, params: { schoolId: sid } }); } catch {}
+          try { await request({ method: 'get', url: `/stops`, params: { schoolId: sid } }); } catch {}
+        }
+      } catch {}
       setThemeReady(true);
     })();
   }, []);
@@ -78,6 +92,25 @@ function InnerLayout() {
   const segments = useSegments();
   const router = useRouter();
   const { user, hydrated } = useAuth();
+  // After auth, prefetch role-specific essentials
+  useEffect(() => {
+    (async () => {
+      const sid = user?.schoolId || (process as any)?.env?.EXPO_PUBLIC_SCHOOL_ID;
+      if (!sid) return;
+      try {
+        if (user?.role === 'parent') {
+          // Prefetch assignments or child roster if available
+          try { await request({ method: 'get', url: `/assignments`, params: { schoolId: sid } }); } catch {}
+          // Prefetch live bus snapshot for parent dashboard (public route)
+          // if busId is known we could use it; else prefetch recent live endpoint by school
+        } else if (user?.role === 'driver') {
+          // Prefetch driver-specific route and stops
+          try { await request({ method: 'get', url: `/driver/routes`, params: { schoolId: sid } }); } catch {}
+          try { await request({ method: 'get', url: `/driver/stops`, params: { schoolId: sid } }); } catch {}
+        }
+      } catch {}
+    })();
+  }, [user?.role, user?.schoolId]);
 
   // Route guard: ensure unauthenticated users land on /login, authenticated go to tabs.
   useEffect(() => {
