@@ -11,14 +11,17 @@ import {
   ImageBackground,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Platform, StatusBar } from 'react-native';
-let LinearGradient: any;
+let LinearGradient: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  LinearGradient = require('expo-linear-gradient').LinearGradient;
-} catch {}
+  const mod = require('expo-linear-gradient');
+  LinearGradient = mod?.LinearGradient || null;
+} catch {
+  LinearGradient = null;
+}
 import { Appbar, Drawer, Divider } from 'react-native-paper';
 // Use legacy API to avoid deprecation warnings on Expo SDK 54
 import * as FileSystem from 'expo-file-system/legacy';
@@ -444,7 +447,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     <>
       {/* Header with Material Appbar */}
       <SafeAreaView style={styles.safeArea}>
-        {headerColorFrom && headerColorTo ? (
+        {headerColorFrom && headerColorTo && LinearGradient ? (
           <LinearGradient colors={[headerColorFrom, headerColorTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
             <Appbar.Header style={{ backgroundColor: 'transparent' }}>
               {showBackButton ? (
