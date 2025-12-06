@@ -81,6 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // persist
     AsyncStorage.setItem('auth', JSON.stringify({ user: next, token: t || null })).catch(() => {});
+    // Remember last schoolId for branding on login screens and post-logout
+    if (next.schoolId) {
+      AsyncStorage.setItem('@last_school_id', String(next.schoolId)).catch(() => {});
+    }
     // Fetch and persist school metadata once per login
     (async () => {
       try {
@@ -98,15 +102,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    // Clear school-related cache to ensure fresh data on next login
+    // Preserve school cache and last_school_id so headers can show branding on login screens
     if (user?.schoolId) {
       try {
-        await AsyncStorage.removeItem(`schoolData_${user.schoolId}`);
-        await AsyncStorage.removeItem(`schoolBanner_${user.schoolId}`);
-        console.log('School cache cleared for schoolId:', user.schoolId);
-      } catch (e) {
-        console.error('Failed to clear school cache:', e);
-      }
+        await AsyncStorage.setItem('@last_school_id', String(user.schoolId));
+      } catch {}
     }
     
     setUser(null);

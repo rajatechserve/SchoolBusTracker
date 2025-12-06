@@ -55,6 +55,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [school, setSchool] = useState<School | null>(null);
   const [userImage, setUserImage] = useState<string | null>(null);
+  const [lastSchoolId, setLastSchoolId] = useState<string | null>(null);
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [bannerImage, setBannerImage] = useState<string | null>(null);
   const slideAnim = useState(new Animated.Value(-width * 0.6))[0];
@@ -96,6 +97,11 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       const scheme = (globalThis as any).Appearance?.getColorScheme?.() || null;
       const effective = savedThemeToScheme(prefTheme, scheme);
       setIsDark(effective === 'dark');
+      // Read last known schoolId to support header on login screens
+      try {
+        const lastId = await AsyncStorage.getItem('@last_school_id');
+        if (lastId) setLastSchoolId(lastId);
+      } catch {}
     })();
   }, [user?.schoolId, user?.id]);
 
@@ -116,9 +122,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   };
 
   const hydrateFromCacheThenFetch = async () => {
-    if (!user?.schoolId) return;
+    const currentSchoolId = user?.schoolId || lastSchoolId;
+    if (!currentSchoolId) return;
     try {
-      const cachedSchoolDataStr = await AsyncStorage.getItem(`schoolData_${user.schoolId}`);
+      const cachedSchoolDataStr = await AsyncStorage.getItem(`schoolData_${currentSchoolId}`);
       if (cachedSchoolDataStr) {
         const cached = JSON.parse(cachedSchoolDataStr);
         setHeaderColorFrom(resolveColor(cached.headerColorFrom));
@@ -126,13 +133,13 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         setSidebarColorFrom(resolveColor(cached.sidebarColorFrom));
         setSidebarColorTo(resolveColor(cached.sidebarColorTo));
         // Cached logo/banner URIs (already downloaded) if present
-        const cachedLogo = await AsyncStorage.getItem(`schoolLogo_${user.schoolId}`);
+        const cachedLogo = await AsyncStorage.getItem(`schoolLogo_${currentSchoolId}`);
         if (cachedLogo) setLogoImage(cachedLogo);
-        const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${user.schoolId}`);
+        const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${currentSchoolId}`);
         if (cachedBanner && showBanner) setBannerImage(cachedBanner);
         // Minimal school object for immediate UI
         setSchool({
-          id: user.schoolId,
+          id: currentSchoolId,
           name: cached.name || cached.schoolName || 'School',
           address: cached.address,
           phone: cached.phone,
@@ -146,15 +153,16 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   };
 
   const loadSchoolInfoVersionAware = async () => {
-    if (!user?.schoolId) return;
+    const currentSchoolId = user?.schoolId || lastSchoolId;
+    if (!currentSchoolId) return;
     try {
-      const response = await api.request({ method: 'get', url: `/public/schools/${user.schoolId}` });
+      const response = await api.request({ method: 'get', url: `/public/schools/${currentSchoolId}` });
       console.log('School API Response:', response.data);
       
       const schoolData = response.data;
       // Determine incoming version (timestamp or provided version field)
       const incomingVersion = Number(schoolData.version || schoolData.lastUpdated || schoolData.updatedAt || Date.now());
-      const cachedSchoolDataStr = await AsyncStorage.getItem(`schoolData_${user.schoolId}`);
+      const cachedSchoolDataStr = await AsyncStorage.getItem(`schoolData_${currentSchoolId}`);
       let cachedVersion: number | null = null;
       if (cachedSchoolDataStr) {
         try { cachedVersion = Number(JSON.parse(cachedSchoolDataStr).version) || null; } catch {}
@@ -163,7 +171,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
       // Persist metadata (always update version / colors for consistency)
       const displayName = schoolData.name || schoolData.schoolName || 'School';
-      await AsyncStorage.setItem(`schoolData_${user.schoolId}`, JSON.stringify({
+      await AsyncStorage.setItem(`schoolData_${currentSchoolId}`, JSON.stringify({
         name: displayName,
         schoolName: schoolData.schoolName,
         address: schoolData.address,
@@ -187,29 +195,29 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       setHeaderColorTo(hTo);
       setSidebarColorFrom(sFrom);
       setSidebarColorTo(sTo);
-      if (hFrom) await AsyncStorage.setItem(`schoolHeaderFrom_${user.schoolId}`, hFrom); else await AsyncStorage.removeItem(`schoolHeaderFrom_${user.schoolId}`);
-      if (hTo) await AsyncStorage.setItem(`schoolHeaderTo_${user.schoolId}`, hTo); else await AsyncStorage.removeItem(`schoolHeaderTo_${user.schoolId}`);
-      if (sFrom) await AsyncStorage.setItem(`schoolSidebarFrom_${user.schoolId}`, sFrom); else await AsyncStorage.removeItem(`schoolSidebarFrom_${user.schoolId}`);
-      if (sTo) await AsyncStorage.setItem(`schoolSidebarTo_${user.schoolId}`, sTo); else await AsyncStorage.removeItem(`schoolSidebarTo_${user.schoolId}`);
+      if (hFrom) await AsyncStorage.setItem(`schoolHeaderFrom_${currentSchoolId}`, hFrom); else await AsyncStorage.removeItem(`schoolHeaderFrom_${currentSchoolId}`);
+      if (hTo) await AsyncStorage.setItem(`schoolHeaderTo_${currentSchoolId}`, hTo); else await AsyncStorage.removeItem(`schoolHeaderTo_${currentSchoolId}`);
+      if (sFrom) await AsyncStorage.setItem(`schoolSidebarFrom_${currentSchoolId}`, sFrom); else await AsyncStorage.removeItem(`schoolSidebarFrom_${currentSchoolId}`);
+      if (sTo) await AsyncStorage.setItem(`schoolSidebarTo_${currentSchoolId}`, sTo); else await AsyncStorage.removeItem(`schoolSidebarTo_${currentSchoolId}`);
       // Only refresh/download images if version changed
       if (versionChanged) {
-        if (user?.schoolId) {
+        if (currentSchoolId) {
           const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
-          const logoUrl = `${host}/api/schools/${user.schoolId}/logo`; // removed timestamp for strict caching
+          const logoUrl = `${host}/api/schools/${currentSchoolId}/logo`; // removed timestamp for strict caching
           schoolData.logo = logoUrl;
           await loadLogoImage(logoUrl, true);
         }
         if (showBanner) {
           const host = (baseURL || api.defaults.baseURL || '').replace(/\/api$/, '') || 'http://localhost:4000';
-          const bannerUrl = `${host}/api/schools/${user.schoolId}/banner`; // removed timestamp for strict caching
+          const bannerUrl = `${host}/api/schools/${currentSchoolId}/banner`; // removed timestamp for strict caching
           await loadBannerImage(bannerUrl, true);
         }
       } else {
         // Use cached logo/banner if present without re-download
-        const cachedLogo = await AsyncStorage.getItem(`schoolLogo_${user.schoolId}`);
+        const cachedLogo = await AsyncStorage.getItem(`schoolLogo_${currentSchoolId}`);
         if (cachedLogo) setLogoImage(cachedLogo);
         if (showBanner) {
-          const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${user.schoolId}`);
+          const cachedBanner = await AsyncStorage.getItem(`schoolBanner_${currentSchoolId}`);
           if (cachedBanner) setBannerImage(cachedBanner);
         }
       }
@@ -224,11 +232,11 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       console.error('Failed to load school info:', e);
       // Fallback: load cached colors
       try {
-        if (user?.schoolId) {
-          const hFrom = await AsyncStorage.getItem(`schoolHeaderFrom_${user.schoolId}`);
-          const hTo = await AsyncStorage.getItem(`schoolHeaderTo_${user.schoolId}`);
-          const sFrom = await AsyncStorage.getItem(`schoolSidebarFrom_${user.schoolId}`);
-          const sTo = await AsyncStorage.getItem(`schoolSidebarTo_${user.schoolId}`);
+        if (currentSchoolId) {
+          const hFrom = await AsyncStorage.getItem(`schoolHeaderFrom_${currentSchoolId}`);
+          const hTo = await AsyncStorage.getItem(`schoolHeaderTo_${currentSchoolId}`);
+          const sFrom = await AsyncStorage.getItem(`schoolSidebarFrom_${currentSchoolId}`);
+          const sTo = await AsyncStorage.getItem(`schoolSidebarTo_${currentSchoolId}`);
           setHeaderColorFrom(resolveColor(hFrom));
           setHeaderColorTo(resolveColor(hTo));
           setSidebarColorFrom(resolveColor(sFrom));
