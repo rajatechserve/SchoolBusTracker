@@ -67,6 +67,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
   const [sidebarColorTo, setSidebarColorTo] = useState<string | null>(null);
   const [prefTheme, setPrefTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [isDark, setIsDark] = useState(false);
+  const [disableBrandingColors, setDisableBrandingColors] = useState<boolean>(false);
 
   const colorMap: Record<string, string> = {
     white: '#ffffff',
@@ -101,6 +102,11 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       try {
         const lastId = await AsyncStorage.getItem('@last_school_id');
         if (lastId) setLastSchoolId(lastId);
+      } catch {}
+      // Optional: disable branding colors if they cause issues
+      try {
+        const flag = await AsyncStorage.getItem('@disable_branding_colors');
+        setDisableBrandingColors(flag === '1');
       } catch {}
     })();
   }, [user?.schoolId, user?.id]);
@@ -457,7 +463,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     <>
       {/* Header with Material Appbar */}
       <SafeAreaView style={styles.safeArea}>
-        {headerColorFrom && headerColorTo && LinearGradient ? (
+        {(headerColorFrom && headerColorTo && LinearGradient && !disableBrandingColors && !!(school?.name)) ? (
           <LinearGradient colors={[headerColorFrom, headerColorTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
             <Appbar.Header style={{ backgroundColor: 'transparent' }}>
               {showBackButton ? (
