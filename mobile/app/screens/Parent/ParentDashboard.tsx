@@ -13,6 +13,12 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import AppHeader from '../../components/AppHeader';
 import { Image, Dimensions } from 'react-native';
+// Prefer web map when available
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  WebView = require('react-native-webview').WebView;
+} catch {}
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -69,6 +75,7 @@ export default function ParentDashboard() {
   const [busLng, setBusLng] = useState<number | null>(null);
   const [busAddress, setBusAddress] = useState<string | null>(null);
   const [schoolCenter, setSchoolCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [useWebMap, setUseWebMap] = useState<boolean>(true);
   const screenHeight = Dimensions.get('window').height;
   const [headerHeight, setHeaderHeight] = useState<number>(88);
   const [tabsHeight, setTabsHeight] = useState<number>(56);
@@ -293,22 +300,35 @@ export default function ParentDashboard() {
         })() && (
           <View style={styles.mapContainer}>
             <Text style={styles.mapTitle}>Bus Location</Text>
-            <Image
-              style={[styles.mapImage, { height: mapHeight }]}
-              resizeMode="cover"
-              source={{
-                uri: (() => {
-                  const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
-                  const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat ?? schoolCenter?.lat) as number;
-                  const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng ?? schoolCenter?.lng) as number;
-                  const base = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=640x640&maptype=roadmap`;
-                  const markerIcon = 'https://raw.githubusercontent.com/google/material-design-icons/master/maps/2x_web/ic_directions_bus_black_48dp.png';
-                  const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${lat},${lng}`;
-                  const keyParam = key ? `&key=${key}` : '';
-                  return base + markers + keyParam;
-                })()
-              }}
-            />
+            {WebView && useWebMap ? (
+              (() => {
+                const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat ?? schoolCenter?.lat) as number;
+                const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng ?? schoolCenter?.lng) as number;
+                const url = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
+                return (
+                  <View style={{ height: mapHeight, borderRadius: 6, overflow: 'hidden' }}>
+                    <WebView source={{ uri: url }} />
+                  </View>
+                );
+              })()
+            ) : (
+              <Image
+                style={[styles.mapImage, { height: mapHeight }]}
+                resizeMode="cover"
+                source={{
+                  uri: (() => {
+                    const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
+                    const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat ?? schoolCenter?.lat) as number;
+                    const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng ?? schoolCenter?.lng) as number;
+                    const base = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=640x640&maptype=roadmap`;
+                    const markerIcon = 'https://raw.githubusercontent.com/google/material-design-icons/master/maps/2x_web/ic_directions_bus_black_48dp.png';
+                    const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${lat},${lng}`;
+                    const keyParam = key ? `&key=${key}` : '';
+                    return base + markers + keyParam;
+                  })()
+                }}
+              />
+            )}
             {busAddress && (
               <Text style={styles.mapSubtitle}>
                 Last known location: {busAddress}
