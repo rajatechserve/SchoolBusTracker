@@ -11,6 +11,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import AppHeader from '../../components/AppHeader';
+import { Image } from 'react-native';
+import Constants from 'expo-constants';
 
 interface Student {
   id: string;
@@ -111,19 +113,19 @@ export default function ParentDashboard() {
       const childIds = childrenData.map((c: Student) => c.id);
       const childAttendance = allAttendance.filter((a: Attendance) => childIds.includes(a.studentId));
       setAttendance(childAttendance);
-    } catch (e: any) {
-      // try to get live bus location for the first child
-      if (childBusIds && (childBusIds as string[]).length > 0) {
-        try {
-          const liveResp = await api.request({ method: 'get', url: `/live?schoolId=${user?.schoolId}` });
+      // Try to fetch live bus location for the parent's school
+      try {
+        if (user?.schoolId) {
+          const liveResp = await api.request({ method: 'get', url: `/live?schoolId=${user.schoolId}` });
           const items = Array.isArray(liveResp.data) ? liveResp.data : [];
           const first = items.find((i: any) => typeof i.lat === 'number' && typeof i.lng === 'number');
           if (first) {
             setBusLat(first.lat);
             setBusLng(first.lng);
           }
-        } catch {}
-      }
+        }
+      } catch {}
+    } catch (e: any) {
       console.error('Failed to load data:', e);
     } finally {
       setLoading(false);
@@ -219,6 +221,26 @@ export default function ParentDashboard() {
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Map preview above Children tab */}
+        {busLat !== null && busLng !== null && (
+          <View style={styles.mapContainer}>
+            <Text style={styles.mapTitle}>Bus Location</Text>
+            <Image
+              style={styles.mapImage}
+              resizeMode="cover"
+              source={{
+                uri: (() => {
+                  const key = 'AIzaSyAnzdQFZFZ_ywXQO6_3uce5LtqdzrvxyF8';
+                  const base = `https://maps.googleapis.com/maps/api/staticmap?center=${busLat},${busLng}&zoom=15&size=640x300&maptype=roadmap`;
+                  const markerIcon = 'https://raw.githubusercontent.com/google/material-design-icons/master/maps/2x_web/ic_directions_bus_black_48dp.png';
+                  const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${busLat},${busLng}`;
+                  const keyParam = `&key=${key}`;
+                  return base + markers + keyParam;
+                })()
+              }}
+            />
+          </View>
+        )}
         {/* Tracking tab removed; include bus info inside children cards */}
         {/* Your Children Tab */}
         {activeTab === 'children' && (
@@ -304,6 +326,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  mapContainer: {
+    backgroundColor: '#fff',
+    padding: 8,
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+  },
+  mapTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
+  mapImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 6,
   },
   schoolInfoBox: {
     backgroundColor: '#fff',
