@@ -474,7 +474,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               )}
               <Appbar.Content
                 title={school?.name || (school as any)?.schoolName || 'School Name'}
-                subtitle={school?.address || school?.phone || ''}
+                subtitle={[school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ')}
                 titleStyle={{ color: '#fff' }}
                 subtitleStyle={{ color: '#e0e0e0' }}
                 style={{ flexGrow: 1 }}
@@ -498,7 +498,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             )}
             <Appbar.Content
               title={school?.name || (school as any)?.schoolName || 'School Name'}
-              subtitle={school?.address || school?.phone || ''}
+              subtitle={[school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ')}
               style={{ flexGrow: 1 }}
               titleStyle={isDark ? { color: '#fff' } : undefined}
               subtitleStyle={isDark ? { color: '#ccc' } : undefined}
@@ -566,7 +566,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                     <View style={styles.profileTextCol}>
                       <Text style={styles.userName}>{user?.name || user?.fullName || user?.phone || 'User'}</Text>
                       <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
-                      {!!user?.phone && <Text style={styles.userPhone}>📞 {user.phone}</Text>}
+                      {/* Removed phone display in side menu as requested */}
                     </View>
                   </View>
                 </LinearGradient>

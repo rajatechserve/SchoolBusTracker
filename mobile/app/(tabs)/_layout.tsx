@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { Redirect } from 'expo-router';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = 'light';
   const { user } = useAuth();
 
   // If no user, shouldn't be here - but routing guard should handle this
@@ -21,23 +21,21 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#0d47a1',
+        tabBarInactiveTintColor: '#607d8b',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarLabelPosition: 'below-icon',
-        tabBarStyle: {
-          height: 75,
-          paddingBottom: 12,
-          paddingTop: 8,
-        },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarStyle: { height: 72, paddingBottom: 10, paddingTop: 6, backgroundColor: '#ffffff', borderTopColor: '#e0e0e0', borderTopWidth: 1 },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ fontSize: 28, color }}>🏠</Text>
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
+              <Text style={{ fontSize: focused ? 30 : 28, color }}>🏠</Text>
             </View>
           ),
         }}
@@ -46,9 +44,9 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ fontSize: 28, color }}>👤</Text>
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
+              <Text style={{ fontSize: focused ? 30 : 28, color }}>👤</Text>
             </View>
           ),
         }}
@@ -57,9 +55,9 @@ export default function TabLayout() {
         name="assignments"
         options={{
           title: 'Assign',
-          tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ fontSize: 28, color }}>📋</Text>
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
+              <Text style={{ fontSize: focused ? 30 : 28, color }}>📋</Text>
             </View>
           ),
         }}
@@ -68,9 +66,9 @@ export default function TabLayout() {
         name="notifications"
         options={{
           title: 'Alert',
-          tabBarIcon: ({ color }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ fontSize: 28, color }}>🔔</Text>
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
+              <Text style={{ fontSize: focused ? 30 : 28, color }}>🔔</Text>
             </View>
           ),
         }}
