@@ -463,39 +463,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     <>
       {/* Header with Material Appbar */}
       <SafeAreaView style={styles.safeArea}>
-        {(headerColorFrom && headerColorTo && LinearGradient && !disableBrandingColors && !!(school?.name)) ? (
-          <LinearGradient colors={[headerColorFrom, headerColorTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.header}>
-            <Appbar.Header style={{ backgroundColor: 'transparent' }}>
-              {showBackButton ? (
-                <Appbar.BackAction onPress={() => router.push('/(tabs)/')} color="#fff" />
-              ) : (
-                <Appbar.Action icon="menu" onPress={openDrawer} color="#fff" />
-              )}
-              {logoImage ? (
-                <Image source={{ uri: logoImage }} style={styles.logo} />
-              ) : school?.logo ? (
-                <Image source={{ uri: school.logo }} style={styles.logo} />
-              ) : (
-                <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
-              )}
-              {(() => {
-                const name = school?.name || (school as any)?.schoolName || 'School Name';
-                const after = [school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ');
-                const composed = after ? `${name} — ${after}` : name;
-                return (
-                  <Appbar.Content
-                    title={composed}
-                    subtitle={''}
-                    titleStyle={{ color: '#fff' }}
-                    subtitleStyle={{ color: '#e0e0e0' }}
-                    style={{ flexGrow: 1 }}
-                  />
-                );
-              })()}
-              <Appbar.Action icon="logout" onPress={handleLogout} color="#fff" />
-            </Appbar.Header>
-          </LinearGradient>
-        ) : (
+        {(
           <Appbar.Header style={isDark ? { backgroundColor: '#121212' } : undefined}>
             {showBackButton ? (
               <Appbar.BackAction onPress={() => router.push('/(tabs)/')} />
@@ -513,12 +481,13 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               const name = school?.name || (school as any)?.schoolName || 'School Name';
               const after = [school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ');
               const composed = after ? `${name} — ${after}` : name;
+              const brandColor = headerColorTo || headerColorFrom || (isDark ? '#fff' : '#0d47a1');
               return (
                 <Appbar.Content
                   title={composed}
                   subtitle={''}
                   style={{ flexGrow: 1 }}
-                  titleStyle={isDark ? { color: '#fff' } : undefined}
+                  titleStyle={{ color: brandColor }}
                   subtitleStyle={isDark ? { color: '#ccc' } : undefined}
                 />
               );
@@ -749,7 +718,7 @@ const styles = StyleSheet.create({
   drawerContainer: {
     position: 'absolute',
     left: 0,
-    top: 0,
+    top: -8,
     bottom: 0,
     zIndex: 2001,
     elevation: 100,
