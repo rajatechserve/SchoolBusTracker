@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import AppHeader from '../../components/AppHeader';
 import { Image, Dimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 interface Student {
@@ -66,6 +67,8 @@ export default function ParentDashboard() {
   const [live, setLive] = useState<{ lat:number; lng:number; running:boolean; lastPingAt:number|null } | null>(null);
   const [busLat, setBusLat] = useState<number | null>(null);
   const [busLng, setBusLng] = useState<number | null>(null);
+  const [busAddress, setBusAddress] = useState<string | null>(null);
+  const [schoolCenter, setSchoolCenter] = useState<{ lat: number; lng: number } | null>(null);
   const screenHeight = Dimensions.get('window').height;
   const [headerHeight, setHeaderHeight] = useState<number>(88);
   const [tabsHeight, setTabsHeight] = useState<number>(56);
@@ -75,6 +78,8 @@ export default function ParentDashboard() {
     loadData();
     // Also try fetching live location immediately for map visibility
     fetchLive();
+    // Try to resolve school center from cached school info
+    resolveSchoolCenter();
   }, []);
 
   useEffect(() => {
@@ -176,9 +181,61 @@ export default function ParentDashboard() {
       const d = res.data;
       if (d && d.location) setLive({ lat: d.location.lat, lng: d.location.lng, running: !!d.running, lastPingAt: d.lastPingAt || null });
       else setLive({ lat: 0, lng: 0, running: !!d.running, lastPingAt: d.lastPingAt || null });
+      // Resolve address for last known coordinates
+      const lat = d?.location?.lat ?? null;
+      const lng = d?.location?.lng ?? null;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        await resolveAddress(lat, lng);
+      }
     } catch (e) {
       console.warn('Failed to fetch live bus status');
     }
+  };
+
+  const resolveAddress = async (lat: number, lng: number) => {
+    try {
+      const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
+      if (!key) return;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const results = data?.results;
+      if (Array.isArray(results) && results.length > 0) {
+        const formatted = results[0]?.formatted_address || null;
+        if (formatted) setBusAddress(formatted);
+      }
+    } catch (e) {
+      // Non-fatal
+    }
+  };
+
+  const resolveSchoolCenter = async () => {
+    try {
+      const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
+      if (!key) return;
+      // Try: use current school from header callback, else cached from storage
+      let addr: string | null = school?.address || null;
+      if (!addr) {
+        // Attempt to read last school data from AsyncStorage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lastId: any = (await AsyncStorage.getItem('@last_school_id'));
+        if (lastId) {
+          const raw = await AsyncStorage.getItem(`schoolData_${String(lastId)}`);
+          if (raw) {
+            try { const parsed = JSON.parse(raw); addr = parsed?.address || parsed?.schoolAddress || null; } catch {}
+          }
+        }
+      }
+      if (!addr) return;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${key}`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const first = Array.isArray(data?.results) ? data.results[0] : null;
+      const loc = first?.geometry?.location;
+      if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+        setSchoolCenter({ lat: loc.lat, lng: loc.lng });
+      }
+    } catch {}
   };
 
   const getBusName = (busId: string) => {
@@ -220,7 +277,7 @@ export default function ParentDashboard() {
       >
         {/* Full-width map occupying top area */}
         {(() => {
-          // Determine center from available sources: direct lat/lng, live state, bus locations
+          // Determine center from available sources: direct lat/lng, live state, bus locations, then school center
           let centerLat: number | null = busLat;
           let centerLng: number | null = busLng;
           if (centerLat === null || centerLng === null) {
@@ -229,6 +286,7 @@ export default function ParentDashboard() {
             } else {
               const firstBusWithLoc = buses.find((b: Bus) => b.location && typeof b.location.lat === 'number' && typeof b.location.lng === 'number');
               if (firstBusWithLoc) { centerLat = firstBusWithLoc.location!.lat; centerLng = firstBusWithLoc.location!.lng; }
+              else if (schoolCenter) { centerLat = schoolCenter.lat; centerLng = schoolCenter.lng; }
             }
           }
           return centerLat !== null && centerLng !== null;
@@ -241,8 +299,8 @@ export default function ParentDashboard() {
               source={{
                 uri: (() => {
                   const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
-                  const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat) as number;
-                  const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng) as number;
+                  const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat ?? schoolCenter?.lat) as number;
+                  const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng ?? schoolCenter?.lng) as number;
                   const base = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=640x640&maptype=roadmap`;
                   const markerIcon = 'https://raw.githubusercontent.com/google/material-design-icons/master/maps/2x_web/ic_directions_bus_black_48dp.png';
                   const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${lat},${lng}`;
@@ -251,6 +309,11 @@ export default function ParentDashboard() {
                 })()
               }}
             />
+            {busAddress && (
+              <Text style={styles.mapSubtitle}>
+                Last known location: {busAddress}
+              </Text>
+            )}
           </View>
         )}
 
