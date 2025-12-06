@@ -76,6 +76,7 @@ export default function ParentDashboard() {
   const [busAddress, setBusAddress] = useState<string | null>(null);
   const [schoolCenter, setSchoolCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [useWebMap, setUseWebMap] = useState<boolean>(true);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const screenHeight = Dimensions.get('window').height;
   const [headerHeight, setHeaderHeight] = useState<number>(88);
   const [tabsHeight, setTabsHeight] = useState<number>(56);
@@ -88,6 +89,16 @@ export default function ParentDashboard() {
     // Try to resolve school center from cached school info
     resolveSchoolCenter();
   }, []);
+
+  useEffect(() => {
+    // Auto refresh every 5s
+    if (!autoRefresh) return;
+    const id = setInterval(async () => {
+      await fetchLive();
+      await loadBuses();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [autoRefresh, children.length]);
 
   useEffect(() => {
     if (activeTab === 'tracking') {
@@ -184,9 +195,9 @@ export default function ParentDashboard() {
       const childBusIdsArr: string[] = Array.from(new Set(children.map((c: Student) => c.busId).filter(Boolean))) as string[];
       const busId = childBusIdsArr[0];
       if (!busId) return setLive(null);
-      const res = await api.get(`/public/bus/${busId}/live`);
+      const res = await api.get(`/api/bus/${busId}/live`);
       const d = res.data;
-      if (d && d.location) setLive({ lat: d.location.lat, lng: d.location.lng, running: !!d.running, lastPingAt: d.lastPingAt || null });
+      if (d && typeof d.lat === 'number' && typeof d.lng === 'number') setLive({ lat: d.lat, lng: d.lng, running: !!d.running, lastPingAt: d.lastPingAt || null });
       else setLive({ lat: 0, lng: 0, running: !!d.running, lastPingAt: d.lastPingAt || null });
       // Resolve address for last known coordinates
       const lat = d?.location?.lat ?? null;
@@ -300,6 +311,14 @@ export default function ParentDashboard() {
         })() && (
           <View style={styles.mapContainer}>
             <Text style={styles.mapTitle}>Bus Location</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <TouchableOpacity onPress={async ()=>{ await fetchLive(); await loadBuses(); }} style={{ backgroundColor: '#007BFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 }}>
+                <Text style={{ color: '#fff', fontSize: 12 }}>Refresh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={()=> setAutoRefresh((v: boolean)=>!v)} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Text style={{ color: '#007BFF', fontSize: 12 }}>{autoRefresh ? 'Auto Refresh: On' : 'Auto Refresh: Off'}</Text>
+              </TouchableOpacity>
+            </View>
             {WebView && useWebMap ? (
               (() => {
                 const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat ?? schoolCenter?.lat) as number;

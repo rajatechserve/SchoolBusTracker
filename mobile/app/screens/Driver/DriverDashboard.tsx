@@ -151,7 +151,8 @@ export default function DriverDashboard() {
         try {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           setLastPing(Date.now());
-          await request({ method: 'post', url: `/trips/${busId}/location`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude } });
+          // Update server live location for admin/parent maps
+          await request({ method: 'post', url: `/bus/${busId}/live`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude, running: true, timestamp: Date.now() } });
         } catch (e: any) {
           console.warn('Location post failed:', e.message);
         }
@@ -173,6 +174,12 @@ export default function DriverDashboard() {
       const busId = assignments[0]?.busId || buses[0]?.id;
       if (!busId) return Alert.alert('Trip', 'No bus assigned');
       const res = await request({ method: 'post', url: '/trips/start', data: { busId, direction: tripDirection } });
+      // Post strip start with current location
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        await request({ method: 'post', url: `/bus/${busId}/strip`, data: { type: tripDirection, action: 'start', lat: loc.coords.latitude, lng: loc.coords.longitude, timestamp: Date.now(), driverId: user?.id, schoolId: user?.schoolId } });
+        await request({ method: 'post', url: `/bus/${busId}/live`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude, running: true, timestamp: Date.now() } });
+      } catch {}
       setTripRunning(true);
       await startPostingLocation(busId);
       Alert.alert('Trip', `Started (${tripDirection})`);
@@ -186,6 +193,12 @@ export default function DriverDashboard() {
       const busId = assignments[0]?.busId || buses[0]?.id;
       if (!busId) return Alert.alert('Trip', 'No bus assigned');
       const res = await request({ method: 'post', url: '/trips/stop', data: { busId } });
+      // Post strip stop with current location
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        await request({ method: 'post', url: `/bus/${busId}/strip`, data: { type: tripDirection, action: 'stop', lat: loc.coords.latitude, lng: loc.coords.longitude, timestamp: Date.now(), driverId: user?.id, schoolId: user?.schoolId } });
+        await request({ method: 'post', url: `/bus/${busId}/live`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude, running: false, timestamp: Date.now() } });
+      } catch {}
       setTripRunning(false);
       stopPostingLocation();
       Alert.alert('Trip', 'Stopped');

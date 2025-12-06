@@ -145,6 +145,67 @@ function ensureTables() {
     });
 }
 ensureTables();
+// Live bus location endpoints
+app.post('/api/bus/:busId/live', async (req, res) => {
+    try {
+        const busId = req.params.busId;
+        const { lat, lng, running, timestamp } = req.body || {};
+        const lastPingAt = Number(timestamp || Date.now());
+        await runSql(`INSERT INTO bus_live(busId, lat, lng, running, lastPingAt) VALUES(?,?,?,?,?)
+            ON CONFLICT(busId) DO UPDATE SET lat=excluded.lat, lng=excluded.lng, running=excluded.running, lastPingAt=excluded.lastPingAt`,
+            [busId, lat, lng, running ? 1 : 0, lastPingAt]
+        );
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to update live location' });
+    }
+});
+
+app.get('/api/bus/:busId/live', async (req, res) => {
+    try {
+        const busId = req.params.busId;
+        const row = await getSql(`SELECT lat, lng, running, lastPingAt FROM bus_live WHERE busId=?`, [busId]);
+        if (!row) return res.json({ running: false, lastPingAt: null });
+        res.json({ lat: row.lat, lng: row.lng, running: !!row.running, lastPingAt: row.lastPingAt });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch live location' });
+    }
+});
+
+// Trip strip start/stop endpoints
+app.post('/api/bus/:busId/strip', async (req, res) => {
+    try {
+        const busId = req.params.busId;
+        const { type, action, lat, lng, timestamp, driverId, schoolId } = req.body || {};
+        const tripId = uuidv4();
+        const now = Number(timestamp || Date.now());
+        // Persist event
+        await runSql(`INSERT INTO trip_events(id, tripId, busId, type, data, createdAt) VALUES(?,?,?,?,?,?)`,
+            [uuidv4(), tripId, busId, 'strip', JSON.stringify({ type, action, lat, lng }), now]
+        );
+        // Update live table as well
+        await runSql(`INSERT INTO bus_live(busId, lat, lng, running, lastPingAt) VALUES(?,?,?,?,?)
+            ON CONFLICT(busId) DO UPDATE SET lat=excluded.lat, lng=excluded.lng, running=excluded.running, lastPingAt=excluded.lastPingAt`,
+            [busId, lat, lng, action === 'start' ? 1 : 0, now]
+        );
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to post strip event' });
+    }
+});
+
+app.get('/api/bus/:busId/strip', async (req, res) => {
+    try {
+        const busId = req.params.busId;
+        const rows = await allSql(`SELECT * FROM trip_events WHERE busId=? AND type='strip' ORDER BY createdAt DESC LIMIT 1`, [busId]);
+        if (!rows || !rows.length) return res.json(null);
+        const ev = rows[0];
+        const data = JSON.parse(ev.data || '{}');
+        res.json({ type: data.type, action: data.action, lat: data.lat, lng: data.lng, timestamp: ev.createdAt });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch strip status' });
+    }
+});
 
 // Migration: Add new columns if they don't exist
 function migrateDatabase() {
