@@ -464,7 +464,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       {/* Header with Material Appbar */}
       <SafeAreaView style={styles.safeArea}>
         {(
-          <Appbar.Header style={isDark ? { backgroundColor: '#121212' } : undefined}>
+          <Appbar.Header style={isDark ? { backgroundColor: '#121212' } : undefined} contentStyle={{ height: 48 }}>
             {showBackButton ? (
               <Appbar.BackAction onPress={() => router.push('/(tabs)/')} />
             ) : (
@@ -477,11 +477,11 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             ) : (
               <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
             )}
-            <View style={{ flex: 1, minHeight: 40, justifyContent: 'center' }}>
-              <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#fff' : '#0d47a1' }}>
+            <View style={{ flex: 1, minHeight: 36, justifyContent: 'center' }}>
+              <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#fff' : '#0d47a1', marginTop: -2 }}>
                 {(school?.name || (school as any)?.schoolName || 'School Name')}
               </Text>
-              <Text numberOfLines={1} style={{ fontSize: 12, color: isDark ? '#ccc' : '#444', marginTop: 2 }}>
+              <Text numberOfLines={1} style={{ fontSize: 12, color: isDark ? '#ccc' : '#444', marginTop: 0 }}>
                 {[school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ')}
               </Text>
             </View>
