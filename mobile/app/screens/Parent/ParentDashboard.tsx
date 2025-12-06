@@ -73,6 +73,8 @@ export default function ParentDashboard() {
 
   useEffect(() => {
     loadData();
+    // Also try fetching live location immediately for map visibility
+    fetchLive();
   }, []);
 
   useEffect(() => {
@@ -217,7 +219,20 @@ export default function ParentDashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Full-width map occupying top area */}
-        {busLat !== null && busLng !== null && (
+        {(() => {
+          // Determine center from available sources: direct lat/lng, live state, bus locations
+          let centerLat: number | null = busLat;
+          let centerLng: number | null = busLng;
+          if (centerLat === null || centerLng === null) {
+            if (live && typeof live.lat === 'number' && typeof live.lng === 'number') {
+              centerLat = live.lat; centerLng = live.lng;
+            } else {
+              const firstBusWithLoc = buses.find((b: Bus) => b.location && typeof b.location.lat === 'number' && typeof b.location.lng === 'number');
+              if (firstBusWithLoc) { centerLat = firstBusWithLoc.location!.lat; centerLng = firstBusWithLoc.location!.lng; }
+            }
+          }
+          return centerLat !== null && centerLng !== null;
+        })() && (
           <View style={styles.mapContainer}>
             <Text style={styles.mapTitle}>Bus Location</Text>
             <Image
@@ -226,9 +241,11 @@ export default function ParentDashboard() {
               source={{
                 uri: (() => {
                   const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
-                  const base = `https://maps.googleapis.com/maps/api/staticmap?center=${busLat},${busLng}&zoom=15&size=640x300&maptype=roadmap`;
+                  const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat) as number;
+                  const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng) as number;
+                  const base = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=640x640&maptype=roadmap`;
                   const markerIcon = 'https://raw.githubusercontent.com/google/material-design-icons/master/maps/2x_web/ic_directions_bus_black_48dp.png';
-                  const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${busLat},${busLng}`;
+                  const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${lat},${lng}`;
                   const keyParam = key ? `&key=${key}` : '';
                   return base + markers + keyParam;
                 })()
