@@ -49,7 +49,7 @@
         "appRoot": "app"
       },
       "apiBaseUrl": "https://itech-bustracker-app-b9609b94f375.herokuapp.com/api",
-      "googleMapsApiKey": "AIzaSyAnzdQFZFZ_ywXQO6_3uce5LtqdzrvxyF8"
+      "googleMapsApiKey": ""
     }
   }
 }
