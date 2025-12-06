@@ -94,7 +94,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       try {
         const saved = await AsyncStorage.getItem('@app_theme');
         if (saved === 'light' || saved === 'dark' || saved === 'system') setPrefTheme(saved);
-      } catch {}
+      } catch { }
       const scheme = (globalThis as any).Appearance?.getColorScheme?.() || null;
       const effective = savedThemeToScheme(prefTheme, scheme);
       setIsDark(effective === 'dark');
@@ -102,12 +102,12 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       try {
         const lastId = await AsyncStorage.getItem('@last_school_id');
         if (lastId) setLastSchoolId(lastId);
-      } catch {}
+      } catch { }
       // Optional: disable branding colors if they cause issues
       try {
         const flag = await AsyncStorage.getItem('@disable_branding_colors');
         setDisableBrandingColors(flag === '1');
-      } catch {}
+      } catch { }
     })();
   }, [user?.schoolId, user?.id]);
 
@@ -153,7 +153,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           logo: cached.logo,
         });
       }
-    } catch {}
+    } catch { }
     // After hydration attempt remote version check (single fetch)
     await loadSchoolInfoVersionAware();
   };
@@ -164,14 +164,14 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     try {
       const response = await api.request({ method: 'get', url: `/public/schools/${currentSchoolId}` });
       console.log('School API Response:', response.data);
-      
+
       const schoolData = response.data;
       // Determine incoming version (timestamp or provided version field)
       const incomingVersion = Number(schoolData.version || schoolData.lastUpdated || schoolData.updatedAt || Date.now());
       const cachedSchoolDataStr = await AsyncStorage.getItem(`schoolData_${currentSchoolId}`);
       let cachedVersion: number | null = null;
       if (cachedSchoolDataStr) {
-        try { cachedVersion = Number(JSON.parse(cachedSchoolDataStr).version) || null; } catch {}
+        try { cachedVersion = Number(JSON.parse(cachedSchoolDataStr).version) || null; } catch { }
       }
       const versionChanged = !cachedVersion || cachedVersion !== incomingVersion;
 
@@ -227,7 +227,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           if (cachedBanner) setBannerImage(cachedBanner);
         }
       }
-      
+
       setSchool({ ...schoolData, name: displayName });
       setBrandingVersion(incomingVersion || Date.now());
       setLastRefreshTime(Date.now()); // Trigger re-render
@@ -263,7 +263,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       console.log('Manual branding refresh triggered');
       await loadSchoolInfoVersionAware();
     });
-    return () => { try { sub?.remove?.(); } catch {} };
+    return () => { try { sub?.remove?.(); } catch { } };
   }, [user?.schoolId]);
 
   const loadLogoImage = async (logoUrl: string, forceClear: boolean = false) => {
@@ -319,7 +319,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       } else {
         console.log('Force clearing banner cache and reloading');
       }
-      
+
       // Attempt to download & cache locally for reliability (falls back to remote URL)
       let finalUri = urlWithBuster;
       if (urlWithBuster.startsWith('http')) {
@@ -367,7 +367,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     try {
       // Request permission
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       if (permissionResult.granted === false) {
         Alert.alert('Permission Required', 'Please grant permission to access your photos.');
         return;
@@ -384,7 +384,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
         setUserImage(imageUri);
-        
+
         // Save to storage
         if (user?.id) {
           await AsyncStorage.setItem(`userImage_${user.id}`, imageUri);
@@ -398,12 +398,12 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
 
   const handleLogout = async () => {
     console.log('=== LOGOUT BUTTON PRESSED ===');
-    
+
     try {
       // Close drawer immediately
       setDrawerVisible(false);
       console.log('Drawer visibility set to false');
-      
+
       // Cancel any in-flight API requests to avoid axios state errors
       cancelAllRequests('User initiated logout');
 
@@ -411,12 +411,12 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       console.log('Clearing auth state...');
       logout();
       console.log('Auth cleared');
-      
+
       // Navigate to login
       console.log('Navigating to login page...');
       router.replace('/login');
       console.log('Navigation complete');
-      
+
     } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
@@ -432,12 +432,12 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     }).start(() => {
       setDrawerVisible(false);
     });
-    
+
     // Navigate after animation starts  
     setTimeout(() => {
       try {
         console.log('Navigating to:', screen, 'Role:', user?.role);
-        
+
         // Use Expo Router paths for tab navigation
         if (screen === 'dashboard') {
           router.push('/(tabs)/');
@@ -464,7 +464,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       {/* Header with Material Appbar */}
       <SafeAreaView style={styles.safeArea}>
         {(
-          <Appbar.Header style={isDark ? { backgroundColor: '#121212' } : undefined} contentStyle={{ height: 48 }}>
+          <Appbar.Header style={isDark ? { backgroundColor: '#121212' } : undefined} contentStyle={{ height: 0 }}>
             {showBackButton ? (
               <Appbar.BackAction onPress={() => router.push('/(tabs)/')} />
             ) : (
@@ -477,8 +477,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             ) : (
               <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
             )}
-            <View style={{ flex: 1, minHeight: 36, justifyContent: 'center' }}>
-              <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#fff' : '#0d47a1', marginTop: -2 }}>
+            <View style={{ flex: 1, minHeight: 10, justifyContent: 'center' }}>
+              <Text numberOfLines={1} style={{ fontSize: 30, fontWeight: '800', color: isDark ? '#fff' : '#0d47a1', marginTop: 0 }}>
                 {(school?.name || (school as any)?.schoolName || 'School Name')}
               </Text>
               <Text numberOfLines={1} style={{ fontSize: 12, color: isDark ? '#ccc' : '#444', marginTop: 0 }}>
@@ -553,7 +553,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                   </View>
                 </LinearGradient>
               ) : (
-                <View style={[styles.profileSection, { backgroundColor: isDark ? '#1e1e1e' : '#007BFF' }] }>
+                <View style={[styles.profileSection, { backgroundColor: isDark ? '#1e1e1e' : '#007BFF' }]}>
                   <View style={styles.profileRow}>
                     <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
                       {userImage ? (
@@ -610,7 +610,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               </Drawer.Section>
             </View>
           </Animated.View>
-          
+
         </View>
       </Modal>
     </>
