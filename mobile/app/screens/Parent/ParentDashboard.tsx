@@ -61,6 +61,8 @@ export default function ParentDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [live, setLive] = useState<{ lat:number; lng:number; running:boolean; lastPingAt:number|null } | null>(null);
+  const [busLat, setBusLat] = useState<number | null>(null);
+  const [busLng, setBusLng] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -86,10 +88,11 @@ export default function ParentDashboard() {
       setChildren(childrenData);
 
       // Get unique bus IDs from children
-      const childBusIds = [...new Set(childrenData.map((c: Student) => c.busId).filter(Boolean))];
+      const childBusIdsSet = new Set(childrenData.map((c: Student) => c.busId).filter(Boolean));
+      const childBusIds = Array.from(childBusIdsSet);
 
       // Load buses - filter for only buses assigned to this parent's children
-      await loadBuses(childBusIds);
+      await loadBuses(childBusIds as string[]);
 
       // Load routes
       const routesRes = await api.get('/routes');
@@ -109,6 +112,18 @@ export default function ParentDashboard() {
       const childAttendance = allAttendance.filter((a: Attendance) => childIds.includes(a.studentId));
       setAttendance(childAttendance);
     } catch (e: any) {
+      // try to get live bus location for the first child
+      if (childBusIds && (childBusIds as string[]).length > 0) {
+        try {
+          const liveResp = await api.request({ method: 'get', url: `/live?schoolId=${user?.schoolId}` });
+          const items = Array.isArray(liveResp.data) ? liveResp.data : [];
+          const first = items.find((i: any) => typeof i.lat === 'number' && typeof i.lng === 'number');
+          if (first) {
+            setBusLat(first.lat);
+            setBusLng(first.lng);
+          }
+        } catch {}
+      }
       console.error('Failed to load data:', e);
     } finally {
       setLoading(false);
@@ -118,16 +133,17 @@ export default function ParentDashboard() {
   const loadBuses = async (childBusIds?: string[]) => {
     try {
       const busesRes = await api.get('/buses');
-      const allBuses = Array.isArray(busesRes.data) ? busesRes.data : [];
+      const allBuses: Bus[] = Array.isArray(busesRes.data) ? busesRes.data : [] as any[];
       
       // Filter to only show buses assigned to this parent's children
       if (childBusIds && childBusIds.length > 0) {
-        const filteredBuses = allBuses.filter((bus: Bus) => childBusIds.includes(bus.id));
+        const filteredBuses = allBuses.filter((bus: Bus) => childBusIds.indexOf(bus.id) !== -1);
         setBuses(filteredBuses);
       } else {
         // If no children yet, get child bus IDs from current children state
-        const busIds = [...new Set(children.map((c: Student) => c.busId).filter(Boolean))];
-        const filteredBuses = allBuses.filter((bus: Bus) => busIds.includes(bus.id));
+        const busIdsSet = new Set(children.map((c: Student) => c.busId).filter(Boolean));
+        const busIds = Array.from(busIdsSet);
+        const filteredBuses = allBuses.filter((bus: Bus) => busIds.indexOf(bus.id) !== -1);
         setBuses(filteredBuses);
       }
     } catch (e: any) {
@@ -144,8 +160,8 @@ export default function ParentDashboard() {
 
   const fetchLive = async () => {
     try {
-      const childBusIds = [...new Set(children.map((c: Student) => c.busId).filter(Boolean))];
-      const busId = childBusIds[0];
+      const childBusIdsArr: string[] = Array.from(new Set(children.map((c: Student) => c.busId).filter(Boolean))) as string[];
+      const busId = childBusIdsArr[0];
       if (!busId) return setLive(null);
       const res = await api.get(`/public/bus/${busId}/live`);
       const d = res.data;
@@ -212,9 +228,9 @@ export default function ParentDashboard() {
               <Text style={styles.emptyText}>No children found.</Text>
             ) : (
               <View>
-                {children.map((child) => {
+                 {children.map((child: any) => {
                   const stats = getAttendanceStats(child.id);
-                  const bus = buses.find(b=> b.id === child.busId);
+                   const bus = buses.find((b: any)=> b.id === child.busId);
                   return (
                     <View key={child.id} style={styles.childCard}>
                       <Text style={styles.childName}>{child.name}</Text>
@@ -257,7 +273,7 @@ export default function ParentDashboard() {
               <Text style={styles.emptyText}>No buses found for your children.</Text>
             ) : (
               <View>
-                {buses.map((bus) => (
+                 {buses.map((bus: any) => (
                   <View key={bus.id} style={styles.busCard}>
                     <View style={styles.busHeader}>
                       <Text style={styles.busNumber}>🚌 {bus.number}</Text>
