@@ -477,21 +477,14 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             ) : (
               <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
             )}
-            {(() => {
-              const name = school?.name || (school as any)?.schoolName || 'School Name';
-              const after = [school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ');
-              const composed = after ? `${name} — ${after}` : name;
-              const brandColor = headerColorTo || headerColorFrom || (isDark ? '#fff' : '#0d47a1');
-              return (
-                <Appbar.Content
-                  title={composed}
-                  subtitle={''}
-                  style={{ flexGrow: 1 }}
-                  titleStyle={{ color: brandColor }}
-                  subtitleStyle={isDark ? { color: '#ccc' } : undefined}
-                />
-              );
-            })()}
+            <View style={{ flex: 1, minHeight: 40, justifyContent: 'center' }}>
+              <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#fff' : '#0d47a1' }}>
+                {(school?.name || (school as any)?.schoolName || 'School Name')}
+              </Text>
+              <Text numberOfLines={1} style={{ fontSize: 12, color: isDark ? '#ccc' : '#444', marginTop: 2 }}>
+                {[school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ')}
+              </Text>
+            </View>
             <Appbar.Action icon="logout" onPress={handleLogout} />
           </Appbar.Header>
         )}
