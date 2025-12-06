@@ -162,8 +162,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
       const versionChanged = !cachedVersion || cachedVersion !== incomingVersion;
 
       // Persist metadata (always update version / colors for consistency)
+      const displayName = schoolData.name || schoolData.schoolName || 'School';
       await AsyncStorage.setItem(`schoolData_${user.schoolId}`, JSON.stringify({
-        name: schoolData.name,
+        name: displayName,
+        schoolName: schoolData.schoolName,
         address: schoolData.address,
         phone: schoolData.phone,
         mobile: schoolData.mobile,
@@ -212,7 +214,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         }
       }
       
-      setSchool(schoolData);
+      setSchool({ ...schoolData, name: displayName });
       setBrandingVersion(incomingVersion || Date.now());
       setLastRefreshTime(Date.now()); // Trigger re-render
       if (onSchoolLoaded) {
@@ -463,7 +465,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                 <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
               )}
               <Appbar.Content
-                title={school?.name || 'School Name'}
+                title={school?.name || (school as any)?.schoolName || 'School Name'}
                 subtitle={school?.address || school?.phone || ''}
                 titleStyle={{ color: '#fff' }}
                 subtitleStyle={{ color: '#e0e0e0' }}
@@ -487,7 +489,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
             )}
             <Appbar.Content
-              title={school?.name || 'School Name'}
+              title={school?.name || (school as any)?.schoolName || 'School Name'}
               subtitle={school?.address || school?.phone || ''}
               style={{ flexGrow: 1 }}
               titleStyle={isDark ? { color: '#fff' } : undefined}
@@ -544,29 +546,39 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                   end={{ x: 1, y: 0 }}
                   style={[styles.profileSection, isDark ? { borderBottomColor: '#222' } : undefined]}
                 >
-                  <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
-                    {userImage ? (
-                      <Image source={{ uri: userImage }} style={styles.userImage} />
-                    ) : (
-                      <View style={styles.defaultAvatar}><Text style={styles.avatar}>👤</Text></View>
-                    )}
-                    <View style={styles.editBadge}><Text style={styles.editIcon}>✎</Text></View>
-                  </TouchableOpacity>
-                  <Text style={styles.userName}>{user?.name || user?.fullName || user?.phone || 'User'}</Text>
-                  <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
+                  <View style={styles.profileRow}>
+                    <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
+                      {userImage ? (
+                        <Image source={{ uri: userImage }} style={styles.userImage} />
+                      ) : (
+                        <View style={styles.defaultAvatar}><Text style={styles.avatar}>👤</Text></View>
+                      )}
+                      <View style={styles.editBadge}><Text style={styles.editIcon}>✎</Text></View>
+                    </TouchableOpacity>
+                    <View style={styles.profileTextCol}>
+                      <Text style={styles.userName}>{user?.name || user?.fullName || user?.phone || 'User'}</Text>
+                      <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
+                      {!!user?.phone && <Text style={styles.userPhone}>📞 {user.phone}</Text>}
+                    </View>
+                  </View>
                 </LinearGradient>
               ) : (
                 <View style={[styles.profileSection, { backgroundColor: isDark ? '#1e1e1e' : '#007BFF' }] }>
-                  <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
-                    {userImage ? (
-                      <Image source={{ uri: userImage }} style={styles.userImage} />
-                    ) : (
-                      <View style={styles.defaultAvatar}><Text style={styles.avatar}>👤</Text></View>
-                    )}
-                    <View style={styles.editBadge}><Text style={styles.editIcon}>✎</Text></View>
-                  </TouchableOpacity>
-                  <Text style={styles.userName}>{user?.name || user?.fullName || user?.phone || 'User'}</Text>
-                  <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
+                  <View style={styles.profileRow}>
+                    <TouchableOpacity style={styles.avatarContainer} onPress={changeUserImage} activeOpacity={0.8}>
+                      {userImage ? (
+                        <Image source={{ uri: userImage }} style={styles.userImage} />
+                      ) : (
+                        <View style={styles.defaultAvatar}><Text style={styles.avatar}>👤</Text></View>
+                      )}
+                      <View style={styles.editBadge}><Text style={styles.editIcon}>✎</Text></View>
+                    </TouchableOpacity>
+                    <View style={styles.profileTextCol}>
+                      <Text style={styles.userName}>{user?.name || user?.fullName || user?.phone || 'User'}</Text>
+                      <Text style={styles.userRole}>{(user?.role || 'role').toUpperCase()}</Text>
+                      {!!user?.phone && <Text style={styles.userPhone}>📞 {user.phone}</Text>}
+                    </View>
+                  </View>
                 </View>
               )}
               <Drawer.Section style={isDark ? { backgroundColor: '#1e1e1e' } : undefined}>

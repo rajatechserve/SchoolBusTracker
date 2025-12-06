@@ -52,7 +52,7 @@ interface School {
 
 export default function ParentDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'children' | 'tracking'>('children');
+  const [activeTab, setActiveTab] = useState<'children'>('children');
   const [children, setChildren] = useState<Student[]>([]);
   const [school, setSchool] = useState<School | null>(null);
   const [buses, setBuses] = useState<Bus[]>([]);
@@ -190,19 +190,11 @@ export default function ParentDashboard() {
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'children' && styles.activeTab]}
+          style={[styles.tab, styles.activeTab]}
           onPress={() => setActiveTab('children')}
         >
-          <Text style={[styles.tabText, activeTab === 'children' && styles.activeTabText]}>
+          <Text style={[styles.tabText, styles.activeTabText]}>
             👨‍👩‍👧‍👦 Children
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'tracking' && styles.activeTab]}
-          onPress={() => setActiveTab('tracking')}
-        >
-          <Text style={[styles.tabText, activeTab === 'tracking' && styles.activeTabText]}>
-            🚍 Tracking
           </Text>
         </TouchableOpacity>
       </View>
@@ -211,15 +203,7 @@ export default function ParentDashboard() {
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Live Map Stub */}
-        <View style={styles.liveBox}>
-          <Text style={styles.sectionTitle}>Live Bus Status</Text>
-          {live?.running ? (
-            <Text style={styles.liveText}>🚌 at ({live.lat.toFixed(5)}, {live.lng.toFixed(5)}) • last ping {live.lastPingAt ? new Date(live.lastPingAt).toLocaleTimeString() : '—'}</Text>
-          ) : (
-            <Text style={styles.liveText}>Bus not running</Text>
-          )}
-        </View>
+        {/* Tracking tab removed; include bus info inside children cards */}
         {/* Your Children Tab */}
         {activeTab === 'children' && (
           <View style={styles.tabContent}>
@@ -230,11 +214,13 @@ export default function ParentDashboard() {
               <View>
                 {children.map((child) => {
                   const stats = getAttendanceStats(child.id);
+                  const bus = buses.find(b=> b.id === child.busId);
                   return (
                     <View key={child.id} style={styles.childCard}>
                       <Text style={styles.childName}>{child.name}</Text>
                       <Text style={styles.childDetails}>Class: {child.cls || '—'}</Text>
                       <Text style={styles.childDetails}>Bus: {getBusName(child.busId)}</Text>
+                      <Text style={styles.childDetails}>Driver: {bus?.driverName || '—'} {bus?.driverPhone ? `(📞 ${bus.driverPhone})` : ''}</Text>
                       <Text style={styles.childDetails}>Route: {getRouteName(child.routeId)}</Text>
                       <Text style={styles.childDetails}>Pickup: {child.pickupLocation || '—'}</Text>
                       
@@ -292,15 +278,7 @@ export default function ParentDashboard() {
           </View>
         )}
 
-        {/* School Info Box - Moved to bottom */}
-        {school && (
-          <View style={styles.schoolInfoBox}>
-            <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
-            {school.phone && (
-              <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
-            )}
-          </View>
-        )}
+        {/* Removed bottom school info box; address/phone shown in header */}
       </ScrollView>
     </View>
   );

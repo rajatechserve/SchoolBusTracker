@@ -60,7 +60,7 @@ interface School {
 
 export default function DriverDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'attendance' | 'locations'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance'>('attendance');
   const [students, setStudents] = useState<Student[]>([]);
   const [school, setSchool] = useState<School | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -275,19 +275,11 @@ export default function DriverDashboard() {
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'attendance' && styles.activeTab]}
+          style={[styles.tab, styles.activeTab]}
           onPress={() => setActiveTab('attendance')}
         >
-          <Text style={[styles.tabText, activeTab === 'attendance' && styles.activeTabText]}>
-            📝 Attendance
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'locations' && styles.activeTab]}
-          onPress={() => setActiveTab('locations')}
-        >
-          <Text style={[styles.tabText, activeTab === 'locations' && styles.activeTabText]}>
-            📍 Locations
+          <Text style={[styles.tabText, styles.activeTabText]}>
+            🧾 Pickup/Dropped
           </Text>
         </TouchableOpacity>
       </View>
@@ -347,7 +339,7 @@ export default function DriverDashboard() {
         {activeTab === 'attendance' && (
           <View style={styles.tabContent}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Student Attendance - {new Date().toLocaleDateString()}</Text>
+              <Text style={styles.sectionTitle}>Student Pickup/Dropped - {new Date().toLocaleDateString()}</Text>
               <TouchableOpacity onPress={loadTodayAttendance} style={styles.refreshButton}>
                 <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
               </TouchableOpacity>
@@ -370,11 +362,11 @@ export default function DriverDashboard() {
                       <View style={styles.attendanceButtons}>
                         {status === 'present' ? (
                           <View style={styles.statusBadgePresent}>
-                            <Text style={styles.statusText}>✓ Present</Text>
+                            <Text style={styles.statusText}>✓ Pickup</Text>
                           </View>
                         ) : status === 'absent' ? (
                           <View style={styles.statusBadgeAbsent}>
-                            <Text style={styles.statusText}>✗ Absent</Text>
+                            <Text style={styles.statusText}>✗ Dropped</Text>
                           </View>
                         ) : (
                           <>
@@ -382,13 +374,13 @@ export default function DriverDashboard() {
                               style={styles.presentButton}
                               onPress={() => markAttendance(student.id, 'present')}
                             >
-                              <Text style={styles.buttonText}>✓ Present</Text>
+                              <Text style={styles.buttonText}>✓ Pickup</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                               style={styles.absentButton}
                               onPress={() => markAttendance(student.id, 'absent')}
                             >
-                              <Text style={styles.buttonText}>✗ Absent</Text>
+                              <Text style={styles.buttonText}>✗ Dropped</Text>
                             </TouchableOpacity>
                             {tripRunning && (
                               <TouchableOpacity 
@@ -414,8 +406,8 @@ export default function DriverDashboard() {
                 <View style={styles.summary}>
                   <Text style={styles.summaryText}>
                     <Text style={styles.summaryBold}>Summary: </Text>
-                    {todayAttendance.filter(a => a.status === 'present').length} Present • 
-                    {todayAttendance.filter(a => a.status === 'absent').length} Absent • 
+                    {todayAttendance.filter(a => a.status === 'present').length} Pickup • 
+                    {todayAttendance.filter(a => a.status === 'absent').length} Dropped • 
                     {students.length - todayAttendance.length} Pending
                   </Text>
                 </View>
@@ -424,118 +416,10 @@ export default function DriverDashboard() {
           </View>
         )}
 
-        {/* Student Locations Tab */}
-        {activeTab === 'locations' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Student Pick/Drop Locations</Text>
-            <Text style={styles.sectionSubtitle}>
-              Set pickup and drop-off locations for each student. These locations will be visible to parents.
-            </Text>
-
-            {editingStudent && (
-              <View style={styles.editForm}>
-                <Text style={styles.editFormTitle}>Editing: {editingStudent.name}</Text>
-                
-                <Text style={styles.inputLabel}>Pickup Location</Text>
-                <View style={styles.locationInputRow}>
-                  <TextInput
-                    placeholder="Latitude"
-                    value={locationForm.pickupLat}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, pickupLat: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    placeholder="Longitude"
-                    value={locationForm.pickupLng}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, pickupLng: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <Text style={styles.inputLabel}>Drop-off Location</Text>
-                <View style={styles.locationInputRow}>
-                  <TextInput
-                    placeholder="Latitude"
-                    value={locationForm.dropLat}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, dropLat: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    placeholder="Longitude"
-                    value={locationForm.dropLng}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, dropLng: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <View style={styles.editFormButtons}>
-                  <TouchableOpacity style={styles.saveButton} onPress={saveLocation}>
-                    <Text style={styles.buttonText}>💾 Save</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.cancelButton} 
-                    onPress={() => {
-                      setEditingStudent(null);
-                      setLocationForm({ pickupLat: '', pickupLng: '', dropLat: '', dropLng: '' });
-                    }}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {students.length === 0 ? (
-              <Text style={styles.emptyText}>No students found.</Text>
-            ) : (
-              <View>
-                {students.map((student) => (
-                  <View key={student.id} style={styles.locationCard}>
-                    <View style={styles.locationInfo}>
-                      <Text style={styles.studentName}>{student.name}</Text>
-                      <Text style={styles.studentDetails}>
-                        Class: {student.cls || '—'} | Bus: {getBusName(student.busId)}
-                      </Text>
-                      <Text style={styles.locationStatus}>
-                        {student.pickupLat && student.pickupLng ? (
-                          <Text style={styles.locationSet}>✓ Pickup: ({student.pickupLat}, {student.pickupLng})</Text>
-                        ) : (
-                          <Text style={styles.locationMissing}>⚠ No pickup location</Text>
-                        )}
-                        {'\n'}
-                        {student.dropLat && student.dropLng ? (
-                          <Text style={styles.locationSet}>✓ Drop: ({student.dropLat}, {student.dropLng})</Text>
-                        ) : (
-                          <Text style={styles.locationMissing}>⚠ No drop location</Text>
-                        )}
-                      </Text>
-                    </View>
-                    <TouchableOpacity 
-                      style={styles.setLocationButton}
-                      onPress={() => editLocation(student)}
-                    >
-                      <Text style={styles.buttonText}>📍 Set</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
+        {/* Locations tab removed as per requirement */}
 
         {/* School Info Box - Moved to bottom */}
-        {school && (
-          <View style={styles.schoolInfoBox}>
-            <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
-            {school.phone && (
-              <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
-            )}
-          </View>
-        )}
+        {/* Removed bottom school info box; header shows address/phone */}
       </ScrollView>
     </View>
   );
