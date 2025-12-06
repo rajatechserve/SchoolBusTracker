@@ -472,13 +472,20 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
               ) : (
                 <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
               )}
-              <Appbar.Content
-                title={school?.name || (school as any)?.schoolName || 'School Name'}
-                subtitle={[school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ')}
-                titleStyle={{ color: '#fff' }}
-                subtitleStyle={{ color: '#e0e0e0' }}
-                style={{ flexGrow: 1 }}
-              />
+              {(() => {
+                const name = school?.name || (school as any)?.schoolName || 'School Name';
+                const after = [school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ');
+                const composed = after ? `${name} — ${after}` : name;
+                return (
+                  <Appbar.Content
+                    title={composed}
+                    subtitle={''}
+                    titleStyle={{ color: '#fff' }}
+                    subtitleStyle={{ color: '#e0e0e0' }}
+                    style={{ flexGrow: 1 }}
+                  />
+                );
+              })()}
               <Appbar.Action icon="logout" onPress={handleLogout} color="#fff" />
             </Appbar.Header>
           </LinearGradient>
@@ -496,13 +503,20 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
             ) : (
               <View style={styles.logoPlaceholder}><Text style={styles.logoText}>🏫</Text></View>
             )}
-            <Appbar.Content
-              title={school?.name || (school as any)?.schoolName || 'School Name'}
-              subtitle={[school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ')}
-              style={{ flexGrow: 1 }}
-              titleStyle={isDark ? { color: '#fff' } : undefined}
-              subtitleStyle={isDark ? { color: '#ccc' } : undefined}
-            />
+            {(() => {
+              const name = school?.name || (school as any)?.schoolName || 'School Name';
+              const after = [school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ');
+              const composed = after ? `${name} — ${after}` : name;
+              return (
+                <Appbar.Content
+                  title={composed}
+                  subtitle={''}
+                  style={{ flexGrow: 1 }}
+                  titleStyle={isDark ? { color: '#fff' } : undefined}
+                  subtitleStyle={isDark ? { color: '#ccc' } : undefined}
+                />
+              );
+            })()}
             <Appbar.Action icon="logout" onPress={handleLogout} />
           </Appbar.Header>
         )}
