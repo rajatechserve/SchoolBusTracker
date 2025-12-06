@@ -79,7 +79,7 @@ export default function ParentDashboard() {
   const screenHeight = Dimensions.get('window').height;
   const [headerHeight, setHeaderHeight] = useState<number>(88);
   const [tabsHeight, setTabsHeight] = useState<number>(56);
-  const mapHeight = Math.max(240, Math.floor(screenHeight - headerHeight - tabsHeight));
+  const mapHeight = Math.max(240, Math.floor(screenHeight * 0.45));
 
   useEffect(() => {
     loadData();
