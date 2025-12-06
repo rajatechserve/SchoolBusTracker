@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import AppHeader from '../../components/AppHeader';
-import { Image } from 'react-native';
+import { Image, Dimensions } from 'react-native';
 import Constants from 'expo-constants';
 
 interface Student {
@@ -65,6 +65,10 @@ export default function ParentDashboard() {
   const [live, setLive] = useState<{ lat:number; lng:number; running:boolean; lastPingAt:number|null } | null>(null);
   const [busLat, setBusLat] = useState<number | null>(null);
   const [busLng, setBusLng] = useState<number | null>(null);
+  const screenHeight = Dimensions.get('window').height;
+  const headerApprox = 88; // header + safe area approx
+  const tabsApprox = 56;   // children tab height approx
+  const mapHeight = Math.max(240, Math.floor(screenHeight - headerApprox - tabsApprox));
 
   useEffect(() => {
     loadData();
@@ -205,42 +209,42 @@ export default function ParentDashboard() {
       {/* School Header with Menu */}
       <AppHeader onSchoolLoaded={setSchool} showBanner={false} />
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, styles.activeTab]}
-          onPress={() => setActiveTab('children')}
-        >
-          <Text style={[styles.tabText, styles.activeTabText]}>
-            👨‍👩‍👧‍👦 Children
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView 
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Map preview above Children tab */}
+        {/* Full-width map occupying top area */}
         {busLat !== null && busLng !== null && (
           <View style={styles.mapContainer}>
             <Text style={styles.mapTitle}>Bus Location</Text>
             <Image
-              style={styles.mapImage}
+              style={[styles.mapImage, { height: mapHeight }]}
               resizeMode="cover"
               source={{
                 uri: (() => {
-                  const key = 'AIzaSyAnzdQFZFZ_ywXQO6_3uce5LtqdzrvxyF8';
+                  const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
                   const base = `https://maps.googleapis.com/maps/api/staticmap?center=${busLat},${busLng}&zoom=15&size=640x300&maptype=roadmap`;
                   const markerIcon = 'https://raw.githubusercontent.com/google/material-design-icons/master/maps/2x_web/ic_directions_bus_black_48dp.png';
                   const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${busLat},${busLng}`;
-                  const keyParam = `&key=${key}`;
+                  const keyParam = key ? `&key=${key}` : '';
                   return base + markers + keyParam;
                 })()
               }}
             />
           </View>
         )}
+
+        {/* Tabs moved below the map */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity 
+            style={[styles.tab, styles.activeTab]}
+            onPress={() => setActiveTab('children')}
+          >
+            <Text style={[styles.tabText, styles.activeTabText]}>
+              👨‍👩‍👧‍👦 Children
+            </Text>
+          </TouchableOpacity>
+        </View>
         {/* Tracking tab removed; include bus info inside children cards */}
         {/* Your Children Tab */}
         {activeTab === 'children' && (
@@ -331,7 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 8,
     marginHorizontal: 12,
-    marginTop: 8,
+    marginTop: 0,
     marginBottom: 8,
     borderRadius: 8,
     borderColor: '#e0e0e0',
@@ -345,7 +349,6 @@ const styles = StyleSheet.create({
   },
   mapImage: {
     width: '100%',
-    height: 180,
     borderRadius: 6,
   },
   schoolInfoBox: {
