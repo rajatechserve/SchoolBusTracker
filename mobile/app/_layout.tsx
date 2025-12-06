@@ -64,13 +64,14 @@ export const unstable_settings = {
 
 function InnerLayout() {
   const systemScheme = useColorScheme();
-  const [pref, setPref] = useState<'light' | 'dark' | 'system'>('system');
+  const [pref, setPref] = useState<'light' | 'dark' | 'system'>('light');
   const [themeReady, setThemeReady] = useState(false);
   useEffect(() => {
     (async () => {
       try {
-        const saved = await AsyncStorage.getItem('@app_theme');
-        if (saved === 'light' || saved === 'dark' || saved === 'system') setPref(saved);
+        // Force light theme regardless of saved/system preferences
+        await AsyncStorage.setItem('@app_theme', 'light');
+        setPref('light');
       } catch {}
       // Initialize SQLite storage early
       try { initStorage(); } catch {}
@@ -78,7 +79,7 @@ function InnerLayout() {
       setThemeReady(true);
     })();
   }, []);
-  const effectiveScheme = pref === 'system' ? systemScheme : pref;
+  const effectiveScheme = 'light';
   const { navTheme, paperTheme } = useThemes(effectiveScheme);
   const segments = useSegments();
   const router = useRouter();

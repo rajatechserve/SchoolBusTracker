@@ -482,14 +482,14 @@ const styles = StyleSheet.create({
   },
   tripControls: {
     backgroundColor: '#fff',
-    padding: 12,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   tripRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
+    gap: 6,
+    marginBottom: 6,
   },
   directionBtn: {
     flex: 1,
@@ -563,24 +563,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabContent: {
-    padding: 16,
+    padding: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   refreshButton: {
     padding: 8,
@@ -594,13 +594,13 @@ const styles = StyleSheet.create({
   studentCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
   studentInfo: {
     marginBottom: 12,
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   studentDetails: {
     fontSize: 12,
@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
   },
   attendanceButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   presentButton: {
     flex: 1,
@@ -666,9 +666,9 @@ const styles = StyleSheet.create({
   },
   summary: {
     backgroundColor: '#e3f2fd',
-    padding: 12,
+    padding: 10,
     borderRadius: 6,
-    marginTop: 8,
+    marginTop: 6,
   },
   summaryText: {
     fontSize: 14,
