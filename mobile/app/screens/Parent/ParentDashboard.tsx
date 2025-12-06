@@ -6,7 +6,8 @@ import {
   ScrollView, 
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  type LayoutChangeEvent
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -66,9 +67,9 @@ export default function ParentDashboard() {
   const [busLat, setBusLat] = useState<number | null>(null);
   const [busLng, setBusLng] = useState<number | null>(null);
   const screenHeight = Dimensions.get('window').height;
-  const headerApprox = 88; // header + safe area approx
-  const tabsApprox = 56;   // children tab height approx
-  const mapHeight = Math.max(240, Math.floor(screenHeight - headerApprox - tabsApprox));
+  const [headerHeight, setHeaderHeight] = useState<number>(88);
+  const [tabsHeight, setTabsHeight] = useState<number>(56);
+  const mapHeight = Math.max(240, Math.floor(screenHeight - headerHeight - tabsHeight));
 
   useEffect(() => {
     loadData();
@@ -207,7 +208,9 @@ export default function ParentDashboard() {
   return (
     <View style={styles.container}>
       {/* School Header with Menu */}
-      <AppHeader onSchoolLoaded={setSchool} showBanner={false} />
+      <View onLayout={(e: LayoutChangeEvent)=> setHeaderHeight(e.nativeEvent.layout.height)}>
+        <AppHeader onSchoolLoaded={setSchool} showBanner={false} />
+      </View>
 
       <ScrollView 
         style={styles.content}
@@ -235,7 +238,7 @@ export default function ParentDashboard() {
         )}
 
         {/* Tabs moved below the map */}
-        <View style={styles.tabContainer}>
+        <View style={styles.tabContainer} onLayout={(e: LayoutChangeEvent)=> setTabsHeight(e.nativeEvent.layout.height)}>
           <TouchableOpacity 
             style={[styles.tab, styles.activeTab]}
             onPress={() => setActiveTab('children')}
