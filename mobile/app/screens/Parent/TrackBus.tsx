@@ -4,6 +4,7 @@ declare const require: any;
 import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
 import { Title } from 'react-native-paper';
 import { WebView } from 'react-native-webview';
+import Constants from 'expo-constants';
 // react-native-maps optional: if not installed, WebView fallback is used
 let MapView: any, Marker: any, Polyline: any, AnimatedRegion: any;
 try {
@@ -221,6 +222,11 @@ export default function TrackBus() {
           javaScriptEnabled
           scalesPageToFit
           cacheEnabled={false}
+          injectedJavaScript={`(function(){
+            try {
+              window.__GOOGLE_MAPS_KEY = ${(Constants?.expoConfig?.extra as any)?.googleMapsApiKey ? `'${(Constants?.expoConfig?.extra as any)?.googleMapsApiKey}'` : "''"};
+            } catch(e) { console.log('Failed to inject maps key', e); }
+          })();`}
         />
       </>
     );
