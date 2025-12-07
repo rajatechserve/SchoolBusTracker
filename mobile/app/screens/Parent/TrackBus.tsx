@@ -16,8 +16,9 @@ try {
   // AnimatedRegion is under RNMaps.AnimatedRegion
   AnimatedRegion = RNMaps.AnimatedRegion;
 } catch {}
-import api from '../../services/api';
+import api, { baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import Constants from 'expo-constants';
 
 interface BusLocation {
   lat: number;
@@ -35,6 +36,11 @@ export default function TrackBus() {
   const [mapReady, setMapReady] = useState(false);
   const webViewRef = useRef<WebView | null>(null);
   const pollingRef = useRef<number | null>(null);
+  const timerRef = useRef<any | null>(null);
+  const [pollMs, setPollMs] = useState(5000);
+  const [consecutive404s, setConsecutive404s] = useState(0);
+  const [lastErrorMsg, setLastErrorMsg] = useState<string>('');
+  const [suppressLogs, setSuppressLogs] = useState(false);
   const animatedCoordRef = useRef<any | null>(null);
   const [etaText, setEtaText] = useState<string>('');
 
@@ -93,6 +99,8 @@ export default function TrackBus() {
       if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
         const latest = { lat: loc.lat, lng: loc.lng };
         setBusLocation(latest);
+        setConsecutive404s(0);
+        setPollMs(5000);
         if (MapView && AnimatedRegion) {
           if (!animatedCoordRef.current) {
             animatedCoordRef.current = new AnimatedRegion({
@@ -129,16 +137,38 @@ export default function TrackBus() {
           } catch {}
         }
       }
-    } catch (e) {
-      console.error('Error fetching live bus status', e);
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 404) {
+        setConsecutive404s(prev => {
+          const n = prev + 1;
+          // Exponential backoff: 5s, 10s, 20s, max 30s
+          const nextDelay = Math.min(5000 * Math.pow(2, Math.floor(n / 2)), 30000);
+          setPollMs(nextDelay);
+          return n;
+        });
+        const msg = `404: No live data for bus`;
+        setLastErrorMsg(msg);
+        if (!suppressLogs) {
+          console.warn('Failed to fetch live bus status');
+          if (consecutive404s >= 3) setSuppressLogs(true);
+        }
+      } else {
+        setLastErrorMsg('Error fetching live bus status');
+        if (!suppressLogs) console.error('Error fetching live bus status', e);
+      }
     }
   }, [mapReady, user]);
 
   useEffect(() => {
-    fetchLocation();
-    pollingRef.current = setInterval(fetchLocation, 5000);
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, [fetchLocation]);
+    const run = () => {
+      fetchLocation().finally(() => {
+        timerRef.current = setTimeout(run, pollMs);
+      });
+    };
+    run();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [fetchLocation, pollMs]);
 
   // Initialize school marker once map ready
   useEffect(() => {
@@ -179,6 +209,9 @@ export default function TrackBus() {
           }}
           showsUserLocation={false}
         >
+          {!busLocation && (
+            <View style={styles.noDataBanner}><Text style={styles.noDataText}>No live data yet</Text></View>
+          )}
           {busLocation && (
             <Marker.Animated coordinate={animatedCoordRef.current || { latitude: busLocation.lat, longitude: busLocation.lng }}>
               <View style={styles.busMarker}><Text style={styles.busMarkerText}>🚌</Text></View>
@@ -190,7 +223,7 @@ export default function TrackBus() {
             </Marker>
           )}
           {routePath.length > 1 && (
-            <Polyline coordinates={routePath.map(p => ({ latitude: p.lat, longitude: p.lng }))} strokeColor="#007BFF" strokeWidth={4} />
+            <Polyline coordinates={routePath.map((p: BusLocation) => ({ latitude: p.lat, longitude: p.lng }))} strokeColor="#007BFF" strokeWidth={4} />
           )}
           {nextStop && (
             <Marker coordinate={{ latitude: nextStop.lat, longitude: nextStop.lng }}>
@@ -213,6 +246,9 @@ export default function TrackBus() {
             <Text style={styles.buttonText}>Fit All</Text>
           </TouchableOpacity>
         </View>
+        {!busLocation && (
+          <View style={styles.noDataBanner}><Text style={styles.noDataText}>No live data yet</Text></View>
+        )}
         <WebView
           ref={webViewRef}
           style={styles.map}
@@ -228,6 +264,14 @@ export default function TrackBus() {
             } catch(e) { console.log('Failed to inject maps key', e); }
           })();`}
         />
+        <View style={styles.debugOverlay}>
+          <Text style={styles.debugText}>busId: {(user as any)?.bus || 'n/a'}</Text>
+          <Text style={styles.debugText}>baseURL: {baseURL}</Text>
+          <Text style={styles.debugText}>googleKey: {((Constants?.expoConfig?.extra as any)?.googleMapsApiKey ? 'set' : 'missing')}</Text>
+          {lastErrorMsg ? <Text style={styles.debugText}>lastError: {lastErrorMsg}</Text> : null}
+          <Text style={styles.debugText}>pollMs: {pollMs}</Text>
+          <Text style={styles.debugText}>404s: {consecutive404s}</Text>
+        </View>
       </>
     );
   };
@@ -254,6 +298,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden'
   },
+  noDataBanner: {
+    position: 'absolute',
+    zIndex: 10,
+    left: 12,
+    top: 8,
+    backgroundColor: '#00000099',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12
+  },
+  noDataText: { color: '#fff', fontSize: 12, fontWeight: '600' },
   etaChip: {
     alignSelf: 'flex-start',
     backgroundColor: '#00000088',
@@ -316,5 +371,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700'
-  }
+  },
+  debugOverlay: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    backgroundColor: '#00000088',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8
+  },
+  debugText: { color: '#fff', fontSize: 11 }
 });

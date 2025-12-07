@@ -10,7 +10,7 @@ import {
   type LayoutChangeEvent
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import api, { baseURL } from '../../services/api';
 import AppHeader from '../../components/AppHeader';
 import { Image, Dimensions } from 'react-native';
 // Prefer web map when available
@@ -71,6 +71,15 @@ export default function ParentDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [live, setLive] = useState<{ lat:number; lng:number; running:boolean; lastPingAt:number|null } | null>(null);
+  const [consecutive404s, setConsecutive404s] = useState<number>(0);
+  const [pollMs, setPollMs] = useState(5000);
+  const [lastErrorMsg, setLastErrorMsg] = useState('');
+  const timerRef = React.useRef<number | null>(null);
+
+  const busIdForDebug = (kids: Student[]) => {
+    const ids = Array.from(new Set(kids.map(k => k.busId).filter(Boolean)));
+    return ids[0] || 'n/a';
+  };
   const [busLat, setBusLat] = useState<number | null>(null);
   const [busLng, setBusLng] = useState<number | null>(null);
   const [busAddress, setBusAddress] = useState<string | null>(null);
@@ -80,7 +89,8 @@ export default function ParentDashboard() {
   const screenHeight = Dimensions.get('window').height;
   const [headerHeight, setHeaderHeight] = useState<number>(88);
   const [tabsHeight, setTabsHeight] = useState<number>(56);
-  const mapHeight = Math.max(240, Math.floor(screenHeight * 0.45));
+  // Fixed map height to ensure consistent visibility above the Children tab
+  const MAP_FIXED_HEIGHT = Math.max(280, Math.floor(screenHeight * 0.40));
 
   useEffect(() => {
     loadData();
@@ -91,14 +101,17 @@ export default function ParentDashboard() {
   }, []);
 
   useEffect(() => {
-    // Auto refresh every 5s
     if (!autoRefresh) return;
-    const id = setInterval(async () => {
-      await fetchLive();
-      await loadBuses();
-    }, 5000);
-    return () => clearInterval(id);
-  }, [autoRefresh, children.length]);
+    const run = () => {
+      Promise.all([fetchLive(), loadBuses()]).then(() => {
+        timerRef.current = setTimeout(run, pollMs) as unknown as number;
+      }).catch(() => {
+        timerRef.current = setTimeout(run, pollMs) as unknown as number;
+      });
+    };
+    run();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current as unknown as number); };
+  }, [autoRefresh, children.length, pollMs]);
 
   useEffect(() => {
     if (activeTab === 'tracking') {
@@ -199,14 +212,30 @@ export default function ParentDashboard() {
       const d = res.data;
       if (d && typeof d.lat === 'number' && typeof d.lng === 'number') setLive({ lat: d.lat, lng: d.lng, running: !!d.running, lastPingAt: d.lastPingAt || null });
       else setLive({ lat: 0, lng: 0, running: !!d.running, lastPingAt: d.lastPingAt || null });
+      setConsecutive404s(0);
+      setPollMs(5000);
       // Resolve address for last known coordinates
       const lat = d?.location?.lat ?? null;
       const lng = d?.location?.lng ?? null;
       if (typeof lat === 'number' && typeof lng === 'number') {
         await resolveAddress(lat, lng);
       }
-    } catch (e) {
-      console.warn('Failed to fetch live bus status');
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 404) {
+        setConsecutive404s((prev: number) => {
+          const n = prev + 1;
+          const nextDelay = Math.min(5000 * Math.pow(2, Math.floor(n / 2)), 30000);
+          setPollMs(nextDelay);
+          return n;
+        });
+        setLastErrorMsg('404: No live data for bus');
+        if (consecutive404s < 3) console.warn('Failed to fetch live bus status');
+      } else {
+        setLastErrorMsg('Error fetching live bus status');
+        console.error('Error fetching live bus status', e);
+      }
+      setLive(null);
     }
   };
 
@@ -310,7 +339,23 @@ export default function ParentDashboard() {
           return centerLat !== null && centerLng !== null;
         })() && (
           <View style={styles.mapContainer}>
-            <Text style={styles.mapTitle}>Bus Location</Text>
+            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+              <Text style={styles.mapTitle}>Bus Location</Text>
+              {live ? (
+                <View style={{ flexDirection:'row', alignItems:'center' }}>
+                  <View style={{ backgroundColor: live.running ? '#4CAF50' : '#f44336', paddingHorizontal:8, paddingVertical:4, borderRadius:12, marginRight:8 }}>
+                    <Text style={{ color:'#fff', fontSize:11 }}>{live.running ? 'Running' : 'Stopped'}</Text>
+                  </View>
+                  {typeof live.lastPingAt === 'number' && (
+                    <Text style={{ fontSize:11, color:'#666' }}>Last ping: {new Date(live.lastPingAt).toLocaleTimeString()}</Text>
+                  )}
+                </View>
+              ) : (
+                <View style={{ backgroundColor:'#999', paddingHorizontal:8, paddingVertical:4, borderRadius:12 }}>
+                  <Text style={{ color:'#fff', fontSize:11 }}>No live data</Text>
+                </View>
+              )}
+            </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <TouchableOpacity onPress={async ()=>{ await fetchLive(); await loadBuses(); }} style={{ backgroundColor: '#007BFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 }}>
                 <Text style={{ color: '#fff', fontSize: 12 }}>Refresh</Text>
@@ -325,14 +370,14 @@ export default function ParentDashboard() {
                 const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng ?? schoolCenter?.lng) as number;
                 const url = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
                 return (
-                  <View style={{ height: mapHeight, borderRadius: 6, overflow: 'hidden' }}>
+                  <View style={{ height: MAP_FIXED_HEIGHT, borderRadius: 6, overflow: 'hidden' }}>
                     <WebView source={{ uri: url }} />
                   </View>
                 );
               })()
             ) : (
               <Image
-                style={[styles.mapImage, { height: mapHeight }]}
+                style={[styles.mapImage, { height: MAP_FIXED_HEIGHT }]}
                 resizeMode="cover"
                 source={{
                   uri: (() => {
@@ -347,7 +392,21 @@ export default function ParentDashboard() {
                   })()
                 }}
               />
+              
             )}
+            {!live && (
+              <View style={{ marginTop: 6, alignSelf: 'flex-start', backgroundColor:'#00000088', paddingHorizontal:10, paddingVertical:6, borderRadius:12 }}>
+                <Text style={{ color:'#fff', fontSize:12, fontWeight:'600' }}>No live data yet</Text>
+              </View>
+            )}
+            <View style={{ marginTop: 6, backgroundColor:'#00000066', paddingHorizontal:10, paddingVertical:8, borderRadius:8 }}>
+              <Text style={{ color:'#fff', fontSize:11 }}>busId: {busIdForDebug(children)}</Text>
+              <Text style={{ color:'#fff', fontSize:11 }}>baseURL: {baseURL}</Text>
+              <Text style={{ color:'#fff', fontSize:11 }}>googleKey: {((Constants?.expoConfig?.extra as any)?.googleMapsApiKey ? 'set' : 'missing')}</Text>
+              {lastErrorMsg ? <Text style={{ color:'#fff', fontSize:11 }}>lastError: {lastErrorMsg}</Text> : null}
+              <Text style={{ color:'#fff', fontSize:11 }}>pollMs: {pollMs}</Text>
+              <Text style={{ color:'#fff', fontSize:11 }}>404s: {consecutive404s}</Text>
+            </View>
             {busAddress && (
               <Text style={styles.mapSubtitle}>
                 Last known location: {busAddress}
