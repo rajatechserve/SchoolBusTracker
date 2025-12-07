@@ -208,7 +208,7 @@ export default function ParentDashboard() {
       const childBusIdsArr: string[] = Array.from(new Set(children.map((c: Student) => c.busId).filter(Boolean))) as string[];
       const busId = childBusIdsArr[0];
       if (!busId) return setLive(null);
-      const res = await api.get(`/api/bus/${busId}/live`);
+      const res = await api.get(`/api/public/bus/${busId}/live`);
       const d = res.data;
       if (d && typeof d.lat === 'number' && typeof d.lng === 'number') setLive({ lat: d.lat, lng: d.lng, running: !!d.running, lastPingAt: d.lastPingAt || null });
       else setLive({ lat: 0, lng: 0, running: !!d.running, lastPingAt: d.lastPingAt || null });
@@ -364,35 +364,27 @@ export default function ParentDashboard() {
                 <Text style={{ color: '#007BFF', fontSize: 12 }}>{autoRefresh ? 'Auto Refresh: On' : 'Auto Refresh: Off'}</Text>
               </TouchableOpacity>
             </View>
-            {WebView && useWebMap ? (
-              (() => {
-                const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat ?? schoolCenter?.lat) as number;
-                const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng ?? schoolCenter?.lng) as number;
-                const url = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
-                return (
-                  <View style={{ height: MAP_FIXED_HEIGHT, borderRadius: 6, overflow: 'hidden' }}>
-                    <WebView source={{ uri: url }} />
-                  </View>
-                );
-              })()
+            {WebView ? (
+              <View style={{ height: MAP_FIXED_HEIGHT, borderRadius: 6, overflow: 'hidden' }}>
+                <WebView
+                  style={{ flex: 1 }}
+                  originWhitelist={["*"]}
+                  source={require('./map-template.html')}
+                  javaScriptEnabled
+                  cacheEnabled={false}
+                  injectedJavaScript={`(function(){
+                    try {
+                      window.__GOOGLE_MAPS_KEY = ${(Constants?.expoConfig?.extra as any)?.googleMapsApiKey ? `'${(Constants?.expoConfig?.extra as any)?.googleMapsApiKey}'` : "''"};
+                    } catch(e) { console.log('Failed to inject maps key', e); }
+                  })();`}
+                />
+              </View>
             ) : (
               <Image
                 style={[styles.mapImage, { height: MAP_FIXED_HEIGHT }]}
                 resizeMode="cover"
-                source={{
-                  uri: (() => {
-                    const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
-                    const lat = (busLat ?? live?.lat ?? buses.find((b: Bus)=>b.location)?.location?.lat ?? schoolCenter?.lat) as number;
-                    const lng = (busLng ?? live?.lng ?? buses.find((b: Bus)=>b.location)?.location?.lng ?? schoolCenter?.lng) as number;
-                    const base = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=640x640&maptype=roadmap`;
-                    const markerIcon = 'https://raw.githubusercontent.com/google/material-design-icons/master/maps/2x_web/ic_directions_bus_black_48dp.png';
-                    const markers = `&markers=icon:${encodeURIComponent(markerIcon)}%7C${lat},${lng}`;
-                    const keyParam = key ? `&key=${key}` : '';
-                    return base + markers + keyParam;
-                  })()
-                }}
+                source={{ uri: 'https://via.placeholder.com/640x640?text=Map+Unavailable' }}
               />
-              
             )}
             {!live && (
               <View style={{ marginTop: 6, alignSelf: 'flex-start', backgroundColor:'#00000088', paddingHorizontal:10, paddingVertical:6, borderRadius:12 }}>
@@ -412,6 +404,17 @@ export default function ParentDashboard() {
                 Last known location: {busAddress}
               </Text>
             )}
+            {/* Seed test location for quick debugging */}
+            <TouchableOpacity onPress={async ()=>{
+              try {
+                const busId = busIdForDebug(children);
+                if(!busId) return;
+                await api.post(`/api/bus/${busId}/live`, { lat: 13.0827, lng: 80.2707, running: true, timestamp: Date.now() });
+                await fetchLive();
+              } catch(e){ console.warn('Seed location failed'); }
+            }} style={{ alignSelf:'flex-start', marginTop:8, backgroundColor:'#4CAF50', paddingHorizontal:10, paddingVertical:6, borderRadius:6 }}>
+              <Text style={{ color:'#fff', fontSize:12 }}>Seed Test Location</Text>
+            </TouchableOpacity>
           </View>
         )}
 
