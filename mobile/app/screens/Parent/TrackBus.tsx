@@ -18,7 +18,6 @@ try {
 } catch {}
 import api, { baseURL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import Constants from 'expo-constants';
 
 interface BusLocation {
   lat: number;
