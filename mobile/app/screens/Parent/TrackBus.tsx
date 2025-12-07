@@ -58,7 +58,7 @@ export default function TrackBus() {
       // Prefer public live endpoint for freshest data
       const busId = (user as any)?.bus;
       if (!busId) return;
-      const resp = await api.get(`/public/bus/${busId}/live`);
+      const resp = await api.get(`/api/public/bus/${busId}/live`);
       const live = resp?.data || {};
       const loc = live?.location;
       // Fetch route & compute next stop if server provided index/routeId
