@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from 'react-native-paper';
 import DriverDashboard from '../screens/Driver/DriverDashboard';
+import DriverMap from '../screens/Driver/Map';
 import LocationShare from '../screens/Driver/LocationShare';
 import Profile from '../screens/Common/Profile';
 import DriverAssignments from '../screens/Driver/Assignments';
@@ -34,6 +35,11 @@ export default function DriverTabs() {
             <MaterialIcons name="home" size={size} color={color} />
           ),
         }}
+      />
+      <Tab.Screen
+        name="Map"
+        component={DriverMap}
+        options={{ title: 'Map' }}
       />
       <Tab.Screen
         name="Share"
