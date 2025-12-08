@@ -39,7 +39,12 @@ export default function DriverTabs() {
       <Tab.Screen
         name="Map"
         component={DriverMap}
-        options={{ title: 'Map' }}
+        options={{
+          title: 'Map',
+          tabBarIcon: ({ color, size }: TabBarIconProps) => (
+            <MaterialIcons name="map" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen
         name="Share"

@@ -33,7 +33,14 @@ export default function ParentTabs() {
           tabBarIcon: ({ color, size }) => <MaterialIcons name="directions-bus" size={size} color={color} />,
         }}
       />
-      <Tab.Screen name="Map" component={ParentMap} options={{ title: 'Map' }} />
+      <Tab.Screen
+        name="Map"
+        component={ParentMap}
+        options={{
+          title: 'Map',
+          tabBarIcon: ({ color, size }) => <MaterialIcons name="map" size={size} color={color} />,
+        }}
+      />
       <Tab.Screen
         name="Assignments"
         component={Assignments}
