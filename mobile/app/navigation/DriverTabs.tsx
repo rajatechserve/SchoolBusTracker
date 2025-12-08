@@ -49,6 +49,7 @@ export default function DriverTabs() {
         name="Assignments"
         component={DriverAssignments}
         options={{
+          title: 'Assign',
           tabBarIcon: ({ color, size }: TabBarIconProps) => (
             <MaterialIcons name="assignment" size={size} color={color} />
           ),

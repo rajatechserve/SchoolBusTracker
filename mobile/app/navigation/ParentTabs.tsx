@@ -37,6 +37,7 @@ export default function ParentTabs() {
         name="Assignments"
         component={Assignments}
         options={{
+          title: 'Assign',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="assignment" size={size} color={color} />,
         }}
       />
