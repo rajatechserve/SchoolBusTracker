@@ -21,6 +21,8 @@ export default function DriverTabs() {
     <Tab.Navigator
       initialRouteName="Home"
       screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: true,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.onSurface,
         tabBarStyle: { backgroundColor: theme.colors.surface },

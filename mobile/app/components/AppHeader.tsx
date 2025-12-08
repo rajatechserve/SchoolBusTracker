@@ -423,6 +423,32 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
     }
   };
 
+  const clearAppCache = async () => {
+    try {
+      Alert.alert('Clear Cache', 'This will reset app storage. Continue?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.clear();
+              cancelAllRequests('Clearing cache');
+              // Reset local UI bits
+              setLogoImage(null);
+              setBannerImage(null);
+              setSchool(null);
+              setLastSchoolId(null);
+              Alert.alert('Cache Cleared', 'App storage has been reset.');
+            } catch (err) {
+              Alert.alert('Error', 'Failed to clear cache');
+            }
+          },
+        },
+      ]);
+    } catch {}
+  };
+
   const navigateTo = (screen: string) => {
     // Close drawer animation first
     Animated.timing(slideAnim, {
@@ -449,9 +475,7 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
           // For parent role, attendance might be in assignments or separate
           router.push('/(tabs)/assignments');
         } else if (screen === 'map') {
-          // Route to the Map tab (use existing tabs route; adjust if named differently)
-          // Using 'explore' as the map-like tab in router tabs
-          router.push('/(tabs)/explore');
+          router.push('/(tabs)/map');
         }
         console.log('Navigation completed');
       } catch (error) {
@@ -487,7 +511,8 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                 {[school?.address, school?.phone || school?.mobile].filter(Boolean).join(' • ')}
               </Text>
             </View>
-            <Appbar.Action icon="logout" onPress={handleLogout} />
+              <Appbar.Action icon="delete" onPress={clearAppCache} />
+              <Appbar.Action icon="logout" onPress={handleLogout} />
           </Appbar.Header>
         )}
       </SafeAreaView>

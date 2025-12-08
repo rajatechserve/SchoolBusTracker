@@ -1,11 +1,8 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { View, Text } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { HapticTab } from '../../components/haptic-tab';
-import { IconSymbol } from '../../components/ui/icon-symbol';
-import { Colors } from '../../constants/theme';
-import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useAuth } from '../context/AuthContext';
 import { Redirect } from 'expo-router';
 
@@ -33,21 +30,17 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
-              <Text style={{ fontSize: focused ? 30 : 28, color }}>🏠</Text>
-            </View>
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <MaterialIcons name="home" size={focused ? 28 : 26} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="map"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
-              <Text style={{ fontSize: focused ? 30 : 28, color }}>👤</Text>
-            </View>
+          title: 'Map',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <MaterialIcons name="map" size={focused ? 28 : 26} color={color} />
           ),
         }}
       />
@@ -55,22 +48,25 @@ export default function TabLayout() {
         name="assignments"
         options={{
           title: 'Assign',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
-              <Text style={{ fontSize: focused ? 30 : 28, color }}>📋</Text>
-            </View>
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <MaterialIcons name="assignment" size={focused ? 28 : 26} color={color} />
           ),
         }}
       />
       <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <MaterialIcons name="person" size={focused ? 28 : 26} color={color} />
+          ),
+        }}
+      />
+      {/* Alerts tab removed per request */}
+      <Tabs.Screen
         name="notifications"
         options={{
-          title: 'Alert',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ justifyContent: 'center', alignItems: 'center', marginBottom: focused ? 2 : 4 }}>
-              <Text style={{ fontSize: focused ? 30 : 28, color }}>🔔</Text>
-            </View>
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
