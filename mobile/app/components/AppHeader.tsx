@@ -448,8 +448,10 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
         } else if (screen === 'attendance') {
           // For parent role, attendance might be in assignments or separate
           router.push('/(tabs)/assignments');
-        } else if (screen === 'notifications') {
-          router.push('/(tabs)/notifications');
+        } else if (screen === 'map') {
+          // Route to the Map tab (use existing tabs route; adjust if named differently)
+          // Using 'explore' as the map-like tab in router tabs
+          router.push('/(tabs)/explore');
         }
         console.log('Navigation completed');
       } catch (error) {
@@ -582,10 +584,11 @@ export default function AppHeader({ showFullInfo = false, showBackButton = false
                   icon="account"
                   onPress={() => navigateTo('profile')}
                 />
+                {/* Map entry added to assist navigation to map tab */}
                 <Drawer.Item
-                  label="Alerts"
-                  icon="bell"
-                  onPress={() => navigateTo('notifications')}
+                  label="Map"
+                  icon="map"
+                  onPress={() => navigateTo('map')}
                 />
                 <Drawer.Item
                   label="Assignments"
