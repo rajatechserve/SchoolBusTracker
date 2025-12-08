@@ -3,7 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from 'react-native-paper';
 import DriverDashboard from '../screens/Driver/DriverDashboard';
 import DriverMap from '../screens/Driver/Map';
-import LocationShare from '../screens/Driver/LocationShare';
 import Profile from '../screens/Common/Profile';
 import DriverAssignments from '../screens/Driver/Assignments';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -43,16 +42,6 @@ export default function DriverTabs() {
           title: 'Map',
           tabBarIcon: ({ color, size }: TabBarIconProps) => (
             <MaterialIcons name="map" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Share"
-        component={LocationShare}
-        options={{
-          title: 'Share Location',
-          tabBarIcon: ({ color, size }: TabBarIconProps) => (
-            <MaterialIcons name="my-location" size={size} color={color} />
           ),
         }}
       />

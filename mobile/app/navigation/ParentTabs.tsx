@@ -1,7 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import ParentDashboard from '../screens/Parent/ParentDashboard';
-import TrackBus from '../screens/Parent/TrackBus';
 import ParentMap from '../screens/Parent/Map';
 import Profile from '../screens/Common/Profile';
 import Assignments from '../screens/Parent/Assignments';
@@ -27,14 +26,6 @@ export default function ParentTabs() {
         }}
       />
       <Tab.Screen
-        name="Track"
-        component={TrackBus}
-        options={{
-          title: 'Track Bus',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="directions-bus" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
         name="Map"
         component={ParentMap}
         options={{
@@ -47,13 +38,6 @@ export default function ParentTabs() {
         component={Assignments}
         options={{
           tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="assignment" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Attendance"
-        component={AttendanceScreen}
-        options={{
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="fact-check" size={size} color={color} />,
         }}
       />
       <Tab.Screen
