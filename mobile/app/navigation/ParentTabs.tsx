@@ -16,13 +16,14 @@ export default function ParentTabs() {
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: true,
       }}
     >
       <Tab.Screen
         name="Home"
         component={ParentDashboard}
         options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="home" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="home" size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -30,7 +31,7 @@ export default function ParentTabs() {
         component={TrackBus}
         options={{
           title: 'Track Bus',
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="directions-bus" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="directions-bus" size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -38,28 +39,28 @@ export default function ParentTabs() {
         component={ParentMap}
         options={{
           title: 'Map',
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="map" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="map" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Assignments"
         component={Assignments}
         options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="assignment" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="assignment" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Attendance"
         component={AttendanceScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="fact-check" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="fact-check" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Profile"
         component={Profile}
         options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="person" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="person" size={size} color={color} />,
         }}
       />
     </Tab.Navigator>
