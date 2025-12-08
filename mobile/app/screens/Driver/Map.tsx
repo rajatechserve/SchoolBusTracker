@@ -45,7 +45,7 @@ export default function DriverMap(){
         ref={webRef}
         style={styles.map}
         originWhitelist={["*"]}
-        source={require('./map-template.html')}
+        source={require('../Parent/map-template.html')}
         onMessage={onMessage}
         javaScriptEnabled
         cacheEnabled={false}
