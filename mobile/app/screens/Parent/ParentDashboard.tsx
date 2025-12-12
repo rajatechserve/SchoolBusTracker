@@ -6,11 +6,21 @@ import {
   ScrollView, 
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  type LayoutChangeEvent
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import api, { baseURL } from '../../services/api';
 import AppHeader from '../../components/AppHeader';
+import { Image, Dimensions } from 'react-native';
+// Prefer web map when available
+let WebView: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  WebView = require('react-native-webview').WebView;
+} catch {}
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 interface Student {
   id: string;
@@ -52,7 +62,7 @@ interface School {
 
 export default function ParentDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'children' | 'tracking'>('children');
+  const [activeTab, setActiveTab] = useState<'children'>('children');
   const [children, setChildren] = useState<Student[]>([]);
   const [school, setSchool] = useState<School | null>(null);
   const [buses, setBuses] = useState<Bus[]>([]);
@@ -60,10 +70,48 @@ export default function ParentDashboard() {
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [live, setLive] = useState<{ lat:number; lng:number; running:boolean; lastPingAt:number|null } | null>(null);
+  const [consecutive404s, setConsecutive404s] = useState<number>(0);
+  const [pollMs, setPollMs] = useState(5000);
+  const [lastErrorMsg, setLastErrorMsg] = useState('');
+  const timerRef = React.useRef<number | null>(null);
+
+  const busIdForDebug = (kids: Student[]) => {
+    const ids = Array.from(new Set(kids.map(k => k.busId).filter(Boolean)));
+    return ids[0] || 'n/a';
+  };
+  const [busLat, setBusLat] = useState<number | null>(null);
+  const [busLng, setBusLng] = useState<number | null>(null);
+  const [busAddress, setBusAddress] = useState<string | null>(null);
+  const [schoolCenter, setSchoolCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [useWebMap, setUseWebMap] = useState<boolean>(true);
+  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+  const screenHeight = Dimensions.get('window').height;
+  const [headerHeight, setHeaderHeight] = useState<number>(88);
+  const [tabsHeight, setTabsHeight] = useState<number>(56);
+  // Fixed map height to ensure consistent visibility above the Children tab
+  const MAP_FIXED_HEIGHT = Math.max(280, Math.floor(screenHeight * 0.40));
 
   useEffect(() => {
     loadData();
+    // Also try fetching live location immediately for map visibility
+    fetchLive();
+    // Try to resolve school center from cached school info
+    resolveSchoolCenter();
   }, []);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const run = () => {
+      Promise.all([fetchLive(), loadBuses()]).then(() => {
+        timerRef.current = setTimeout(run, pollMs) as unknown as number;
+      }).catch(() => {
+        timerRef.current = setTimeout(run, pollMs) as unknown as number;
+      });
+    };
+    run();
+    return () => { if (timerRef.current) clearTimeout(timerRef.current as unknown as number); };
+  }, [autoRefresh, children.length, pollMs]);
 
   useEffect(() => {
     if (activeTab === 'tracking') {
@@ -85,10 +133,11 @@ export default function ParentDashboard() {
       setChildren(childrenData);
 
       // Get unique bus IDs from children
-      const childBusIds = [...new Set(childrenData.map((c: Student) => c.busId).filter(Boolean))];
+      const childBusIdsSet = new Set(childrenData.map((c: Student) => c.busId).filter(Boolean));
+      const childBusIds = Array.from(childBusIdsSet);
 
       // Load buses - filter for only buses assigned to this parent's children
-      await loadBuses(childBusIds);
+      await loadBuses(childBusIds as string[]);
 
       // Load routes
       const routesRes = await api.get('/routes');
@@ -107,6 +156,18 @@ export default function ParentDashboard() {
       const childIds = childrenData.map((c: Student) => c.id);
       const childAttendance = allAttendance.filter((a: Attendance) => childIds.includes(a.studentId));
       setAttendance(childAttendance);
+      // Try to fetch live bus location for the parent's school
+      try {
+        if (user?.schoolId) {
+          const liveResp = await api.request({ method: 'get', url: `/live?schoolId=${user.schoolId}` });
+          const items = Array.isArray(liveResp.data) ? liveResp.data : [];
+          const first = items.find((i: any) => typeof i.lat === 'number' && typeof i.lng === 'number');
+          if (first) {
+            setBusLat(first.lat);
+            setBusLng(first.lng);
+          }
+        }
+      } catch {}
     } catch (e: any) {
       console.error('Failed to load data:', e);
     } finally {
@@ -117,16 +178,17 @@ export default function ParentDashboard() {
   const loadBuses = async (childBusIds?: string[]) => {
     try {
       const busesRes = await api.get('/buses');
-      const allBuses = Array.isArray(busesRes.data) ? busesRes.data : [];
+      const allBuses: Bus[] = Array.isArray(busesRes.data) ? busesRes.data : [] as any[];
       
       // Filter to only show buses assigned to this parent's children
       if (childBusIds && childBusIds.length > 0) {
-        const filteredBuses = allBuses.filter((bus: Bus) => childBusIds.includes(bus.id));
+        const filteredBuses = allBuses.filter((bus: Bus) => childBusIds.indexOf(bus.id) !== -1);
         setBuses(filteredBuses);
       } else {
         // If no children yet, get child bus IDs from current children state
-        const busIds = [...new Set(children.map((c: Student) => c.busId).filter(Boolean))];
-        const filteredBuses = allBuses.filter((bus: Bus) => busIds.includes(bus.id));
+        const busIdsSet = new Set(children.map((c: Student) => c.busId).filter(Boolean));
+        const busIds = Array.from(busIdsSet);
+        const filteredBuses = allBuses.filter((bus: Bus) => busIds.indexOf(bus.id) !== -1);
         setBuses(filteredBuses);
       }
     } catch (e: any) {
@@ -137,7 +199,90 @@ export default function ParentDashboard() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
+    await fetchLive();
     setRefreshing(false);
+  };
+
+  const fetchLive = async () => {
+    try {
+      const childBusIdsArr: string[] = Array.from(new Set(children.map((c: Student) => c.busId).filter(Boolean))) as string[];
+      const busId = childBusIdsArr[0];
+      if (!busId) return setLive(null);
+      const res = await api.get(`/api/public/bus/${busId}/live`);
+      const d = res.data;
+      if (d && typeof d.lat === 'number' && typeof d.lng === 'number') setLive({ lat: d.lat, lng: d.lng, running: !!d.running, lastPingAt: d.lastPingAt || null });
+      else setLive({ lat: 0, lng: 0, running: !!d.running, lastPingAt: d.lastPingAt || null });
+      setConsecutive404s(0);
+      setPollMs(5000);
+      // Resolve address for last known coordinates
+      const lat = d?.location?.lat ?? null;
+      const lng = d?.location?.lng ?? null;
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        await resolveAddress(lat, lng);
+      }
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 404) {
+        setConsecutive404s((prev: number) => {
+          const n = prev + 1;
+          const nextDelay = Math.min(5000 * Math.pow(2, Math.floor(n / 2)), 30000);
+          setPollMs(nextDelay);
+          return n;
+        });
+        setLastErrorMsg('404: No live data for bus');
+        if (consecutive404s < 3) console.warn('Failed to fetch live bus status');
+      } else {
+        setLastErrorMsg('Error fetching live bus status');
+        console.error('Error fetching live bus status', e);
+      }
+      setLive(null);
+    }
+  };
+
+  const resolveAddress = async (lat: number, lng: number) => {
+    try {
+      const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
+      if (!key) return;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const results = data?.results;
+      if (Array.isArray(results) && results.length > 0) {
+        const formatted = results[0]?.formatted_address || null;
+        if (formatted) setBusAddress(formatted);
+      }
+    } catch (e) {
+      // Non-fatal
+    }
+  };
+
+  const resolveSchoolCenter = async () => {
+    try {
+      const key = (Constants?.expoConfig?.extra as any)?.googleMapsApiKey || '';
+      if (!key) return;
+      // Try: use current school from header callback, else cached from storage
+      let addr: string | null = school?.address || null;
+      if (!addr) {
+        // Attempt to read last school data from AsyncStorage
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const lastId: any = (await AsyncStorage.getItem('@last_school_id'));
+        if (lastId) {
+          const raw = await AsyncStorage.getItem(`schoolData_${String(lastId)}`);
+          if (raw) {
+            try { const parsed = JSON.parse(raw); addr = parsed?.address || parsed?.schoolAddress || null; } catch {}
+          }
+        }
+      }
+      if (!addr) return;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${key}`;
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const first = Array.isArray(data?.results) ? data.results[0] : null;
+      const loc = first?.geometry?.location;
+      if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+        setSchoolCenter({ lat: loc.lat, lng: loc.lng });
+      }
+    } catch {}
   };
 
   const getBusName = (busId: string) => {
@@ -169,32 +314,122 @@ export default function ParentDashboard() {
   return (
     <View style={styles.container}>
       {/* School Header with Menu */}
-      <AppHeader onSchoolLoaded={setSchool} showBanner={false} />
-
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'children' && styles.activeTab]}
-          onPress={() => setActiveTab('children')}
-        >
-          <Text style={[styles.tabText, activeTab === 'children' && styles.activeTabText]}>
-            👨‍👩‍👧‍👦 Children
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'tracking' && styles.activeTab]}
-          onPress={() => setActiveTab('tracking')}
-        >
-          <Text style={[styles.tabText, activeTab === 'tracking' && styles.activeTabText]}>
-            🚍 Tracking
-          </Text>
-        </TouchableOpacity>
+      <View onLayout={(e: LayoutChangeEvent)=> setHeaderHeight(e.nativeEvent.layout.height)}>
+        <AppHeader onSchoolLoaded={setSchool} showBanner={false} />
       </View>
 
       <ScrollView 
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Full-width map occupying top area */}
+        {(() => {
+          // Determine center from available sources: direct lat/lng, live state, bus locations, then school center
+          let centerLat: number | null = busLat;
+          let centerLng: number | null = busLng;
+          if (centerLat === null || centerLng === null) {
+            if (live && typeof live.lat === 'number' && typeof live.lng === 'number') {
+              centerLat = live.lat; centerLng = live.lng;
+            } else {
+              const firstBusWithLoc = buses.find((b: Bus) => b.location && typeof b.location.lat === 'number' && typeof b.location.lng === 'number');
+              if (firstBusWithLoc) { centerLat = firstBusWithLoc.location!.lat; centerLng = firstBusWithLoc.location!.lng; }
+              else if (schoolCenter) { centerLat = schoolCenter.lat; centerLng = schoolCenter.lng; }
+            }
+          }
+          return centerLat !== null && centerLng !== null;
+        })() && (
+          <View style={styles.mapContainer}>
+            <View style={{ flexDirection:'row', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+              <Text style={styles.mapTitle}>Bus Location</Text>
+              {live ? (
+                <View style={{ flexDirection:'row', alignItems:'center' }}>
+                  <View style={{ backgroundColor: live.running ? '#4CAF50' : '#f44336', paddingHorizontal:8, paddingVertical:4, borderRadius:12, marginRight:8 }}>
+                    <Text style={{ color:'#fff', fontSize:11 }}>{live.running ? 'Running' : 'Stopped'}</Text>
+                  </View>
+                  {typeof live.lastPingAt === 'number' && (
+                    <Text style={{ fontSize:11, color:'#666' }}>Last ping: {new Date(live.lastPingAt).toLocaleTimeString()}</Text>
+                  )}
+                </View>
+              ) : (
+                <View style={{ backgroundColor:'#999', paddingHorizontal:8, paddingVertical:4, borderRadius:12 }}>
+                  <Text style={{ color:'#fff', fontSize:11 }}>No live data</Text>
+                </View>
+              )}
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <TouchableOpacity onPress={async ()=>{ await fetchLive(); await loadBuses(); }} style={{ backgroundColor: '#007BFF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 }}>
+                <Text style={{ color: '#fff', fontSize: 12 }}>Refresh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={()=> setAutoRefresh((v: boolean)=>!v)} style={{ paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Text style={{ color: '#007BFF', fontSize: 12 }}>{autoRefresh ? 'Auto Refresh: On' : 'Auto Refresh: Off'}</Text>
+              </TouchableOpacity>
+            </View>
+            {WebView ? (
+              <View style={{ height: MAP_FIXED_HEIGHT, borderRadius: 6, overflow: 'hidden' }}>
+                <WebView
+                  style={{ flex: 1 }}
+                  originWhitelist={["*"]}
+                  source={require('./map-template.html')}
+                  javaScriptEnabled
+                  cacheEnabled={false}
+                  injectedJavaScript={`(function(){
+                    try {
+                      window.__GOOGLE_MAPS_KEY = ${(Constants?.expoConfig?.extra as any)?.googleMapsApiKey ? `'${(Constants?.expoConfig?.extra as any)?.googleMapsApiKey}'` : "''"};
+                    } catch(e) { console.log('Failed to inject maps key', e); }
+                  })();`}
+                />
+              </View>
+            ) : (
+              <Image
+                style={[styles.mapImage, { height: MAP_FIXED_HEIGHT }]}
+                resizeMode="cover"
+                source={{ uri: 'https://via.placeholder.com/640x640?text=Map+Unavailable' }}
+              />
+            )}
+            {!live && (
+              <View style={{ marginTop: 6, alignSelf: 'flex-start', backgroundColor:'#00000088', paddingHorizontal:10, paddingVertical:6, borderRadius:12 }}>
+                <Text style={{ color:'#fff', fontSize:12, fontWeight:'600' }}>No live data yet</Text>
+              </View>
+            )}
+            <View style={{ marginTop: 6, backgroundColor:'#00000066', paddingHorizontal:10, paddingVertical:8, borderRadius:8 }}>
+              <Text style={{ color:'#fff', fontSize:11 }}>busId: {busIdForDebug(children)}</Text>
+              <Text style={{ color:'#fff', fontSize:11 }}>baseURL: {baseURL}</Text>
+              <Text style={{ color:'#fff', fontSize:11 }}>googleKey: {((Constants?.expoConfig?.extra as any)?.googleMapsApiKey ? 'set' : 'missing')}</Text>
+              {lastErrorMsg ? <Text style={{ color:'#fff', fontSize:11 }}>lastError: {lastErrorMsg}</Text> : null}
+              <Text style={{ color:'#fff', fontSize:11 }}>pollMs: {pollMs}</Text>
+              <Text style={{ color:'#fff', fontSize:11 }}>404s: {consecutive404s}</Text>
+            </View>
+            {busAddress && (
+              <Text style={styles.mapSubtitle}>
+                Last known location: {busAddress}
+              </Text>
+            )}
+            {/* Seed test location for quick debugging */}
+            <TouchableOpacity onPress={async ()=>{
+              try {
+                const busId = busIdForDebug(children);
+                if(!busId) return;
+                await api.post(`/api/bus/${busId}/live`, { lat: 13.0827, lng: 80.2707, running: true, timestamp: Date.now() });
+                await fetchLive();
+              } catch(e){ console.warn('Seed location failed'); }
+            }} style={{ alignSelf:'flex-start', marginTop:8, backgroundColor:'#4CAF50', paddingHorizontal:10, paddingVertical:6, borderRadius:6 }}>
+              <Text style={{ color:'#fff', fontSize:12 }}>Seed Test Location</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Tabs moved below the map */}
+        <View style={styles.tabContainer} onLayout={(e: LayoutChangeEvent)=> setTabsHeight(e.nativeEvent.layout.height)}>
+          <TouchableOpacity 
+            style={[styles.tab, styles.activeTab]}
+            onPress={() => setActiveTab('children')}
+          >
+            <Text style={[styles.tabText, styles.activeTabText]}>
+              👨‍👩‍👧‍👦 Children
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {/* Tracking tab removed; include bus info inside children cards */}
         {/* Your Children Tab */}
         {activeTab === 'children' && (
           <View style={styles.tabContent}>
@@ -203,13 +438,15 @@ export default function ParentDashboard() {
               <Text style={styles.emptyText}>No children found.</Text>
             ) : (
               <View>
-                {children.map((child) => {
+                 {children.map((child: any) => {
                   const stats = getAttendanceStats(child.id);
+                   const bus = buses.find((b: any)=> b.id === child.busId);
                   return (
                     <View key={child.id} style={styles.childCard}>
                       <Text style={styles.childName}>{child.name}</Text>
                       <Text style={styles.childDetails}>Class: {child.cls || '—'}</Text>
                       <Text style={styles.childDetails}>Bus: {getBusName(child.busId)}</Text>
+                      <Text style={styles.childDetails}>Driver: {bus?.driverName || '—'} {bus?.driverPhone ? `(📞 ${bus.driverPhone})` : ''}</Text>
                       <Text style={styles.childDetails}>Route: {getRouteName(child.routeId)}</Text>
                       <Text style={styles.childDetails}>Pickup: {child.pickupLocation || '—'}</Text>
                       
@@ -246,7 +483,7 @@ export default function ParentDashboard() {
               <Text style={styles.emptyText}>No buses found for your children.</Text>
             ) : (
               <View>
-                {buses.map((bus) => (
+                 {buses.map((bus: any) => (
                   <View key={bus.id} style={styles.busCard}>
                     <View style={styles.busHeader}>
                       <Text style={styles.busNumber}>🚌 {bus.number}</Text>
@@ -267,15 +504,7 @@ export default function ParentDashboard() {
           </View>
         )}
 
-        {/* School Info Box - Moved to bottom */}
-        {school && (
-          <View style={styles.schoolInfoBox}>
-            <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
-            {school.phone && (
-              <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
-            )}
-          </View>
-        )}
+        {/* Removed bottom school info box; address/phone shown in header */}
       </ScrollView>
     </View>
   );
@@ -286,18 +515,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  schoolInfoBox: {
+  mapContainer: {
     backgroundColor: '#fff',
-    padding: 12,
-    marginHorizontal: 16,
-    marginTop: 8,
+    padding: 8,
+    marginHorizontal: 12,
+    marginTop: 0,
     marginBottom: 8,
     borderRadius: 8,
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+  },
+  mapTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
+  mapImage: {
+    width: '100%',
+    borderRadius: 6,
+  },
+  schoolInfoBox: {
+    backgroundColor: '#fff',
+    padding: 8,
+    marginHorizontal: 12,
+    marginTop: 6,
+    marginBottom: 6,
+    borderRadius: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
   infoBoxText: {
     fontSize: 14,
@@ -335,6 +584,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    paddingVertical: 6,
   },
   tab: {
     flex: 1,
@@ -358,19 +608,34 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  liveBox: {
+    backgroundColor: '#fff',
+    padding: 8,
+    margin: 8,
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 1.5,
+    elevation: 1,
+  },
+  liveText: {
+    fontSize: 14,
+    color: '#333',
+  },
   tabContent: {
-    padding: 16,
+    padding: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   emptyText: {
     textAlign: 'center',
@@ -381,13 +646,13 @@ const styles = StyleSheet.create({
   childCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
   childName: {
     fontSize: 18,
@@ -402,8 +667,8 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
+    gap: 6,
+    marginTop: 8,
   },
   statBadge: {
     flex: 1,

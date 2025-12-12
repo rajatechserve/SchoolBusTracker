@@ -1,15 +1,42 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text, Alert } from 'react-native';
 import { TextInput as PaperTextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { useAuth } from '../../context/AuthContext';
 import api, { attachToken, request } from '../../services/api';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DriverLogin() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [schoolName, setSchoolName] = useState<string>('School Bus Tracker');
   const { loginLocal } = useAuth();
   const valid = /^\d{10}$/.test(phone.trim());
+
+  useEffect(() => {
+    const loadSchool = async () => {
+      try {
+        const raw = await AsyncStorage.getItem('auth');
+        const parsed = raw ? JSON.parse(raw) : null;
+        const schoolId = parsed?.user?.schoolId;
+        if (schoolId) {
+          const cached = await AsyncStorage.getItem(`schoolData_${schoolId}`);
+          if (cached) {
+            const school = JSON.parse(cached);
+            const name = school?.name || school?.schoolName;
+            if (name) setSchoolName(name);
+            return;
+          }
+          const resp = await request({ method: 'get', url: `/public/schools/${schoolId}` });
+          const name = resp.data?.name || resp.data?.schoolName;
+          if (name) setSchoolName(name);
+        }
+      } catch {
+        // ignore and keep default
+      }
+    };
+    loadSchool();
+  }, []);
 
   const submit = async () => {
     if (!valid || loading) return;
@@ -35,6 +62,9 @@ export default function DriverLogin() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{schoolName}</Text>
+      </View>
       <Text style={styles.title}>Driver Login</Text>
       <Text style={styles.subtitle}>Enter your registered mobile number</Text>
       <PaperTextInput 
@@ -57,9 +87,21 @@ export default function DriverLogin() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 8,
     backgroundColor: '#f5f5f5',
+  },
+  header: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#222',
   },
   title: {
     fontSize: 28,

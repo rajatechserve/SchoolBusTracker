@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import NetInfo from '@react-native-community/netinfo';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import * as Network from 'expo-network';
 
 type NetworkContextType = {
   isConnected: boolean;
@@ -19,12 +19,23 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const [lastChangeAt, setLastChangeAt] = useState<number | null>(null);
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const connected = !!(state.isConnected && state.isInternetReachable !== false);
-      setIsConnected(connected);
-      setLastChangeAt(Date.now());
-    });
-    return () => unsubscribe();
+    let alive = true;
+    const check = async () => {
+      try {
+        const state = await Network.getNetworkStateAsync();
+        if (!alive) return;
+        const connected = !!(state.isConnected && state.isInternetReachable !== false);
+        setIsConnected(connected);
+        setLastChangeAt(Date.now());
+      } catch {
+        if (!alive) return;
+        setIsConnected(false);
+        setLastChangeAt(Date.now());
+      }
+    };
+    check();
+    const t = setInterval(check, 5000);
+    return () => { alive = false; clearInterval(t); };
   }, []);
 
   return (
@@ -32,4 +43,10 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       {children}
     </NetworkContext.Provider>
   );
+}
+
+// Expo Router treats any file under `app/` as a route. Provide a noop default
+// export to satisfy the router while still using named context exports.
+export default function NetworkContextRoute() {
+  return null;
 }

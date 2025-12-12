@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import api, { request } from '../../services/api';
 import AppHeader from '../../components/AppHeader';
+import * as Location from 'expo-location';
 
 interface Student {
   id: string;
@@ -59,7 +60,7 @@ interface School {
 
 export default function DriverDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'attendance' | 'locations'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance'>('attendance');
   const [students, setStudents] = useState<Student[]>([]);
   const [school, setSchool] = useState<School | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -68,6 +69,10 @@ export default function DriverDashboard() {
   const [todayAttendance, setTodayAttendance] = useState<Attendance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [tripRunning, setTripRunning] = useState(false);
+  const [tripDirection, setTripDirection] = useState<'morning'|'evening'>('morning');
+  const locationTimer = useRef<NodeJS.Timer | null>(null);
+  const [lastPing, setLastPing] = useState<number | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [locationForm, setLocationForm] = useState({ 
     pickupLat: '', 
@@ -132,6 +137,74 @@ export default function DriverDashboard() {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const startPostingLocation = async (busId: string) => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location', 'Permission denied');
+        return;
+      }
+      if (locationTimer.current) clearInterval(locationTimer.current as any);
+      locationTimer.current = setInterval(async () => {
+        try {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setLastPing(Date.now());
+          // Update server live location for admin/parent maps
+          await request({ method: 'post', url: `/bus/${busId}/live`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude, running: true, timestamp: Date.now() } });
+        } catch (e: any) {
+          console.warn('Location post failed:', e.message);
+        }
+      }, 5000);
+    } catch (e) {
+      console.warn('Failed to start location timer', e);
+    }
+  };
+
+  const stopPostingLocation = () => {
+    if (locationTimer.current) {
+      clearInterval(locationTimer.current as any);
+      locationTimer.current = null;
+    }
+  };
+
+  const startTrip = async () => {
+    try {
+      const busId = assignments[0]?.busId || buses[0]?.id;
+      if (!busId) return Alert.alert('Trip', 'No bus assigned');
+      const res = await request({ method: 'post', url: '/trips/start', data: { busId, direction: tripDirection } });
+      // Post strip start with current location
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        await request({ method: 'post', url: `/bus/${busId}/strip`, data: { type: tripDirection, action: 'start', lat: loc.coords.latitude, lng: loc.coords.longitude, timestamp: Date.now(), driverId: user?.id, schoolId: user?.schoolId } });
+        await request({ method: 'post', url: `/bus/${busId}/live`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude, running: true, timestamp: Date.now() } });
+      } catch {}
+      setTripRunning(true);
+      await startPostingLocation(busId);
+      Alert.alert('Trip', `Started (${tripDirection})`);
+    } catch (e: any) {
+      Alert.alert('Trip', e?.response?.data?.error || 'Failed to start trip');
+    }
+  };
+
+  const stopTrip = async () => {
+    try {
+      const busId = assignments[0]?.busId || buses[0]?.id;
+      if (!busId) return Alert.alert('Trip', 'No bus assigned');
+      const res = await request({ method: 'post', url: '/trips/stop', data: { busId } });
+      // Post strip stop with current location
+      try {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        await request({ method: 'post', url: `/bus/${busId}/strip`, data: { type: tripDirection, action: 'stop', lat: loc.coords.latitude, lng: loc.coords.longitude, timestamp: Date.now(), driverId: user?.id, schoolId: user?.schoolId } });
+        await request({ method: 'post', url: `/bus/${busId}/live`, data: { lat: loc.coords.latitude, lng: loc.coords.longitude, running: false, timestamp: Date.now() } });
+      } catch {}
+      setTripRunning(false);
+      stopPostingLocation();
+      Alert.alert('Trip', 'Stopped');
+    } catch (e: any) {
+      Alert.alert('Trip', e?.response?.data?.error || 'Failed to stop trip');
+    }
   };
 
   const markAttendance = async (studentId: string, status: 'present' | 'absent') => {
@@ -215,19 +288,11 @@ export default function DriverDashboard() {
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity 
-          style={[styles.tab, activeTab === 'attendance' && styles.activeTab]}
+          style={[styles.tab, styles.activeTab]}
           onPress={() => setActiveTab('attendance')}
         >
-          <Text style={[styles.tabText, activeTab === 'attendance' && styles.activeTabText]}>
-            📝 Attendance
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'locations' && styles.activeTab]}
-          onPress={() => setActiveTab('locations')}
-        >
-          <Text style={[styles.tabText, activeTab === 'locations' && styles.activeTabText]}>
-            📍 Locations
+          <Text style={[styles.tabText, styles.activeTabText]}>
+            🧾 Pickup/Dropped
           </Text>
         </TouchableOpacity>
       </View>
@@ -236,11 +301,58 @@ export default function DriverDashboard() {
         style={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Trip Controls */}
+        <View style={styles.tripControls}>
+          <View style={styles.tripRow}>
+            <TouchableOpacity style={[styles.directionBtn, tripDirection==='morning' && styles.directionActive]} onPress={()=>setTripDirection('morning')}>
+              <Text style={styles.directionText}>🌅 Morning</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.directionBtn, tripDirection==='evening' && styles.directionActive]} onPress={()=>setTripDirection('evening')}>
+              <Text style={styles.directionText}>🌇 Evening</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.tripRow}>
+            {!tripRunning ? (
+              <TouchableOpacity style={styles.startBtn} onPress={startTrip}>
+                <Text style={styles.buttonText}>▶ Start Trip</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.stopBtn} onPress={stopTrip}>
+                <Text style={styles.buttonText}>⏹ Stop Trip</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.lastPingText}>Last GPS ping: {lastPing ? new Date(lastPing).toLocaleTimeString() : '—'}</Text>
+          {tripRunning && (
+            <View style={styles.tripRow}>
+              <TouchableOpacity style={styles.arriveBtn} onPress={async ()=>{
+                try {
+                  const busId = assignments[0]?.busId || buses[0]?.id;
+                  if (!busId) return Alert.alert('Trip','No bus');
+                  await request({ method:'post', url:`/trips/${busId}/arrive-stop`, data:{ advance:false } });
+                  Alert.alert('Stop','Arrived at stop');
+                } catch(e:any){ Alert.alert('Stop', e?.response?.data?.error || e.message); }
+              }}>
+                <Text style={styles.buttonText}>🛑 Arrived</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.advanceBtn} onPress={async ()=>{
+                try {
+                  const busId = assignments[0]?.busId || buses[0]?.id;
+                  if (!busId) return Alert.alert('Trip','No bus');
+                  await request({ method:'post', url:`/trips/${busId}/arrive-stop`, data:{ advance:true } });
+                  Alert.alert('Stop','Advanced to next stop');
+                } catch(e:any){ Alert.alert('Stop', e?.response?.data?.error || e.message); }
+              }}>
+                <Text style={styles.buttonText}>➡ Next Stop</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
         {/* Today's Attendance Tab */}
         {activeTab === 'attendance' && (
           <View style={styles.tabContent}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Student Attendance - {new Date().toLocaleDateString()}</Text>
+              <Text style={styles.sectionTitle}>Student Pickup/Dropped - {new Date().toLocaleDateString()}</Text>
               <TouchableOpacity onPress={loadTodayAttendance} style={styles.refreshButton}>
                 <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
               </TouchableOpacity>
@@ -263,11 +375,11 @@ export default function DriverDashboard() {
                       <View style={styles.attendanceButtons}>
                         {status === 'present' ? (
                           <View style={styles.statusBadgePresent}>
-                            <Text style={styles.statusText}>✓ Present</Text>
+                            <Text style={styles.statusText}>✓ Pickup</Text>
                           </View>
                         ) : status === 'absent' ? (
                           <View style={styles.statusBadgeAbsent}>
-                            <Text style={styles.statusText}>✗ Absent</Text>
+                            <Text style={styles.statusText}>✗ Dropped</Text>
                           </View>
                         ) : (
                           <>
@@ -275,14 +387,29 @@ export default function DriverDashboard() {
                               style={styles.presentButton}
                               onPress={() => markAttendance(student.id, 'present')}
                             >
-                              <Text style={styles.buttonText}>✓ Present</Text>
+                              <Text style={styles.buttonText}>✓ Pickup</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
                               style={styles.absentButton}
                               onPress={() => markAttendance(student.id, 'absent')}
                             >
-                              <Text style={styles.buttonText}>✗ Absent</Text>
+                              <Text style={styles.buttonText}>✗ Dropped</Text>
                             </TouchableOpacity>
+                            {tripRunning && (
+                              <TouchableOpacity 
+                                style={styles.dropButton}
+                                onPress={async ()=>{
+                                  try {
+                                    const busId = assignments[0]?.busId || buses[0]?.id;
+                                    if (!busId) return Alert.alert('Trip','No bus');
+                                    await request({ method:'post', url:`/trips/${busId}/drop-student`, data:{ studentId: student.id } });
+                                    Alert.alert('Dropped', `${student.name} marked dropped`);
+                                  } catch(e:any){ Alert.alert('Dropped', e?.response?.data?.error || e.message); }
+                                }}
+                              >
+                                <Text style={styles.buttonText}>🚪 Dropped</Text>
+                              </TouchableOpacity>
+                            )}
                           </>
                         )}
                       </View>
@@ -292,8 +419,8 @@ export default function DriverDashboard() {
                 <View style={styles.summary}>
                   <Text style={styles.summaryText}>
                     <Text style={styles.summaryBold}>Summary: </Text>
-                    {todayAttendance.filter(a => a.status === 'present').length} Present • 
-                    {todayAttendance.filter(a => a.status === 'absent').length} Absent • 
+                    {todayAttendance.filter(a => a.status === 'present').length} Pickup • 
+                    {todayAttendance.filter(a => a.status === 'absent').length} Dropped • 
                     {students.length - todayAttendance.length} Pending
                   </Text>
                 </View>
@@ -302,118 +429,10 @@ export default function DriverDashboard() {
           </View>
         )}
 
-        {/* Student Locations Tab */}
-        {activeTab === 'locations' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>Student Pick/Drop Locations</Text>
-            <Text style={styles.sectionSubtitle}>
-              Set pickup and drop-off locations for each student. These locations will be visible to parents.
-            </Text>
-
-            {editingStudent && (
-              <View style={styles.editForm}>
-                <Text style={styles.editFormTitle}>Editing: {editingStudent.name}</Text>
-                
-                <Text style={styles.inputLabel}>Pickup Location</Text>
-                <View style={styles.locationInputRow}>
-                  <TextInput
-                    placeholder="Latitude"
-                    value={locationForm.pickupLat}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, pickupLat: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    placeholder="Longitude"
-                    value={locationForm.pickupLng}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, pickupLng: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <Text style={styles.inputLabel}>Drop-off Location</Text>
-                <View style={styles.locationInputRow}>
-                  <TextInput
-                    placeholder="Latitude"
-                    value={locationForm.dropLat}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, dropLat: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    placeholder="Longitude"
-                    value={locationForm.dropLng}
-                    onChangeText={(text) => setLocationForm({ ...locationForm, dropLng: text })}
-                    style={[styles.input, styles.locationInput]}
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <View style={styles.editFormButtons}>
-                  <TouchableOpacity style={styles.saveButton} onPress={saveLocation}>
-                    <Text style={styles.buttonText}>💾 Save</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.cancelButton} 
-                    onPress={() => {
-                      setEditingStudent(null);
-                      setLocationForm({ pickupLat: '', pickupLng: '', dropLat: '', dropLng: '' });
-                    }}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {students.length === 0 ? (
-              <Text style={styles.emptyText}>No students found.</Text>
-            ) : (
-              <View>
-                {students.map((student) => (
-                  <View key={student.id} style={styles.locationCard}>
-                    <View style={styles.locationInfo}>
-                      <Text style={styles.studentName}>{student.name}</Text>
-                      <Text style={styles.studentDetails}>
-                        Class: {student.cls || '—'} | Bus: {getBusName(student.busId)}
-                      </Text>
-                      <Text style={styles.locationStatus}>
-                        {student.pickupLat && student.pickupLng ? (
-                          <Text style={styles.locationSet}>✓ Pickup: ({student.pickupLat}, {student.pickupLng})</Text>
-                        ) : (
-                          <Text style={styles.locationMissing}>⚠ No pickup location</Text>
-                        )}
-                        {'\n'}
-                        {student.dropLat && student.dropLng ? (
-                          <Text style={styles.locationSet}>✓ Drop: ({student.dropLat}, {student.dropLng})</Text>
-                        ) : (
-                          <Text style={styles.locationMissing}>⚠ No drop location</Text>
-                        )}
-                      </Text>
-                    </View>
-                    <TouchableOpacity 
-                      style={styles.setLocationButton}
-                      onPress={() => editLocation(student)}
-                    >
-                      <Text style={styles.buttonText}>📍 Set</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
+        {/* Locations tab removed as per requirement */}
 
         {/* School Info Box - Moved to bottom */}
-        {school && (
-          <View style={styles.schoolInfoBox}>
-            <Text style={styles.infoBoxText}>📍 {school.address || 'No address available'}</Text>
-            {school.phone && (
-              <Text style={styles.infoBoxText}>📞 {school.phone}</Text>
-            )}
-          </View>
-        )}
+        {/* Removed bottom school info box; header shows address/phone */}
       </ScrollView>
     </View>
   );
@@ -474,6 +493,66 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
+  tripControls: {
+    backgroundColor: '#fff',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  tripRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  directionBtn: {
+    flex: 1,
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  directionActive: {
+    backgroundColor: '#cfe8ff',
+    borderWidth: 1,
+    borderColor: '#007BFF',
+  },
+  directionText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  startBtn: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  stopBtn: {
+    flex: 1,
+    backgroundColor: '#f44336',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  arriveBtn: {
+    flex: 1,
+    backgroundColor: '#FF9800',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  advanceBtn: {
+    flex: 1,
+    backgroundColor: '#9C27B0',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  lastPingText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
   tab: {
     flex: 1,
     paddingVertical: 12,
@@ -497,24 +576,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabContent: {
-    padding: 16,
+    padding: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   refreshButton: {
     padding: 8,
@@ -528,13 +607,13 @@ const styles = StyleSheet.create({
   studentCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 1.5,
+    elevation: 1,
   },
   studentInfo: {
     marginBottom: 12,
@@ -543,7 +622,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   studentDetails: {
     fontSize: 12,
@@ -551,7 +630,7 @@ const styles = StyleSheet.create({
   },
   attendanceButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   presentButton: {
     flex: 1,
@@ -563,6 +642,13 @@ const styles = StyleSheet.create({
   absentButton: {
     flex: 1,
     backgroundColor: '#f44336',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  dropButton: {
+    flex: 1,
+    backgroundColor: '#3F51B5',
     paddingVertical: 10,
     borderRadius: 6,
     alignItems: 'center',
@@ -593,9 +679,9 @@ const styles = StyleSheet.create({
   },
   summary: {
     backgroundColor: '#e3f2fd',
-    padding: 12,
+    padding: 10,
     borderRadius: 6,
-    marginTop: 8,
+    marginTop: 6,
   },
   summaryText: {
     fontSize: 14,

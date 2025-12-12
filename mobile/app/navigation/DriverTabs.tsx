@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from 'react-native-paper';
 import DriverDashboard from '../screens/Driver/DriverDashboard';
-import LocationShare from '../screens/Driver/LocationShare';
+import DriverMap from '../screens/Driver/Map';
 import Profile from '../screens/Common/Profile';
 import DriverAssignments from '../screens/Driver/Assignments';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -21,6 +21,8 @@ export default function DriverTabs() {
     <Tab.Navigator
       initialRouteName="Home"
       screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: true,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.onSurface,
         tabBarStyle: { backgroundColor: theme.colors.surface },
@@ -36,12 +38,12 @@ export default function DriverTabs() {
         }}
       />
       <Tab.Screen
-        name="Share"
-        component={LocationShare}
+        name="Map"
+        component={DriverMap}
         options={{
-          title: 'Share Location',
+          title: 'Map',
           tabBarIcon: ({ color, size }: TabBarIconProps) => (
-            <MaterialIcons name="my-location" size={size} color={color} />
+            <MaterialIcons name="map" size={size} color={color} />
           ),
         }}
       />
@@ -49,6 +51,7 @@ export default function DriverTabs() {
         name="Assignments"
         component={DriverAssignments}
         options={{
+          title: 'Assign',
           tabBarIcon: ({ color, size }: TabBarIconProps) => (
             <MaterialIcons name="assignment" size={size} color={color} />
           ),

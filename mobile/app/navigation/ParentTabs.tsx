@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import ParentDashboard from '../screens/Parent/ParentDashboard';
-import TrackBus from '../screens/Parent/TrackBus';
+import ParentMap from '../screens/Parent/Map';
 import Profile from '../screens/Common/Profile';
 import Assignments from '../screens/Parent/Assignments';
 import AttendanceScreen from '../screens/Parent/Attendance';
@@ -15,42 +15,37 @@ export default function ParentTabs() {
       initialRouteName="Home"
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: true,
       }}
     >
       <Tab.Screen
         name="Home"
         component={ParentDashboard}
         options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="home" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="home" size={size} color={color} />,
         }}
       />
       <Tab.Screen
-        name="Track"
-        component={TrackBus}
+        name="Map"
+        component={ParentMap}
         options={{
-          title: 'Track Bus',
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="directions-bus" size={size} color={color} />,
+          title: 'Map',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="map" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Assignments"
         component={Assignments}
         options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="assignment" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Attendance"
-        component={AttendanceScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="fact-check" size={size} color={color} />,
+          title: 'Assign',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="assignment" size={size} color={color} />,
         }}
       />
       <Tab.Screen
         name="Profile"
         component={Profile}
         options={{
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="person" size={size} color={color} />,
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => <MaterialIcons name="person" size={size} color={color} />,
         }}
       />
     </Tab.Navigator>

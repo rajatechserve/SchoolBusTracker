@@ -2,7 +2,8 @@ import axios, { type AxiosResponse, type AxiosError, type AxiosRequestConfig } f
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
+import * as Network from 'expo-network';
+import { initStorage, setCache, getCache } from './storage';
 // Defer type import to avoid RN type requirement in web tooling
 // Avoid TS type resolution issues in Expo environment
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -161,16 +162,27 @@ async function flushQueue() {
   }
 }
 
-NetInfo.addEventListener((state: any) => {
-  const connected = !!(state.isConnected && state.isInternetReachable !== false);
-  if (connected) flushQueue();
-});
+// Simple network watcher using expo-network to flush offline queue when back online
+let networkWatcherStarted = false;
+async function startNetworkWatcher() {
+  if (networkWatcherStarted) return;
+  networkWatcherStarted = true;
+  // poll every 10s; expo-network has no event listener
+  setInterval(async () => {
+    try {
+      const netType = await Network.getNetworkStateAsync();
+      const connected = !!(netType.isConnected && netType.isInternetReachable !== false);
+      if (connected) flushQueue();
+    } catch {}
+  }, 10000);
+}
+startNetworkWatcher();
 
 export async function request(config: AxiosRequestConfig) {
   const method = (config.method || 'get').toLowerCase();
   const isMutation = method !== 'get';
-  const net = await NetInfo.fetch();
-  const connected = !!(net.isConnected && net.isInternetReachable !== false);
+  const netType = await Network.getNetworkStateAsync();
+  const connected = !!(netType.isConnected && netType.isInternetReachable !== false);
   if (!connected && isMutation) {
     await enqueueRequest({ ...config });
     return Promise.resolve({ data: { offline: true }, status: 202, statusText: 'Accepted (offline)', headers: {}, config } as AxiosResponse);
@@ -180,8 +192,35 @@ export async function request(config: AxiosRequestConfig) {
   pendingControllers.add(controller);
   const finalConfig: AxiosRequestConfig = { ...config, signal: controller.signal };
   try {
-    const resp = await api.request(finalConfig);
-    return resp;
+    // For GET requests, attempt cache read when offline, write when online
+    if (!isMutation) {
+      // Ensure storage initialized
+      initStorage();
+      // Read schoolId from persisted auth (set at first login)
+      let schoolId: string | undefined;
+      try {
+        const raw = await AsyncStorage.getItem('auth');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          schoolId = parsed?.user?.schoolId as string | undefined;
+        }
+      } catch {}
+      const cacheKey = `${finalConfig.url || ''}|${JSON.stringify(finalConfig.params || {})}`;
+      if (!connected && schoolId) {
+        const cached = await getCache(schoolId, cacheKey);
+        if (cached.value !== null) {
+          return { data: cached.value, status: 200, statusText: 'OK (cached)', headers: {}, config: finalConfig } as AxiosResponse;
+        }
+      }
+      const resp = await api.request(finalConfig);
+      if (schoolId) {
+        try { await setCache(schoolId, cacheKey, resp.data); } catch {}
+      }
+      return resp;
+    } else {
+      const resp = await api.request(finalConfig);
+      return resp;
+    }
   } finally {
     pendingControllers.delete(controller);
   }

@@ -5,6 +5,8 @@ import 'react-native-reanimated';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme, MD3DarkTheme as PaperDarkTheme } from 'react-native-paper';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native-paper';
+import { initStorage } from './services/storage';
+import { request } from './services/api';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NetworkProvider } from './context/NetworkContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,22 +64,45 @@ export const unstable_settings = {
 
 function InnerLayout() {
   const systemScheme = useColorScheme();
-  const [pref, setPref] = useState<'light' | 'dark' | 'system'>('system');
+  const [pref, setPref] = useState<'light' | 'dark' | 'system'>('light');
   const [themeReady, setThemeReady] = useState(false);
   useEffect(() => {
     (async () => {
       try {
-        const saved = await AsyncStorage.getItem('@app_theme');
-        if (saved === 'light' || saved === 'dark' || saved === 'system') setPref(saved);
+        // Force light theme regardless of saved/system preferences
+        await AsyncStorage.setItem('@app_theme', 'light');
+        setPref('light');
       } catch {}
+      // Initialize SQLite storage early
+      try { initStorage(); } catch {}
+      // Do not prefetch by env; wait for authenticated schoolId
       setThemeReady(true);
     })();
   }, []);
-  const effectiveScheme = pref === 'system' ? systemScheme : pref;
+  const effectiveScheme = 'light';
   const { navTheme, paperTheme } = useThemes(effectiveScheme);
   const segments = useSegments();
   const router = useRouter();
   const { user, hydrated } = useAuth();
+  // After auth, prefetch role-specific essentials
+  useEffect(() => {
+    (async () => {
+      const sid = user?.schoolId;
+      if (!sid) return;
+      try {
+        if (user?.role === 'parent') {
+          // Prefetch assignments or child roster if available
+          try { await request({ method: 'get', url: `/assignments`, params: { schoolId: sid } }); } catch {}
+          // Prefetch live bus snapshot for parent dashboard (public route)
+          // if busId is known we could use it; else prefetch recent live endpoint by school
+        } else if (user?.role === 'driver') {
+          // Prefetch driver-specific route and stops
+          try { await request({ method: 'get', url: `/driver/routes`, params: { schoolId: sid } }); } catch {}
+          try { await request({ method: 'get', url: `/driver/stops`, params: { schoolId: sid } }); } catch {}
+        }
+      } catch {}
+    })();
+  }, [user?.role, user?.schoolId]);
 
   // Route guard: ensure unauthenticated users land on /login, authenticated go to tabs.
   useEffect(() => {
